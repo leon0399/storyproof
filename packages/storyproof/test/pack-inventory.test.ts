@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { describe, expect, test } from "vitest";
+import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
 const packageRoot = fileURLToPath(new URL("../", import.meta.url));
 
@@ -36,78 +36,78 @@ function parseTrailingJson(stdout: string): PnpmPackResult {
   return JSON.parse(stdout.slice(jsonStart + 1)) as PnpmPackResult;
 }
 
-describe("packed tarball inventory", () => {
-  test("ships exactly dist/**, LICENSE, README.md, and package.json within the size budget", async () => {
-    const destination = await mkdtemp(path.join(tmpdir(), "storyproof-pack-"));
-    try {
-      const packed = spawnSync(
-        "pnpm",
-        ["pack", "--json", "--pack-destination", destination],
-        { cwd: packageRoot, encoding: "utf8" },
-      );
-      expect(packed.status, packed.stderr || packed.stdout).toBe(0);
+describe("packed artifact", () => {
+  let destination: string;
+  let result: PnpmPackResult;
 
-      const result = parseTrailingJson(packed.stdout);
-      const paths = result.files.map((file) => file.path).sort();
-
-      const disallowed = paths.filter(
-        (entryPath) =>
-          entryPath !== "LICENSE" &&
-          entryPath !== "README.md" &&
-          entryPath !== "package.json" &&
-          !entryPath.startsWith("dist/"),
-      );
-      expect(disallowed, "unallowlisted packed entries").toEqual([]);
-
-      // The hashed shared-chunk filenames tsdown emits (e.g.
-      // `dist/constants-DA4oGclz.js`) change with build content, so this
-      // checks the stable, publicly-relied-upon entries rather than an
-      // exact full-list snapshot.
-      expect(paths).toEqual(
-        expect.arrayContaining([
-          "LICENSE",
-          "README.md",
-          "package.json",
-          "dist/index.js",
-          "dist/index.d.ts",
-          "dist/manager.js",
-          "dist/manager.d.ts",
-          "dist/preset.js",
-          "dist/preset.d.ts",
-          "dist/preview.js",
-          "dist/preview.d.ts",
-        ]),
-      );
-
-      const { size } = await stat(result.filename);
-      expect(size).toBeGreaterThan(0);
-      expect(size).toBeLessThan(MAX_PACKED_ARCHIVE_SIZE_BYTES);
-    } finally {
-      await rm(destination, { recursive: true, force: true });
-    }
+  // One pack for the whole file, shared by both tests below: `pnpm pack`
+  // always reruns `build` via `prepack` first, so this is also what leaves
+  // a fresh dist/preset.js on disk for the "compiled preset entry
+  // resolution" test -- no second build needed.
+  beforeAll(async () => {
+    destination = await mkdtemp(path.join(tmpdir(), "storyproof-pack-"));
+    const packed = spawnSync(
+      "pnpm",
+      ["pack", "--json", "--pack-destination", destination],
+      { cwd: packageRoot, encoding: "utf8" },
+    );
+    expect(packed.status, packed.stderr || packed.stdout).toBe(0);
+    result = parseTrailingJson(packed.stdout);
   });
-});
 
-describe("compiled preset entry resolution", () => {
+  afterAll(async () => {
+    await rm(destination, { recursive: true, force: true });
+  });
+
+  test("ships exactly dist/**, LICENSE, README.md, and package.json within the size budget", async () => {
+    const paths = result.files.map((file) => file.path).sort();
+
+    const disallowed = paths.filter(
+      (entryPath) =>
+        entryPath !== "LICENSE" &&
+        entryPath !== "README.md" &&
+        entryPath !== "package.json" &&
+        !entryPath.startsWith("dist/"),
+    );
+    expect(disallowed, "unallowlisted packed entries").toEqual([]);
+
+    // The hashed shared-chunk filenames tsdown emits (e.g.
+    // `dist/constants-DA4oGclz.js`) change with build content, so this
+    // checks the stable, publicly-relied-upon entries rather than an
+    // exact full-list snapshot.
+    expect(paths).toEqual(
+      expect.arrayContaining([
+        "LICENSE",
+        "README.md",
+        "package.json",
+        "dist/index.js",
+        "dist/index.d.ts",
+        "dist/manager.js",
+        "dist/manager.d.ts",
+        "dist/preset.js",
+        "dist/preset.d.ts",
+        "dist/preview.js",
+        "dist/preview.d.ts",
+      ]),
+    );
+
+    const { size } = await stat(result.filename);
+    expect(size).toBeGreaterThan(0);
+    expect(size).toBeLessThan(MAX_PACKED_ARCHIVE_SIZE_BYTES);
+  });
+
   // Runtime coverage for preset.ts's compiled/source directory detection
   // (`path.basename(directory) === "dist"`): nothing else in this suite
   // exercises that branch, since test/server.test.ts imports src/preset.ts
   // directly and only ever runs the source-mode branch.
   //
-  // `pnpm pack` above already proves dist/manager.js and dist/preview.js
-  // ship in the tarball; preset.ts resolves both entries purely from its own
-  // `import.meta.url` (see src/preset.ts), never through node_modules
-  // resolution, so importing the built dist/preset.js directly -- no
-  // install, no isolated consumer project -- exercises the identical code
-  // path a real installed consumer hits, for the cost of an import instead
-  // of a network-dependent package-manager install.
+  // preset.ts resolves both entries purely from its own `import.meta.url`
+  // (see src/preset.ts), never through node_modules resolution, so
+  // importing the dist/preset.js the beforeAll pack above already produced
+  // exercises the identical code path a real installed consumer hits, with
+  // no separate build and no package install. Genuine node_modules
+  // resolution against a real installed package is Task 8's concern.
   test("resolves manager and preview entries to real, existing built files", async () => {
-    const built = spawnSync("pnpm", ["build"], {
-      cwd: packageRoot,
-      encoding: "utf8",
-    });
-    expect(built.status, built.stderr || built.stdout).toBe(0);
-
     const presetPath = path.join(packageRoot, "dist", "preset.js");
     const preset = (await import(pathToFileURL(presetPath).href)) as {
       managerEntries: (existing?: string[]) => Promise<string[]>;

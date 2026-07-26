@@ -85,14 +85,17 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter storyproof test
 
-  # Pack the archive once and upload it. `pnpm pack` always reruns `build`
-  # first via the `prepack` lifecycle script (so a stale build can never be
-  # packed), and `build` itself runs publint + attw as build-time gates
-  # (configured in tsdown.config.ts) -- so packing alone proves build,
-  # publint, and attw all pass, with no separate build step needed. Test
-  # coverage (including the tarball-inventory snapshot,
-  # test/pack-inventory.test.ts) is the `test` job's job, not this one's --
-  # this job does not run the suite.
+  # Pack the archive. `pnpm pack` always reruns `build` first via the
+  # `prepack` lifecycle script (so a stale build can never be packed), and
+  # `build` itself runs publint + attw as build-time gates (configured in
+  # tsdown.config.ts) -- so packing alone proves build, publint, and attw
+  # all pass, with no separate build step needed. Test coverage (including
+  # the tarball-inventory snapshot, test/pack-inventory.test.ts) is the
+  # `test` job's job, not this one's -- this job does not run the suite. No
+  # artifact upload: nothing in this workflow consumes the packed tarball
+  # yet -- release plan Task 8's packed-consumer harness will produce its
+  # own when it lands, rather than this job building ahead of a consumer
+  # that doesn't exist.
   package:
     name: package
     runs-on: ubuntu-latest
@@ -107,16 +110,8 @@ jobs:
           node-version-file: ".node-version"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: mkdir -p /tmp/storyproof-ci
-      - run: pnpm --filter storyproof pack --pack-destination /tmp/storyproof-ci
-      - run: mv /tmp/storyproof-ci/storyproof-*.tgz /tmp/storyproof-ci/package.tgz
+      - run: pnpm --filter storyproof pack --out /tmp/storyproof-ci/package.tgz
       - run: git diff --exit-code
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: package-tgz
-          path: /tmp/storyproof-ci/package.tgz
-          if-no-files-found: error
-          retention-days: 7
 
   visual:
     name: visual smoke (Node ${{ matrix.node }})
