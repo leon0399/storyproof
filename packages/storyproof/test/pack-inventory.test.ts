@@ -160,5 +160,5 @@ describe("packed tarball inventory", () => {
     } finally {
       await rm(destination, { recursive: true, force: true });
     }
-  });
+  }, 60_000); // pack (full build) + two real pnpm installs, including playwright
 });
