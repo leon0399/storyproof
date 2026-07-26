@@ -513,6 +513,42 @@ the controlled archive and Task 5's acceptance specification.
   git commit -m "build(storybook-addon): emit public package artifacts"
   ```
 
+**Deviation (2026-07-26):** by owner decision, the bespoke
+`scripts/build.mjs` (a `tsc -p tsconfig.build.json` wrapper) was replaced
+with **tsdown**, configured in `tsdown.config.ts`, with **publint** and
+**attw** (`@arethetypeswrong/core`, `profile: "esm-only"`) run as build-time
+gates instead of the separate `test:exports` isolated-consumer script. The
+guarantee this task shipped is unchanged — compiled ESM and declarations at
+exactly `dist/index.js`, `dist/manager.js`, `dist/preset.js`, `dist/preview.js`
+and their `.d.ts` siblings, with `preset.ts`'s compiled-vs-source directory
+detection intact — only the mechanism producing and verifying it changed.
+attw replaces the _static_ half of `test:exports`'s isolated-project
+resolution check — type/exports-map resolution across module systems —
+but attw never imports or executes the package. The _runtime_ half
+(`import()`ing the `/preset` entry and asserting
+`managerEntries()`/`previewAnnotations()` resolve to real `dist/manager.js`
+and `dist/preview.js` at runtime) is covered by
+`test/pack-inventory.test.ts` (Task 7), which imports the built
+`dist/preset.js` directly after `pnpm build` — not through an isolated
+consumer install: `preset.ts` resolves both entries purely from its own
+`import.meta.url`, never through `node_modules` resolution, so a real
+package-manager install (and the network/`playwright`-download cost that
+comes with it) proves nothing a direct import doesn't already prove for this
+specific code path. Genuine `node_modules`-resolution and end-to-end
+behavior against an installed package is Task 8's concern, not a packaging
+unit test's. This also moved TypeScript to
+**7.0.2** (exact) as the sole `typescript` devDependency, replacing
+`@typescript/native-preview`, with `isolatedDeclarations` scoped to
+`tsconfig.build.json` (the build surface only, so tsdown's `.d.ts` generation
+takes the oxc-transform backend — TypeScript 7.0 ships no programmatic
+compiler API, so tsdown's TS-compiler fallback path is unusable until 7.1;
+the documented escape hatch, if oxc's isolatedDeclarations proves
+insufficient for some future file, is aliasing `typescript` to
+`npm:@typescript/typescript6` — the highest published compatible version at
+this writing is `6.0.2`, not `6.0.3`). `typecheck` is now plain
+`tsc --noEmit` (dropping the `tsgo` binary name, which TypeScript 7 no
+longer ships under).
+
 ### Task 7: Control and inspect the npm tarball
 
 **Files:**
@@ -631,6 +667,53 @@ the controlled archive and Task 5's acceptance specification.
     packages/storybook-addon-visual-tests/test/consumer
   git commit -m "build(storybook-addon): constrain the published tarball"
   ```
+
+**Deviation (2026-07-26):** by owner decision, the bespoke
+`scripts/pack-inventory.mjs` allowlist plus its `test:pack`/`test:exports`
+CLI scripts and `test/consumer/*.test.mjs` unit tests were replaced with one
+conventional vitest test, `test/pack-inventory.test.ts`. It packs the
+package itself (`pnpm pack --json --pack-destination <tmpdir>`, which always
+reruns `build` via `prepack` first, so a stale `dist` still can never be
+packed) and asserts the resulting file list is exactly `dist/**` plus
+`LICENSE`, `README.md`, and `package.json`, that the four public entry
+points and their declarations are present, and that the tarball stays under
+the same 150 KiB budget. The traversal/canonical-path-segment hardening the
+old allowlist needed (`hasCanonicalSegments`, rejecting entries like
+`package/dist/../../AGENTS.md`) is no longer necessary: that hardening
+existed because the old test parsed raw `tar -tzf` entry names, which an
+adversarial archive could craft; the new test reads `pnpm pack --json`'s own
+file list, which pnpm derives directly from its `files` allowlist resolution
+against the real filesystem, not from parsing archive member names. The
+guarantee is unchanged — nothing but the allowlisted entries ships, within
+budget — only the mechanism (and the entry-name attack surface it needed to
+defend against) changed. The exact packed-size baseline moved slightly, from
+about 46 kB to about 53 kB (still measured non-deterministically), because
+tsdown's bundled output now includes a shared chunk file and updated
+sourcemap content shape versus the old per-module `tsc` emission; the 150
+KiB budget was not changed and still keeps comfortable headroom.
+
+A second test restores the one runtime guarantee the deleted
+`scripts/test-exports.mjs` carried that nothing else in this PR replaced:
+it runs `pnpm build`, then `import()`s the built `dist/preset.js` directly,
+asserting `managerEntries()`/`previewAnnotations()` resolve to real,
+existing `dist/manager.js`/`dist/preview.js` files — never `.ts`/`.tsx`
+source. This is the only place in the surviving suite that exercises
+`preset.ts`'s `compiled === true` branch: `test/server.test.ts` imports
+`src/preset.ts` directly, so it only ever runs the source-mode branch, and
+attw's resolution analysis is static and never imports the package.
+
+An earlier version of this test installed the packed tarball into an
+isolated consumer project via a real `pnpm add` before importing the
+preset, mirroring `test-exports.mjs`'s approach — deliberately, but
+unnecessarily: `preset.ts` resolves both entries purely from its own
+`import.meta.url` (see `src/preset.ts`), never through `node_modules`
+resolution, so the install proved nothing a direct import of the build
+output doesn't already prove for this code path, at the cost of a real
+network-dependent package-manager install (resolving `playwright` and the
+addon's other runtime deps) inside a unit test — which is also what pushed
+the test past vitest's default timeout on one Node minor in CI and not
+another. Genuine installed-package `node_modules` resolution belongs to
+Task 8's real external-project harness, not a packaging unit test.
 
 ### Task 8: Run an in-repo fixture outside the workspace
 
@@ -1082,6 +1165,19 @@ semantics, or execution topology. None belongs in the initial preview release.
   renderer-agnostic, and the `react` peer is scheduled for removal at Task
   10's metadata finalization. Scheduled an evidence-gated Storybook 9.x
   compatibility investigation with a 9.1 floor.
+- **v8 (2026-07-26):** By owner decision, replaced Task 6/7's bespoke
+  build/pack/verify scripts with conventional tooling: **tsdown** (with
+  publint and attw as build-time gates) instead of `scripts/build.mjs`'s
+  `tsc -p tsconfig.build.json` wrapper, one vitest test
+  (`test/pack-inventory.test.ts`) instead of `scripts/pack-inventory.mjs` +
+  `test:pack`/`test:exports` + `test/consumer/*.test.mjs`, and **TypeScript
+  7.0.2** (exact) instead of `@typescript/native-preview`, with
+  `isolatedDeclarations` scoped to `tsconfig.build.json` so tsdown's `.d.ts`
+  generation takes the oxc-transform backend rather than the TypeScript
+  compiler fallback (TS 7.0 ships no programmatic compiler API until 7.1).
+  See the deviation notes under Task 6 and Task 7 for the guarantee-by-
+  guarantee mapping. CI's `pack`/`inventory`/`exports` producer-consumer
+  trio collapsed into one `build-and-package` job.
 
 ## Final release gate
 

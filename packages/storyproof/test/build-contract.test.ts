@@ -22,7 +22,6 @@ describe("compiled package contract", () => {
     >;
 
     expect(scripts.build).toBeTypeOf("string");
-    expect(scripts.test).toContain("pnpm test:build");
     expect(Object.keys(exports).sort()).toEqual(
       [".", "./manager", "./preset", "./preview"].sort(),
     );
@@ -44,27 +43,5 @@ describe("compiled package contract", () => {
         import: "./dist/preview.js",
       },
     });
-  });
-
-  test("configures NodeNext React emission", async () => {
-    const buildConfig = await readJson("tsconfig.build.json");
-    const compilerOptions = buildConfig.compilerOptions as Record<
-      string,
-      unknown
-    >;
-
-    expect(compilerOptions).toMatchObject({
-      rootDir: "src",
-      outDir: "dist",
-      declaration: true,
-      declarationMap: true,
-      sourceMap: true,
-    });
-    expect(buildConfig.extends).toBe("./tsconfig.json");
-    expect(buildConfig.include).toEqual(["src/**/*.ts", "src/**/*.tsx"]);
-    expect(buildConfig.exclude).toEqual([
-      "src/**/*.stories.ts",
-      "src/**/*.stories.tsx",
-    ]);
   });
 });

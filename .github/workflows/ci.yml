@@ -1,8 +1,8 @@
 # CI — parallel jobs; Node 22/24 matrix on every job where the runtime
-# matters (unit tests, tarball gates, visual smoke). The Storybook-version ×
-# framework matrix arrives with the packed-consumer harness (release plan
-# Task 8) — those rows install the packed archive into fixture projects, so
-# they can't exist before the harness does.
+# matters (unit tests, visual smoke). The Storybook-version × framework
+# matrix arrives with the packed-consumer harness (release plan Task 8) —
+# those rows install the packed archive into fixture projects, so they
+# can't exist before the harness does.
 #
 # Actions are pinned to commit SHAs (comment = the release tag they resolve to).
 
@@ -82,16 +82,22 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: pnpm
-      # Unit tests include the isolated build-artifact contract (test:build).
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter storyproof test
 
-  # Producer: build and pack the archive exactly once. The gate jobs below
-  # download this exact artifact and fail independently — an inventory
-  # failure never masks an exports failure (same shape the release plan's
-  # Task 10 prescribes for the CI producer/consumer artifact flow).
-  pack:
-    name: pack the archive
+  # Pack the archive. `pnpm pack` always reruns `build` first via the
+  # `prepack` lifecycle script (so a stale build can never be packed), and
+  # `build` itself runs publint + attw as build-time gates (configured in
+  # tsdown.config.ts) -- so packing alone proves build, publint, and attw
+  # all pass, with no separate build step needed. Test coverage (including
+  # the tarball-inventory snapshot, test/pack-inventory.test.ts) is the
+  # `test` job's job, not this one's -- this job does not run the suite. No
+  # artifact upload: nothing in this workflow consumes the packed tarball
+  # yet -- release plan Task 8's packed-consumer harness will produce its
+  # own when it lands, rather than this job building ahead of a consumer
+  # that doesn't exist.
+  package:
+    name: package
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -104,60 +110,8 @@ jobs:
           node-version-file: ".node-version"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter storyproof pack:artifact -- /tmp/storyproof-ci/package.tgz
+      - run: pnpm --filter storyproof pack --out /tmp/storyproof-ci/package.tgz
       - run: git diff --exit-code
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: package-tgz
-          path: /tmp/storyproof-ci/package.tgz
-          if-no-files-found: error
-          retention-days: 7
-
-  inventory:
-    name: tarball inventory
-    needs: pack
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version-file: ".node-version"
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: package-tgz
-          path: /tmp/storyproof-ci
-      - run: pnpm --filter storyproof test:pack -- /tmp/storyproof-ci/package.tgz
-
-  exports:
-    name: packed exports resolve (Node ${{ matrix.node }})
-    needs: pack
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        node: [22, 24]
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version: ${{ matrix.node }}
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: package-tgz
-          path: /tmp/storyproof-ci
-      - run: pnpm --filter storyproof test:exports -- /tmp/storyproof-ci/package.tgz
 
   visual:
     name: visual smoke (Node ${{ matrix.node }})
