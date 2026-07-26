@@ -18,7 +18,7 @@ Turborepo — two workspaces with no cross-dependencies don't need a task graph.
 | --------------------- | ----------------------------------------------------------------------------------- |
 | `packages/storyproof` | The addon — the only published npm package (`storyproof`). Has its own `AGENTS.md`. |
 | `apps/website`        | storyproof.dev docs/marketing site (placeholder, private, framework not yet chosen) |
-| `examples/*`          | Standalone (non-workspace-member) Storybook quickstarts; see below.                 |
+| `examples/*`          | Storybook examples/quickstarts (workspace members); see below.                      |
 
 ## Commands (from repo root)
 
@@ -36,38 +36,61 @@ pnpm format / pnpm format:check        # prettier, repo-wide
 the tarball allowlist/size budget is asserted by
 `test/pack-inventory.test.ts` — see `packages/storyproof/AGENTS.md`.
 
-## `examples/`
+**ESM-only is permanent product intent, not an accident.** The addon ships
+no CJS build and none is planned unless a demonstrated consumer requires
+one. This is why `tsdown.config.ts` runs attw's `esm-only` profile as a
+build-time gate, why `exports: true`-derived subpaths are bare strings with
+no explicit `"types"` condition (see the release plan's Task 6 2026-07-27
+deviation note), and why a CJS output should not be "helpfully" added later
+without that evidence.
+
+## Examples
 
 `examples/react-vite-sb10.5`, `examples/react-vite-sb10.0`, and
-`examples/nextjs-vite-sb10.5` are real, standalone Storybook projects —
-deliberately **not** pnpm workspace members (absent from
-`pnpm-workspace.yaml`'s `packages:` list, so a `workspace:*` link back to
-this repo is impossible). Each has its own `package.json` (no
-`workspace:`/`catalog:`/relative-path refs), pins its Storybook/framework
-packages with `~` (the directory name promises an exact minor), and depends
-on the published `storyproof` version. Run one locally:
+`examples/nextjs-vite-sb10.5` are two things at once, deliberately, and both
+matter — this is a two-tier design, not redundancy to simplify away:
 
-```bash
-cd examples/react-vite-sb10.5
-pnpm install --ignore-workspace   # required: see below
-pnpm storybook
-```
+1. **A real dev loop.** Each is a genuine pnpm workspace member
+   (`examples/*` is in `pnpm-workspace.yaml`'s `packages:` list) depending on
+   `storyproof: workspace:*`. Run one locally:
 
-`--ignore-workspace` is not optional here, and not just for isolation
-hygiene — empirically, a plain `pnpm install` inside a non-member directory
-under this workspace silently no-ops (reports "Done" without installing
-anything for that directory), and a plain `pnpm add` resolves against and
-rewrites the _root_ `pnpm-lock.yaml` instead of the example's own.
+   ```bash
+   pnpm install               # from the repository root
+   cd examples/react-vite-sb10.5
+   pnpm storybook
+   ```
 
-Each example also carries the same `visual-fixture`/`outside-fixture`/
-`control` story content as `packages/storyproof/test/fixtures/project` (see
-each example's README) — they double as CI's packed-consumer acceptance
-fixture, per the release plan's Task 8 "examples-as-fixtures" deviation. CI's
-`consumer` job overlays the exact tarball the `package` job builds onto each
-example (`pnpm add file:<tarball> --ignore-workspace`) and runs
-`test:visual`'s reusable acceptance suite against that example's real dev
-server via `VISUAL_TEST_CONSUMER_DIR=../../examples/<name> pnpm --filter
-storyproof test:visual`.
+   A contributor sees their own working tree, not a stale published build.
+
+2. **The packed-artifact proof, separately.** A `workspace:*` link proves
+   nothing about the actual npm tarball, which is release plan Task 8's
+   subject. CI's `consumer` job copies an example directory _out_ of the
+   workspace (`cp -r`, before any `pnpm install` has populated
+   `node_modules` anywhere in the checkout) into a temporary directory,
+   points it at the exact tarball the `package` job built
+   (`pnpm pkg set dependencies.storyproof=file:<tarball>`), and installs it
+   there with `pnpm install --ignore-workspace`. Being outside the
+   repository (and thus outside the pnpm workspace) is what makes that
+   install meaningful — see the release plan's Task 8 2026-07-27 deviation
+   note for the full mechanics and the empirically-confirmed reasons
+   `--ignore-workspace` matters even there.
+
+**Examples are documentation-by-example — that's the acceptance bar for what
+goes in one.** They exist to teach the addon by showing it; being CI's
+acceptance fixture is a consequence of that, not the purpose. Each carries a
+plain demo component/story pair (`Button`, `NavLink`) _and_ the same
+`visual-fixture`/`outside-fixture` scenario stories as
+`packages/storyproof/test/fixtures/project` (minus fault injection — see
+below), each with a short code comment describing what it demonstrates and
+what storyproof should do; `.storybook/preview.ts`'s `storySort` orders the
+sidebar so the plain demo reads first. The bar for adding a new example or
+scenario story: **it earns its place by teaching something a real user would
+encounter** — changed pixels, a disabled story, viewport-vs-content framing,
+portal capture, a story outside `storyRoots`, stale-approval rejection,
+malformed baseline metadata. The one exclusion is fault injection: a story
+that hangs or fails its connection on command is harness machinery, not
+something a user hits, so it stays only in
+`packages/storyproof/test/fixtures/project`, exercised by CI's `visual` job.
 
 ## Key documentation
 

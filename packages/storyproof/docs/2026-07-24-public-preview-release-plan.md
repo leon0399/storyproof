@@ -549,6 +549,54 @@ this writing is `6.0.2`, not `6.0.3`). `typecheck` is now plain
 `tsc --noEmit` (dropping the `tsgo` binary name, which TypeScript 7 no
 longer ships under).
 
+**Deviation (2026-07-27):** by owner decision, `tsdown.config.ts` sets
+`exports: true`, deriving `package.json`'s `exports` map from the `entry`
+list above instead of hand-syncing both. This was evaluated, rejected, and
+then adopted in the same session as evidence came in — recorded here in
+full because the reasoning matters more than the back-and-forth:
+
+- **What actually changes.** tsdown 0.22.14 emits bare-string subpath
+  targets (`".": "./dist/index.js"`, not
+  `{"types": "./dist/index.d.ts", "import": "./dist/index.js"}`) and
+  unconditionally adds `"./package.json": "./package.json"`
+  (`exports.packageJson` defaults to `true`).
+- **Why the bare-string shape is correct, not a regression.** This package
+  is permanent ESM-only intent (see root AGENTS.md) — no CJS output is ever
+  planned. For a pure-ESM package, TypeScript resolves the sibling
+  `dist/*.d.ts` next to the bare-string target implicitly; an explicit
+  `"types"` condition only matters for consumers on `moduleResolution: node`,
+  who cannot read an `exports` map at all regardless. attw's `esm-only`
+  profile (already a build-time gate above) is the authority on exactly this
+  resolution question and reports zero problems against the generated shape.
+  The added `"./package.json"` export is additive and commonly recommended
+  so tooling can read the manifest.
+- **Why "it's already published" doesn't gate this decision.**
+  `storyproof@0.0.1-alpha.1` (Task 9) is a name-reservation placeholder under
+  the `alpha` dist-tag with zero consumers — its own README says outright it
+  isn't a usable release. A resolution-contract change here costs nothing
+  until real users exist, which is exactly what the `0.1.0-next.*`
+  prerelease gate (Task 11) exists to manage. Treating an unconsumed alpha
+  as a frozen contract was the error in the first rejection of this change.
+- **`customExports` was considered and rejected.** tsdown's `customExports`
+  callback could reconstruct the old `{types, import}` object shape, but
+  that only relocates the duplication into `tsdown.config.ts` instead of
+  deriving it from `entry` — no improvement over hand-authoring, and it
+  would still need `packageJson: false` to suppress the added export for no
+  real benefit.
+- **Byte-stability, verified.** `pnpm --filter storyproof build` run twice
+  in a row reproduces `package.json` byte-for-byte; the generated manifest
+  is committed. This means the `package` CI job's existing
+  `git diff --exit-code` (after packing, which always rebuilds via
+  `prepack`) now also functions as a drift gate: editing `entry` without
+  rebuilding and committing the result fails CI.
+- **`test/build-contract.test.ts` updated** to assert the new shape
+  directly (`toEqual` against the five expected bare-string entries) rather
+  than the old `{types, import}` object form — still independent of
+  `tsdown.config.ts`'s `entry` list itself, so the test doesn't derive its
+  expectation from the config it validates (which would pass vacuously).
+  This mirrors `test/pack-inventory.test.ts`'s existing allowlist, which is
+  deliberately independent of the `files` field for the same reason.
+
 ### Task 7: Control and inspect the npm tarball
 
 **Files:**
@@ -762,10 +810,11 @@ Task 8's real external-project harness, not a packaging unit test.
   Harness/bootstrap failure is not an acceptable result.
 
   **Superseded by the 2026-07-27 deviation below**: there is no separate
-  negative-control fixture. CI asserts `import.meta.resolve('storyproof')`
-  resolves under the target example's own `node_modules` after the tarball
-  overlay — a positive assertion of the thing that matters, not a simulated
-  failure of a defect Task 6 already fixed.
+  negative-control fixture. CI copies an example out of the workspace before
+  any install has happened, installs the packed tarball there, and asserts
+  `import.meta.resolve('storyproof')` resolves under that copy's own
+  `node_modules` — a positive assertion of the thing that matters, not a
+  simulated failure of a defect Task 6 already fixed.
 
 - [x] **Step 4: Run the reusable acceptance specification against the tarball**
 
@@ -784,15 +833,18 @@ Task 8's real external-project harness, not a packaging unit test.
   pnpm --filter storyproof build
   pnpm --filter storyproof pack --out /tmp/storyproof-ci/package.tgz
   pnpm --filter storyproof test
-  VISUAL_TEST_CONSUMER_DIR=../../examples/react-vite-sb10.5 \
+  VISUAL_TEST_PROJECT_DIR=<copy of an example, outside the workspace> \
     pnpm --filter storyproof test:visual
   pnpm --filter storyproof typecheck
   pnpm --filter storyproof lint
   ```
 
-  Expected: the acceptance suite (`test:visual`) runs unmodified against the
-  packed archive once it is overlaid onto an example via `pnpm add file:...`
-  (see the deviation note).
+  Expected: the acceptance suite (`test:visual`) runs against the packed
+  archive once it is installed into a copy of an example made outside this
+  workspace (see the deviation note); the two fault-injection-only
+  scenarios (simulated hang, forced connection failure) skip on that copy
+  since it carries no `control/` fixture, and pass unmodified against
+  `test/fixtures/project` in the `visual` job.
 
 - [x] **Step 6: Run the target combination locally**
 
@@ -806,18 +858,21 @@ Task 8's real external-project harness, not a packaging unit test.
   **Superseded by the CI matrix below**: this WSL2 development host cannot run
   Playwright (missing browser system libraries), so "locally" is the CI
   `consumer` job's three matrix cells (react-vite-sb10.5, react-vite-sb10.0,
-  nextjs-vite-sb10.5) rather than a developer machine command. Installing
-  `storyproof@0.0.1-alpha.1` under the `react-vite-sb10.0` example (Storybook
-  `~10.0.0`) does emit an unexpected peer-dependency warning — the published
+  nextjs-vite-sb10.5) rather than a developer machine command. The published
   package's `peerDependencies.storybook` is `"^10.5.0"`, narrower than the
-  release plan's `^10.0.0` target. This is real packed-consumer evidence for
-  Task 10 to reconcile when it finalizes peer ranges, not something this task
-  changes.
+  release plan's `^10.0.0` target — real packed-consumer evidence for Task 10
+  to reconcile when it finalizes peer ranges. It surfaced as an install-time
+  warning when the `react-vite-sb10.0` example depended on the published
+  `storyproof@0.0.1-alpha.1` directly; with examples now on
+  `storyproof: workspace:*` (see the deviation note), the mismatch still
+  exists in the manifest but pnpm does not surface an unmet-peer warning for
+  a workspace-linked dependency the same way — the gap is otherwise
+  unchanged and still Task 10's to close.
 
 - [x] **Step 7: Commit**
 
   ```bash
-  git add packages/storyproof examples .github/workflows/ci.yml
+  git add packages/storyproof examples pnpm-workspace.yaml .github/workflows/ci.yml
   git commit -m "test(storyproof): verify the packed consumer boundary"
   ```
 
@@ -825,45 +880,91 @@ Task 8's real external-project harness, not a packaging unit test.
 bespoke orchestrator script (`test:consumer`, `pack:artifact`, a
 `test/consumer/` harness) or a separate `test/fixtures/consumer/` template —
 consistent with Task 6/7's replacement of hand-rolled build/pack/verify
-scripts with conventional tooling. The actual design:
+scripts with conventional tooling. This section also records two reversed
+intermediate decisions in full, because the reasoning is durable even though
+the specific calls it corrects aren't worth re-litigating in future PRs.
 
-- **Examples-as-fixtures.** Root `examples/react-vite-sb10.5`,
-  `examples/react-vite-sb10.0`, and `examples/nextjs-vite-sb10.5` are
-  standalone (non-pnpm-workspace-member: `pnpm-workspace.yaml`'s `packages:`
-  list has no `examples/*` entry) Storybook quickstarts with their own
-  `package.json`, `.storybook/main.ts` registering `storyproof/preset` the
-  documented way, and a couple of simple demo stories (`Button`, `NavLink`).
-  Each _also_ carries the same `visual-fixture`/`outside-fixture`/`control`
-  content as `test/fixtures/project`, so they double as the packed-consumer
-  acceptance fixture without a second fixture tree to keep in sync. Directory
-  names carry the Storybook minor deliberately, pinned with `~` (never `^`),
-  so the name stays honest about what's actually installed.
-- **Workflow-steps-as-harness, no orchestrator script.** `test/fixture-server.ts`
-  and `test/smoke/addon.spec.ts` (already Task 5's reusable harness) gained one
-  new environment variable, `VISUAL_TEST_CONSUMER_DIR`: when set, the existing
-  `pnpm --filter storyproof test:visual` command points at an installed
-  example's real dev server instead of copying `test/fixtures/project`, and
-  spawns Storybook with that example's directory as `cwd` so its CLI and
-  `storyproof/preset` resolve from the example's own `node_modules` (a real
-  package install, not workspace source). No new npm script was added.
-- **Artifact reuse from the `package` job.** The existing `package` CI job now
+- **Examples are workspace members for development; CI proves the packed
+  artifact by copying out.** Root `examples/react-vite-sb10.5`,
+  `examples/react-vite-sb10.0`, and `examples/nextjs-vite-sb10.5` are real
+  pnpm workspace members (`examples/*` added to `pnpm-workspace.yaml`)
+  depending on `storyproof: workspace:*`, matching how comparable projects
+  (loki, Vite's own playgrounds) link their examples: a contributor who
+  clones the repo, runs `pnpm install` at the root, and `cd`s into an
+  example sees their own working tree, not a stale published build. That
+  link proves nothing about the packed npm tarball, which is Task 8's actual
+  subject, so the `consumer` CI job copies an example directory _out_ of the
+  workspace (`cp -r`, before any `pnpm install` has run anywhere in the
+  checkout, so the copy carries no node_modules of any kind) into a
+  `mktemp -d` temporary directory, points it at the exact tarball the
+  `package` job built (`pnpm pkg set dependencies.storyproof=file:<tarball>`
+  — a first-class pnpm command, no script or JSON surgery), and installs it
+  there with `pnpm install --ignore-workspace`. Being outside the repository
+  (and thus outside the pnpm workspace) is what makes the install meaningful
+  and doubles as the isolation guarantee — see the negative-control note
+  below. An earlier version of this task had examples depend directly on the
+  published `storyproof@0.0.1-alpha.1` with CI overlaying the tarball
+  in-place; that was corrected because it meant a contributor's local
+  `pnpm storybook` would run against an old published build instead of their
+  own changes, which defeats an example's purpose as a dev loop.
+- **Examples carry the full scenario story set, organized as
+  documentation-by-example, minus fault injection.** For a visual-testing
+  tool, the edge cases are the product: a developer who clones an example
+  and finds a stale-approval rejection, a malformed baseline, a story
+  outside `storyRoots`, disabled capture, viewport-vs-content framing, and
+  portal capture learns what the addon actually does, which two demo
+  buttons would not teach. Each example therefore carries both a plain demo
+  (`Button` / `NavLink`) _and_ the same `visual-fixture`/`outside-fixture`
+  scenario stories as `test/fixtures/project` — every scenario story carries
+  a short code comment describing what it demonstrates and what storyproof
+  should do, and `.storybook/preview.ts`'s `storySort` orders the sidebar so
+  the plain demo reads first. Fault injection (the `control/state.json`
+  -driven simulated hang and forced connection-failure story) is the one
+  exclusion: that's harness machinery that would be nonsense in a demo
+  project ("here's a story that deliberately breaks the capture"), so it
+  stays only in the workspace's `test/fixtures/project`, exercised by the
+  existing `visual` job. An earlier version of this task considered running
+  a reduced "core" acceptance suite against the examples (split by
+  precondition from a "scenario" suite covering fault injection) to avoid
+  duplicating the elaborate stories into a "quickstart" — corrected in favor
+  of just putting the full non-fault-injection scenario set in the examples
+  directly once it was clear the scenarios are documentation value, not test
+  scaffolding to hide.
+- **`registerAddonAcceptanceSuite`'s two fault-injection tests skip on
+  precondition, not on a CI-side filter.** Since examples carry no
+  `control/` fixture, `test/acceptance/addon-suite.ts` gained a
+  `hasControlFixture(projectRoot)` check (existence of
+  `control/state.json`): the two tests requiring the `Controlled` story
+  (`"cancels completed partial results..."`, `"reports a browser connection
+failure..."`) call `test.skip(!(await hasControlFixture(projectRoot)), ...)`,
+  and `resetFixtureState`'s per-test control-state write is skipped
+  the same way. This keeps the suite in one file with one set of
+  preconditions per test, visible as explicit skips in the Playwright report
+  rather than a title-matched `--grep-invert` filter in CI YAML (which would
+  silently stop enforcing coverage if a test were ever retitled).
+- **Artifact reuse from the `package` job.** The existing `package` CI job
   uploads the tarball it already builds (`actions/upload-artifact`); the new
   `consumer` job downloads that exact archive rather than repacking.
-- **`--ignore-workspace` is required, empirically confirmed** for both
-  `pnpm install` and `pnpm add` when operating inside a non-member directory
-  under this workspace: a plain `pnpm install` there silently no-ops (reports
-  "Scope: all N workspace projects" / "Done" without creating any
-  `node_modules` or lockfile for that directory), and a plain `pnpm add
-file:...` resolves against and rewrites the _root_ `pnpm-lock.yaml` instead
-  of the example's own. `--ignore-workspace` makes both commands treat the
-  example as the fully standalone project it is.
-- **No smoke/full tiering, no test tagging.** The full
-  `registerAddonAcceptanceSuite` runs in every one of the three `consumer`
-  matrix cells.
-- **No negative-control fixture.** CI's isolation check is one assertion —
-  `import.meta.resolve('storyproof')` resolves to a path under the target
-  example's own `node_modules` after the tarball overlay — not a simulated
-  workspace-resolution failure.
+- **`--ignore-workspace` is required, empirically confirmed**, for the
+  temporary copy's `pnpm install`: a plain `pnpm install` run inside a
+  directory that still has an ancestor `pnpm-workspace.yaml` silently no-ops
+  (reports "Scope: all N workspace projects" / "Done" without installing
+  anything for that directory), and a plain `pnpm add` there resolves
+  against and rewrites the _root_ `pnpm-lock.yaml` instead of the target
+  directory's own. The `mktemp -d` copy has no such ancestor once it's
+  actually outside the repository, but the flag is kept for defense in
+  depth against exactly the workspace-bleed this job exists to rule out.
+- **No smoke/full tiering, no test tagging.** `registerAddonAcceptanceSuite`
+  runs as one suite everywhere; what varies is which tests are eligible
+  given each target's fixture content (see the precondition-skip note
+  above), not a tier or a tag.
+- **No negative-control fixture.** Copying out of the workspace before any
+  install has happened anywhere in the checkout is itself the isolation
+  proof: there is nothing for a resolved dependency to symlink back to
+  source even if the packed tarball were somehow broken, so the CI job's
+  one assertion — `import.meta.resolve('storyproof')` resolves under the
+  copy's own `node_modules` — is a positive check of the thing that matters,
+  not a simulated failure of a defect Task 6 already fixed.
 - **Single Node version in the `consumer` matrix** (the `.node-version`
   floor): Node 22/24 coverage is already proven by the `test` and `visual`
   jobs; this matrix's only dimension is Storybook minor × framework
@@ -909,6 +1010,21 @@ file:...` resolves against and rewrites the _root_ `pnpm-lock.yaml` instead
   published under the `alpha` dist-tag, never `latest`. Task 7's inventory
   gate and Task 10's protected workflow still govern the real preview
   release; nothing else may publish until they exist.
+
+  **The implication, stated explicitly so it doesn't get re-litigated:**
+  `0.0.1-alpha.1` is a name reservation, not a contract. It has zero known
+  consumers, is unreachable except by explicit exact-version install (no
+  `latest`, no `^`/`~` range would resolve to it as a default), and its own
+  README says outright it isn't a usable release. Breaking changes to the
+  addon's public shape (an `exports` map, a preset option, a peer range)
+  are free to make until real users exist behind `0.1.0-next.*` and
+  `0.1.0` — that's precisely what the prerelease gates in Tasks 10–11 exist
+  to manage. Do not let "but it's already published" veto a decision on its
+  own; if a change is otherwise correct, the alpha placeholder is not the
+  reason to reject it. (This reasoning was learned the expensive way during
+  Task 8: `exports: true` was rejected, then adopted, partly because of an
+  initial over-weighting of this exact premise — see Task 6's 2026-07-27
+  deviation note.)
 
 - [ ] **Step 3: Rewrite onboarding around the packed consumer**
 
@@ -1241,21 +1357,21 @@ semantics, or execution topology. None belongs in the initial preview release.
   See the deviation notes under Task 6 and Task 7 for the guarantee-by-
   guarantee mapping. CI's `pack`/`inventory`/`exports` producer-consumer
   trio collapsed into one `build-and-package` job.
-- **v9 (2026-07-27):** Shipped Task 8 (the packed-consumer harness) with
-  root `examples/**` doubling as both the standalone Storybook quickstarts
-  and the packed-consumer acceptance fixture ("examples-as-fixtures"), no
-  new orchestrator script or `test/fixtures/consumer/`/`test/consumer/`
-  tree, and a new CI `consumer` job matrixed over Storybook minor × framework
-  integration (react-vite-sb10.5, react-vite-sb10.0, nextjs-vite-sb10.5) at a
-  single Node version. See the deviation note under Task 8. Also considered
-  (and rejected, empirically) enabling tsdown's `exports: true` to derive
-  `package.json`'s `exports` map from `tsdown.config.ts`'s `entry` list: on
-  tsdown 0.22.14 it drops the explicit `"types"` condition from every
-  export (relying on implicit sibling-`.d.ts` resolution instead) and
-  unconditionally adds a `"./package.json"` export neither present nor
-  requested — both are contract-shape changes on an already-published
-  package, so `tsdown.config.ts` and `package.json`'s `exports` are
-  unchanged.
+- **v9 (2026-07-27):** Shipped Task 8 (the packed-consumer harness): root
+  `examples/**` are real pnpm workspace members depending on
+  `storyproof: workspace:*` for local development, and each also carries the
+  same scenario stories as `test/fixtures/project` (minus fault injection),
+  so they double as documentation-by-example and as CI's acceptance fixture
+  without a second tree to keep in sync. CI's `consumer` job proves the
+  actual packed npm tarball by copying an example _out_ of the workspace
+  before installing it (`pnpm pkg set` + `pnpm install --ignore-workspace`),
+  which also gives the isolation guarantee for free — no negative-control
+  fixture. Matrixed over Storybook minor × framework integration
+  (react-vite-sb10.5, react-vite-sb10.0, nextjs-vite-sb10.5) at a single Node
+  version. See the deviation note under Task 8. Also adopted tsdown's
+  `exports: true` (deviation note under Task 6) to derive `package.json`'s
+  `exports` map from `tsdown.config.ts`'s `entry` list instead of hand-syncing
+  both.
 
 ## Final release gate
 
