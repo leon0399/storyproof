@@ -25,6 +25,16 @@ monorepo until 2026-07-26; the day-by-day pre-extraction record lives in
   never through `node_modules` resolution, so a direct import after `build`
   exercises the identical code path an installed consumer hits without an
   isolated project or a real package-manager install.
+- Packed-consumer harness: three standalone Storybook example projects under
+  root `examples/` (`react-vite-sb10.5`, `react-vite-sb10.0`,
+  `nextjs-vite-sb10.5`) double as CI's packed-consumer acceptance fixture. A
+  new CI `consumer` job installs each example independently
+  (`--ignore-workspace`), overlays the exact tarball the `package` job built,
+  and runs the existing reusable acceptance specification
+  (`test/acceptance/addon-suite.ts`, via `test:visual`'s new
+  `VISUAL_TEST_CONSUMER_DIR` environment variable) against that example's
+  real dev server — proving `storyproof/preset` resolves and runs correctly
+  as an installed package, not just as workspace source.
 
 ### Changed
 

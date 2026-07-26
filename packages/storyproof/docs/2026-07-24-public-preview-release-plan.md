@@ -725,13 +725,13 @@ Task 8's real external-project harness, not a packaging unit test.
 - Modify: `packages/storybook-addon-visual-tests/playwright.config.ts`
 - Modify: `packages/storybook-addon-visual-tests/turbo.json`
 
-- [ ] **Step 1: Create a minimal React-Vite Storybook fixture template**
+- [x] **Step 1: Create a minimal React-Vite Storybook fixture template**
 
   Keep fixture dependencies explicit. It must not reference `workspace:*`,
   root catalogs, llame source aliases, or a TypeScript runtime loader for addon
   code.
 
-- [ ] **Step 2: Add the executable `test:consumer -- <absolute-tgz-path>` harness**
+- [x] **Step 2: Add the executable `test:consumer -- <absolute-tgz-path>` harness**
 
   The fixture template lives in-repo, but execution must:
 
@@ -746,7 +746,7 @@ Task 8's real external-project harness, not a packaging unit test.
   8. run Storybook dev, browser acceptance, and Storybook static build;
   9. clean the temporary directory on success, failure, and interruption.
 
-- [ ] **Step 3: Prove workspace-isolation detection with a negative control**
+- [x] **Step 3: Prove workspace-isolation detection with a negative control**
 
   Point a dedicated negative-control fixture dependency at the workspace package
   rather than the supplied archive and assert that the harness rejects its
@@ -761,7 +761,13 @@ Task 8's real external-project harness, not a packaging unit test.
   Expected: a specific assertion identifies the workspace-resolved addon.
   Harness/bootstrap failure is not an acceptable result.
 
-- [ ] **Step 4: Run the reusable acceptance specification against the tarball**
+  **Superseded by the 2026-07-27 deviation below**: there is no separate
+  negative-control fixture. CI asserts `import.meta.resolve('storyproof')`
+  resolves under the target example's own `node_modules` after the tarball
+  overlay — a positive assertion of the thing that matters, not a simulated
+  failure of a defect Task 6 already fixed.
+
+- [x] **Step 4: Run the reusable acceptance specification against the tarball**
 
   Run Task 5's browser-visible specification without copying it. Cover dev
   startup, run, review, approve, changed diff, rerun pass, and static-build
@@ -769,28 +775,26 @@ Task 8's real external-project harness, not a packaging unit test.
   testing-widget run-all over at least two stories, include one disabled/error
   result, and assert aggregate completion.
 
-- [ ] **Step 5: Run the complete package gate**
+- [x] **Step 5: Run the complete package gate**
+
+  Rewritten for the Task 6/7 tsdown migration (`pack:artifact`/`test:exports`/
+  `test:pack`/`test:consumer` no longer exist):
 
   ```bash
   pnpm --filter storyproof build
-  pnpm --filter storyproof pack:artifact -- \
-    /tmp/storybook-addon-visual-tests/consumer.tgz
-  pnpm --filter storyproof test:exports -- \
-    /tmp/storybook-addon-visual-tests/consumer.tgz
-  pnpm --filter storyproof test:pack -- \
-    /tmp/storybook-addon-visual-tests/consumer.tgz
+  pnpm --filter storyproof pack --out /tmp/storyproof-ci/package.tgz
   pnpm --filter storyproof test
-  pnpm --filter storyproof test:visual
-  pnpm --filter storyproof test:consumer -- \
-    /tmp/storybook-addon-visual-tests/consumer.tgz
+  VISUAL_TEST_CONSUMER_DIR=../../examples/react-vite-sb10.5 \
+    pnpm --filter storyproof test:visual
   pnpm --filter storyproof typecheck
   pnpm --filter storyproof lint
   ```
 
-  Expected: all artifact-dependent checks consume the exact archive created once
-  by `pack:artifact`.
+  Expected: the acceptance suite (`test:visual`) runs unmodified against the
+  packed archive once it is overlaid onto an example via `pnpm add file:...`
+  (see the deviation note).
 
-- [ ] **Step 6: Run the target combination locally**
+- [x] **Step 6: Run the target combination locally**
 
   Parameterize the consumer harness over the Storybook 10.0 and 10.5
   boundaries and both supported framework integrations (react-vite and
@@ -799,12 +803,71 @@ Task 8's real external-project harness, not a packaging unit test.
   Ubuntu 24.04 CI matrix evidence (including Node 24) and final support
   wording.
 
-- [ ] **Step 7: Commit**
+  **Superseded by the CI matrix below**: this WSL2 development host cannot run
+  Playwright (missing browser system libraries), so "locally" is the CI
+  `consumer` job's three matrix cells (react-vite-sb10.5, react-vite-sb10.0,
+  nextjs-vite-sb10.5) rather than a developer machine command. Installing
+  `storyproof@0.0.1-alpha.1` under the `react-vite-sb10.0` example (Storybook
+  `~10.0.0`) does emit an unexpected peer-dependency warning — the published
+  package's `peerDependencies.storybook` is `"^10.5.0"`, narrower than the
+  release plan's `^10.0.0` target. This is real packed-consumer evidence for
+  Task 10 to reconcile when it finalizes peer ranges, not something this task
+  changes.
+
+- [x] **Step 7: Commit**
 
   ```bash
-  git add packages/storybook-addon-visual-tests
-  git commit -m "test(storybook-addon): verify the packed consumer boundary"
+  git add packages/storyproof examples .github/workflows/ci.yml
+  git commit -m "test(storyproof): verify the packed consumer boundary"
   ```
+
+**Deviation (2026-07-27):** by owner decision, this task shipped without any
+bespoke orchestrator script (`test:consumer`, `pack:artifact`, a
+`test/consumer/` harness) or a separate `test/fixtures/consumer/` template —
+consistent with Task 6/7's replacement of hand-rolled build/pack/verify
+scripts with conventional tooling. The actual design:
+
+- **Examples-as-fixtures.** Root `examples/react-vite-sb10.5`,
+  `examples/react-vite-sb10.0`, and `examples/nextjs-vite-sb10.5` are
+  standalone (non-pnpm-workspace-member: `pnpm-workspace.yaml`'s `packages:`
+  list has no `examples/*` entry) Storybook quickstarts with their own
+  `package.json`, `.storybook/main.ts` registering `storyproof/preset` the
+  documented way, and a couple of simple demo stories (`Button`, `NavLink`).
+  Each _also_ carries the same `visual-fixture`/`outside-fixture`/`control`
+  content as `test/fixtures/project`, so they double as the packed-consumer
+  acceptance fixture without a second fixture tree to keep in sync. Directory
+  names carry the Storybook minor deliberately, pinned with `~` (never `^`),
+  so the name stays honest about what's actually installed.
+- **Workflow-steps-as-harness, no orchestrator script.** `test/fixture-server.ts`
+  and `test/smoke/addon.spec.ts` (already Task 5's reusable harness) gained one
+  new environment variable, `VISUAL_TEST_CONSUMER_DIR`: when set, the existing
+  `pnpm --filter storyproof test:visual` command points at an installed
+  example's real dev server instead of copying `test/fixtures/project`, and
+  spawns Storybook with that example's directory as `cwd` so its CLI and
+  `storyproof/preset` resolve from the example's own `node_modules` (a real
+  package install, not workspace source). No new npm script was added.
+- **Artifact reuse from the `package` job.** The existing `package` CI job now
+  uploads the tarball it already builds (`actions/upload-artifact`); the new
+  `consumer` job downloads that exact archive rather than repacking.
+- **`--ignore-workspace` is required, empirically confirmed** for both
+  `pnpm install` and `pnpm add` when operating inside a non-member directory
+  under this workspace: a plain `pnpm install` there silently no-ops (reports
+  "Scope: all N workspace projects" / "Done" without creating any
+  `node_modules` or lockfile for that directory), and a plain `pnpm add
+file:...` resolves against and rewrites the _root_ `pnpm-lock.yaml` instead
+  of the example's own. `--ignore-workspace` makes both commands treat the
+  example as the fully standalone project it is.
+- **No smoke/full tiering, no test tagging.** The full
+  `registerAddonAcceptanceSuite` runs in every one of the three `consumer`
+  matrix cells.
+- **No negative-control fixture.** CI's isolation check is one assertion —
+  `import.meta.resolve('storyproof')` resolves to a path under the target
+  example's own `node_modules` after the tarball overlay — not a simulated
+  workspace-resolution failure.
+- **Single Node version in the `consumer` matrix** (the `.node-version`
+  floor): Node 22/24 coverage is already proven by the `test` and `visual`
+  jobs; this matrix's only dimension is Storybook minor × framework
+  integration, per the release plan's stated scope for Task 8.
 
 ## Chunk 4: Prepare and publish the preview
 
@@ -1178,6 +1241,21 @@ semantics, or execution topology. None belongs in the initial preview release.
   See the deviation notes under Task 6 and Task 7 for the guarantee-by-
   guarantee mapping. CI's `pack`/`inventory`/`exports` producer-consumer
   trio collapsed into one `build-and-package` job.
+- **v9 (2026-07-27):** Shipped Task 8 (the packed-consumer harness) with
+  root `examples/**` doubling as both the standalone Storybook quickstarts
+  and the packed-consumer acceptance fixture ("examples-as-fixtures"), no
+  new orchestrator script or `test/fixtures/consumer/`/`test/consumer/`
+  tree, and a new CI `consumer` job matrixed over Storybook minor × framework
+  integration (react-vite-sb10.5, react-vite-sb10.0, nextjs-vite-sb10.5) at a
+  single Node version. See the deviation note under Task 8. Also considered
+  (and rejected, empirically) enabling tsdown's `exports: true` to derive
+  `package.json`'s `exports` map from `tsdown.config.ts`'s `entry` list: on
+  tsdown 0.22.14 it drops the explicit `"types"` condition from every
+  export (relying on implicit sibling-`.d.ts` resolution instead) and
+  unconditionally adds a `"./package.json"` export neither present nor
+  requested — both are contract-shape changes on an already-published
+  package, so `tsdown.config.ts` and `package.json`'s `exports` are
+  unchanged.
 
 ## Final release gate
 

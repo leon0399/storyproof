@@ -23,16 +23,9 @@ installing the packed tarball into an isolated temporary fixture.
 - [ ] Pack once, record the archive's npm-compatible SHA-512 SRI, and carry that
       same `.tgz` through inventory, consumer tests, workflow artifact upload,
       and publication without rebuilding or repacking.
-- [ ] Add an in-repository consumer fixture that installs the exact packed
-      tarball in a temporary non-workspace project and verifies Storybook dev,
-      capture/review/approval/rerun, changed diffs, testing-widget run-all with
-      aggregate mixed results, and static build.
-- [ ] Make the packed-consumer fixture a required CI check.
 
 ## P1 — Consumer-visible confidence
 
-- [ ] Run the reusable browser acceptance specification against the packed
-      non-workspace consumer without copying the workspace-source scenarios.
 - [ ] Test Storybook 9.x compatibility with the same packed-consumer
       acceptance, unmodified. The floor is 9.1: 9.0 lacks the
       `experimental_devServer` hook the artifact route requires. API presence

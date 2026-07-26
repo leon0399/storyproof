@@ -22,7 +22,16 @@ pnpm --filter storyproof lint        # oxlint --deny-warnings
 ```
 
 Normal visual runs start from the Storybook **Visual tests** panel/widget, not a
-CLI. `test:visual` is the isolated addon smoke test.
+CLI. `test:visual` is the isolated addon smoke test. It runs
+`test/acceptance/addon-suite.ts` (the reusable acceptance specification,
+shared with the packed-consumer harness) against `test/fixtures/project`
+copied to `test/.tmp/project` by `test/fixture-server.ts`. Setting
+`VISUAL_TEST_CONSUMER_DIR=<path-relative-to-this-package>` (e.g.
+`../../examples/react-vite-sb10.5`) points the same command at an installed
+example under root `examples/` instead — no copy, and the child Storybook
+process's `cwd` becomes that directory so `storyproof/preset` resolves from
+its real `node_modules`, not workspace source. See root `AGENTS.md`'s
+`examples/` section and the release plan's Task 8 deviation note.
 
 `pnpm pack` (and therefore `pnpm --filter storyproof pack`) always reruns
 `build` via the `prepack` lifecycle script first, so a stale `dist` can never

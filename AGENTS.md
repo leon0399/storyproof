@@ -18,6 +18,7 @@ Turborepo — two workspaces with no cross-dependencies don't need a task graph.
 | --------------------- | ----------------------------------------------------------------------------------- |
 | `packages/storyproof` | The addon — the only published npm package (`storyproof`). Has its own `AGENTS.md`. |
 | `apps/website`        | storyproof.dev docs/marketing site (placeholder, private, framework not yet chosen) |
+| `examples/*`          | Standalone (non-workspace-member) Storybook quickstarts; see below.                 |
 
 ## Commands (from repo root)
 
@@ -34,6 +35,39 @@ pnpm format / pnpm format:check        # prettier, repo-wide
 `pnpm pack` always rebuilds first (via the `prepack` lifecycle script) and
 the tarball allowlist/size budget is asserted by
 `test/pack-inventory.test.ts` — see `packages/storyproof/AGENTS.md`.
+
+## `examples/`
+
+`examples/react-vite-sb10.5`, `examples/react-vite-sb10.0`, and
+`examples/nextjs-vite-sb10.5` are real, standalone Storybook projects —
+deliberately **not** pnpm workspace members (absent from
+`pnpm-workspace.yaml`'s `packages:` list, so a `workspace:*` link back to
+this repo is impossible). Each has its own `package.json` (no
+`workspace:`/`catalog:`/relative-path refs), pins its Storybook/framework
+packages with `~` (the directory name promises an exact minor), and depends
+on the published `storyproof` version. Run one locally:
+
+```bash
+cd examples/react-vite-sb10.5
+pnpm install --ignore-workspace   # required: see below
+pnpm storybook
+```
+
+`--ignore-workspace` is not optional here, and not just for isolation
+hygiene — empirically, a plain `pnpm install` inside a non-member directory
+under this workspace silently no-ops (reports "Done" without installing
+anything for that directory), and a plain `pnpm add` resolves against and
+rewrites the _root_ `pnpm-lock.yaml` instead of the example's own.
+
+Each example also carries the same `visual-fixture`/`outside-fixture`/
+`control` story content as `packages/storyproof/test/fixtures/project` (see
+each example's README) — they double as CI's packed-consumer acceptance
+fixture, per the release plan's Task 8 "examples-as-fixtures" deviation. CI's
+`consumer` job overlays the exact tarball the `package` job builds onto each
+example (`pnpm add file:<tarball> --ignore-workspace`) and runs
+`test:visual`'s reusable acceptance suite against that example's real dev
+server via `VISUAL_TEST_CONSUMER_DIR=../../examples/<name> pnpm --filter
+storyproof test:visual`.
 
 ## Key documentation
 
