@@ -1,14 +1,14 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "jsx": "react-jsx",
     "rootDir": "src",
-    "outDir": "dist",
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true
+    // Scoped to the build surface (src) rather than the root tsconfig: TS7
+    // has no programmatic compiler API, so tsdown's dts generation requires
+    // isolatedDeclarations to take the oxc-transform backend instead of
+    // falling back to the (currently API-less) TypeScript compiler. Enabling
+    // it repo-wide would also force explicit exported types onto test
+    // helpers that never ship a declaration file.
+    "isolatedDeclarations": true
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["src/**/*.stories.ts", "src/**/*.stories.tsx"]
