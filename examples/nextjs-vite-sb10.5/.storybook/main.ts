@@ -6,7 +6,6 @@ const config: StorybookConfig = {
     "../src/**/*.stories.tsx",
     "../outside/outside-fixture.stories.tsx",
   ],
-  staticDirs: [{ from: "../control", to: "/control" }],
   addons: [
     {
       name: "storyproof/preset",

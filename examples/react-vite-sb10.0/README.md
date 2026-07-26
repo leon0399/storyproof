@@ -1,35 +1,42 @@
 # storyproof + React + Vite (Storybook 10.0.x)
 
-A minimal Storybook project demonstrating [`storyproof`](https://storyproof.dev)
-with the `@storybook/react-vite` framework integration, pinned to Storybook
+A Storybook project demonstrating [`storyproof`](https://storyproof.dev) with
+the `@storybook/react-vite` framework integration, pinned to Storybook
 `~10.0.0` — the supported floor of the `^10.0.0` release contract.
+
+This example links the local `storyproof` workspace package (`workspace:*`),
+so it always reflects your working tree, not a published release. CI proves
+the actual packed npm tarball separately, outside this workspace — see
+[the root AGENTS.md](../../AGENTS.md#examples).
 
 ## Run it
 
 ```bash
-pnpm install --ignore-workspace
+pnpm install     # from the repository root
+cd examples/react-vite-sb10.0
 pnpm storybook
 ```
 
-Open the **Visual tests** panel or the testing widget for the `Button` story
-and click **Run visual tests** to capture a baseline, review it, and approve
-it. Approved baselines are written next to the story as
-`src/__screenshots__/Button.stories.tsx.visual/**`.
+## Stories
+
+Open the **Visual tests** panel or the testing widget on any story and click
+**Run visual tests** to capture a baseline, review it, and approve it.
+Approved baselines are written next to the story as
+`src/__screenshots__/<story file>.visual/**`.
+
+- **Button** — a plain component with no storyproof-specific behavior. Start
+  here.
+- **Visual Fixture** / **Outside Fixture** — each story demonstrates one real
+  reviewer behavior (changed pixels, a disabled story, exact viewport
+  framing, portal capture, a story outside the configured `storyRoots`,
+  stale-approval rejection, malformed baseline metadata) with a short
+  description in its source of what it shows and what storyproof should do.
+  Read `src/visual-fixture.stories.tsx` and
+  `outside/outside-fixture.stories.tsx` directly — that's the documentation.
 
 ## Files
 
 - `.storybook/main.ts` — registers `storyproof/preset` the same way any
   consumer would, per [the configuration docs](https://github.com/leon0399/storyproof/blob/main/packages/storyproof/docs/configuration.md).
-- `src/Button.tsx` / `src/Button.stories.tsx` — the demo component and its
-  two stories.
-- `src/visual-fixture.stories.tsx`, `outside/outside-fixture.stories.tsx`,
-  `control/state.json` — this example doubles as CI's packed-consumer
-  fixture: storyproof's own reusable acceptance specification
-  (`packages/storyproof/test/acceptance/addon-suite.ts`) runs against this
-  project's real dev server in CI, installed from the published/packed
-  `storyproof` tarball rather than workspace source. These stories exist to
-  exercise specific reviewer behaviors (changed pixels, a story disabled for
-  visual tests, exact viewport framing, a story outside the configured
-  `storyRoots`, stale-approval rejection, malformed baseline metadata, and a
-  controllable story for cancellation coverage) — ignore them if you're just
-  here to see the Button demo.
+- `.storybook/preview.ts` — orders the sidebar so Button reads before the
+  scenario stories.

@@ -1,6 +1,7 @@
 packages:
   - "apps/*"
   - "packages/*"
+  - "examples/*"
 
 # Packages not listed are blocked from running install scripts.
 allowBuilds:

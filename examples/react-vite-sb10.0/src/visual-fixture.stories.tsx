@@ -3,15 +3,15 @@ import { createPortal } from "react-dom";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
 
-// This story set is storyproof's own reusable acceptance specification
-// (packages/storyproof/test/acceptance/addon-suite.ts) exercised against a
-// real installed package rather than the workspace source — see the
-// package's docs/2026-07-24-public-preview-release-plan.md, Task 8. It
-// doubles as this example's CI fixture, which is why it looks more
-// elaborate than the Button demo above: each story below exists to prove
-// one specific reviewer behavior (changed pixels, disabled stories, exact
-// viewport framing, stale-approval rejection, malformed metadata, and a
-// controllable hang/connection-failure story for cancellation coverage).
+// Scenarios: each story below demonstrates a real reviewer behavior a
+// storyproof user hits in practice, not a synthetic edge case. They're also
+// storyproof's own reusable acceptance specification
+// (packages/storyproof/test/acceptance/addon-suite.ts), exercised here
+// against a real installed package rather than the workspace source — see
+// the package's docs/2026-07-24-public-preview-release-plan.md, Task 8.
+// (Fault-injection scenarios — a story that hangs or fails its connection on
+// command — are harness-only and stay in the workspace's
+// test/fixtures/project; they'd be nonsense in a demo project.)
 
 function VisualFixture() {
   const [ready, setReady] = useState(false);
@@ -56,86 +56,52 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+/**
+ * The everyday case: run once to capture and approve a baseline, then run
+ * again after the rendered pixels change. Expected: the panel reports
+ * "Changed" with a pixel count, and the Baseline/Latest/Diff tabs each show
+ * a distinct image.
+ */
 export const Changed: Story = {};
 
+/**
+ * Approving a candidate that no longer matches what's on disk (e.g. someone
+ * else's rerun landed first) must not silently promote it. Expected: the
+ * approval is rejected with a "stale visual approval" message and the story
+ * stays in its pre-approval state.
+ */
 export const Stale: Story = {};
 
+/**
+ * A hand-edited or corrupted `baseline.json` next to a real `baseline.png`.
+ * Expected: the story is still reviewable (Baseline/Latest tabs work) but
+ * reports "Baseline metadata is missing or malformed" instead of a diff.
+ */
 export const Malformed: Story = {};
 
+/**
+ * A fullscreen story captures the full viewport, not just its rendered
+ * content. Expected: the captured candidate is exactly 1280×720.
+ */
 export const Viewport: Story = {
   parameters: { layout: "fullscreen" },
 };
 
+/**
+ * Opting a story out of visual testing (`visualTests: { disable: true }`).
+ * Expected: running it reports "Passed" immediately with no candidate ever
+ * written.
+ */
 export const Disabled: Story = {
   parameters: { visualTests: { disable: true } },
 };
 
-export const Controlled: Story = {
-  play: async () => {
-    const response = await fetch("/control/state.json", {
-      cache: "no-store",
-    });
-    if (!response.ok) {
-      throw new Error(
-        `Could not read visual fixture control state: ${response.status} ${response.statusText}`,
-      );
-    }
-
-    const state: unknown = await response.json();
-    const control =
-      typeof state === "object" && state !== null ? state : undefined;
-    const mode =
-      control && "mode" in control && typeof control.mode === "string"
-        ? control.mode
-        : undefined;
-
-    switch (mode) {
-      case "ready":
-        return;
-      case "hang":
-        await new Promise<never>(() => undefined);
-        return;
-      case "connection-failure": {
-        const url =
-          control &&
-          "url" in control &&
-          typeof control.url === "string" &&
-          control.url.length > 0
-            ? control.url
-            : undefined;
-        if (!url) {
-          throw new Error(
-            "Visual fixture connection-failure mode requires a non-empty url string",
-          );
-        }
-
-        let destination: URL;
-        try {
-          destination = new URL(url);
-        } catch {
-          throw new Error(
-            `Visual fixture connection-failure url must be an absolute URL: ${url}`,
-          );
-        }
-        if (
-          destination.protocol !== "http:" &&
-          destination.protocol !== "https:"
-        ) {
-          throw new Error(
-            `Visual fixture connection-failure url must use http or https: ${url}`,
-          );
-        }
-
-        globalThis.location.assign(destination.href);
-        await new Promise<never>(() => undefined);
-        return;
-      }
-      default:
-        throw new Error(`Unsupported visual fixture control mode: ${mode}`);
-    }
-  },
-};
-
+/**
+ * Non-fullscreen content is captured tightly around what actually rendered
+ * — including a `createPortal`-rendered element outside the story root —
+ * not the full viewport. Expected: the candidate is smaller than 1280×720
+ * and contains both the button's and the portal's colors.
+ */
 export const Portal: Story = {
   parameters: { layout: "centered" },
   play: async ({ canvas, canvasElement }) => {

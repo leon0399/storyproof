@@ -11,7 +11,7 @@
   "dependencies": {
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "storyproof": "0.0.1-alpha.1"
+    "storyproof": "workspace:*"
   },
   "devDependencies": {
     "@storybook/react-vite": "~10.5.0",
