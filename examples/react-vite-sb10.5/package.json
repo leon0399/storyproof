@@ -1,0 +1,27 @@
+{
+  "name": "storyproof-example-react-vite-sb10.5",
+  "private": true,
+  "version": "0.0.0",
+  "description": "storyproof quickstart: React + Vite, Storybook 10.5.x (canonical target)",
+  "type": "module",
+  "scripts": {
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "storyproof": "0.0.1-alpha.1"
+  },
+  "devDependencies": {
+    "@storybook/react-vite": "~10.5.0",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "storybook": "~10.5.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.3"
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}
