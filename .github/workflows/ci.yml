@@ -147,16 +147,19 @@ jobs:
           path: packages/storyproof/test-results/
           retention-days: 7
 
-  # Packed-consumer harness (release plan Task 8): installs the exact
-  # tarball the `package` job produced into a real, non-workspace project
-  # under examples/** and runs the same reusable acceptance specification
-  # (test/acceptance/addon-suite.ts) against its dev server. The examples
-  # double as the acceptance fixture (see the release plan's "examples-as-
-  # fixtures" deviation note) -- there is no separate consumer fixture or
-  # orchestrator script; VISUAL_TEST_CONSUMER_DIR just points the existing
-  # test:visual harness (test/fixture-server.ts, test/smoke/addon.spec.ts)
-  # at an installed example instead of the workspace-source fixture.
-  # Single Node version: Node coverage is already proven by `test`/`visual`;
+  # Packed-consumer harness (release plan Task 8). examples/** are real pnpm
+  # workspace members (storyproof: workspace:*) for local development -- a
+  # contributor cloning the repo sees their own working tree, not a stale
+  # published build. That link proves nothing about the packed npm tarball,
+  # so this job copies an example *out* of the workspace before installing
+  # it, which both bypasses the workspace link and gives the isolation
+  # guarantee for free (no separate negative-control fixture needed): the
+  # copy is made before any node_modules exist anywhere in the checkout, so
+  # there's nothing to symlink back to source even if we wanted to.
+  # VISUAL_TEST_PROJECT_DIR then points the existing test:visual harness
+  # (test/fixture-server.ts, test/smoke/addon.spec.ts) at that copy instead
+  # of the workspace-source fixture -- no new orchestrator script. Single
+  # Node version: coverage across 22/24 is already proven by `test`/`visual`;
   # this matrix's dimension is Storybook minor x framework integration.
   consumer:
     name: consumer (${{ matrix.example }})
@@ -179,26 +182,35 @@ jobs:
         with:
           node-version-file: ".node-version"
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      # Copied before any `pnpm install` runs in this checkout, so the copy
+      # is guaranteed to carry no node_modules (workspace symlinks or
+      # otherwise) that could compromise the isolation this job proves.
+      - name: Copy the example out of the workspace
+        env:
+          EXAMPLE: ${{ matrix.example }}
+        run: |
+          dir=$(mktemp -d)
+          cp -r "examples/$EXAMPLE" "$dir/project"
+          echo "consumer_dir=$dir/project" >> "$GITHUB_ENV"
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: storyproof-package
           path: /tmp/storyproof-artifact
-      # examples/** are deliberately excluded from pnpm-workspace.yaml so
-      # they read as standalone projects; --ignore-workspace is required
-      # empirically, not just for isolation hygiene: without it, a plain
-      # `pnpm install` here silently no-ops (pnpm treats the directory as
-      # workspace-scoped and installs nothing for it), and `pnpm add`
-      # resolves and rewrites the *root* pnpm-lock.yaml instead of this
-      # example's own lockfile.
-      - name: Install example dependencies
-        working-directory: examples/${{ matrix.example }}
+      - name: Point the copy at the packed tarball
+        working-directory: ${{ env.consumer_dir }}
+        run: pnpm pkg set dependencies.storyproof=file:/tmp/storyproof-artifact/package.tgz
+      # The copy has no ancestor pnpm-workspace.yaml once outside the repo,
+      # but --ignore-workspace is kept for defense in depth: empirically (see
+      # the release plan's Task 8 deviation note), a plain `pnpm install`
+      # inside a non-member directory *under* this workspace silently no-ops,
+      # and a plain `pnpm add` rewrites the *root* pnpm-lock.yaml instead of
+      # the target directory's own -- exactly the kind of workspace bleed
+      # this job exists to rule out.
+      - name: Install the copy in isolation
+        working-directory: ${{ env.consumer_dir }}
         run: pnpm install --ignore-workspace
-      - name: Overlay the packed tarball
-        working-directory: examples/${{ matrix.example }}
-        run: pnpm add file:/tmp/storyproof-artifact/package.tgz --ignore-workspace
-      - name: Assert storyproof resolves under this example's node_modules
-        working-directory: examples/${{ matrix.example }}
+      - name: Assert storyproof resolves under this copy's node_modules
+        working-directory: ${{ env.consumer_dir }}
         run: |
           resolved=$(node --input-type=module -e "console.log(import.meta.resolve('storyproof'))")
           case "$resolved" in
@@ -208,11 +220,12 @@ jobs:
               exit 1
               ;;
           esac
+      - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
         working-directory: packages/storyproof
-      - name: Run the acceptance suite against the packed example
+      - name: Run the acceptance suite against the packed copy
         env:
-          VISUAL_TEST_CONSUMER_DIR: ../../examples/${{ matrix.example }}
+          VISUAL_TEST_PROJECT_DIR: ${{ env.consumer_dir }}
         run: pnpm --filter storyproof test:visual
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()

@@ -6,17 +6,19 @@ import path from "node:path";
 const packageRoot = process.cwd();
 const fixtureSource = path.join(packageRoot, "test/fixtures/project");
 const fixtureCopy = path.join(packageRoot, "test/.tmp/project");
-// VISUAL_TEST_CONSUMER_DIR points the whole fixture flow at a real installed
-// example (see examples/**) instead of the workspace-source fixture: no
-// copy step runs, and Storybook/its CLI resolve from the example's own
-// node_modules (an installed `storyproof`, not workspace source) because
-// spawned children's cwd becomes that directory. The example directory
-// already carries the same acceptance-fixture story/control content as
-// test/fixtures/project (see docs/2026-07-24-public-preview-release-plan.md
-// Task 8's "examples-as-fixtures" deviation), so registerAddonAcceptanceSuite
-// runs unmodified either way.
-const consumerDir = process.env.VISUAL_TEST_CONSUMER_DIR
-  ? path.resolve(packageRoot, process.env.VISUAL_TEST_CONSUMER_DIR)
+// VISUAL_TEST_PROJECT_DIR points the whole fixture flow at a real installed
+// project instead of the workspace-source fixture: no copy step runs here,
+// and Storybook/its CLI resolve from that project's own node_modules (an
+// installed `storyproof`, not workspace source) because spawned children's
+// cwd becomes that directory. CI's `consumer` job sets this to a `mktemp -d`
+// copy of an examples/** project, created *outside* this repository and with
+// the packed tarball overlaid via `pnpm pkg set` -- being outside the repo
+// (and thus outside the pnpm workspace) is what proves the packed artifact
+// rather than the workspace-linked `storyproof: workspace:*` the examples
+// otherwise use for local development. See
+// docs/2026-07-24-public-preview-release-plan.md's Task 8 deviation note.
+const consumerDir = process.env.VISUAL_TEST_PROJECT_DIR
+  ? path.resolve(packageRoot, process.env.VISUAL_TEST_PROJECT_DIR)
   : undefined;
 const spawnCwd = consumerDir ?? packageRoot;
 const staticOutput = consumerDir

@@ -4,10 +4,10 @@ import { expect, test } from "@playwright/test";
 
 import { registerAddonAcceptanceSuite } from "../acceptance/addon-suite.js";
 
-// VISUAL_TEST_CONSUMER_DIR (see test/fixture-server.ts) points this same
-// suite at a real installed example instead of the workspace-source fixture.
-const consumerDir = process.env.VISUAL_TEST_CONSUMER_DIR
-  ? path.resolve(process.cwd(), process.env.VISUAL_TEST_CONSUMER_DIR)
+// VISUAL_TEST_PROJECT_DIR (see test/fixture-server.ts) points this same
+// suite at a real installed project instead of the workspace-source fixture.
+const consumerDir = process.env.VISUAL_TEST_PROJECT_DIR
+  ? path.resolve(process.cwd(), process.env.VISUAL_TEST_PROJECT_DIR)
   : undefined;
 
 registerAddonAcceptanceSuite({
