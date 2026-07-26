@@ -1,0 +1,1070 @@
+packages/storyproof/tsconfig.build.json
+  bebd0a86deefdd3e 5-11
+packages/storyproof/tsdown.config.ts
+  bebd0a86deefdd3e 1-26
+packages/storyproof/src/constants.ts
+  bebd0a86deefdd3e 2-4,6-9
+packages/storyproof/package.json
+  bebd0a86deefdd3e 45,48,50,77,85,89,91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.6",
+  "base_commit_sha": "14f773195e2223a061a5fe9cd7c8b4925fbf7de4",
+  "prompts": {
+    "bebd0a86deefdd3e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2dc6a541-5480-4b29-80bb-faef73a1776f",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Leonid Meleshin <leon.03.99@gmail.com>",
+      "messages": [
+        {
+          "type": "user",
+          "text": "<teammate-message teammate_id=\"team-lead\">\nReplace storyproof's bespoke build/pack/verify scripts with conventional tooling. Repo: /home/leon0399/Projects/storyproof (pnpm workspace; the package is packages/storyproof). Work on a branch `chore/conventional-toolchain` from origin/main; push and open a NON-DRAFT PR when green. Never merge. Never git stash/reset.\n\nRead first: repo root AGENTS.md, packages/storyproof/AGENTS.md, packages/storyproof/package.json, scripts/*.mjs, test/build-contract.test.ts, test/consumer/*, .github/workflows/ci.yml, src/preset.ts (the compiled/dist path-resolution logic), tsconfig*.json.\n\n## Target state (owner-decided; do not relitigate)\n\n1. **Build: `tsdown`** (latest stable from npm), configured via `tsdown.config.ts`:\n   - Entries: `src/index.ts`, `src/manager.tsx`, `src/preset.ts`, `src/preview.ts` → dist/index.js, dist/manager.js, dist/preset.js, dist/preview.js (filenames MUST stay exactly these — src/preset.ts's runtime logic locates sibling compiled entries and detects `dist` by directory name; read it and keep it working, adjusting the preset code only if the layout genuinely changes).\n   - Format: ESM only. Declarations ON with sourcemaps if supported. `publint: true` and `attw: { profile: \"esm-only\", level: \"error\" }` in the config (both run as part of build; add `publint` and `@arethetypeswrong/core` devDeps per tsdown docs at https://tsdown.dev/options/lint).\n   - Dependencies/peers stay external (tsdown's library defaults); shared internal chunks are fine.\n2. **TypeScript 7.0.2 exact** as the only TypeScript devDep; DELETE `@typescript/native-preview`. `typecheck` script becomes `tsc --noEmit`. Enable **`isolatedDeclarations`** (required: tsdown's dts must use the oxc backend, because TS 7 has no programmatic API — verify tsdown actually takes the oxc path and does not try to load the TS API; if the TS-API fallback triggers anywhere, that's a blocker to report, with `typescript@6.0.3` npm-alias as the documented fallback). Scope isolatedDeclarations to the build surface (src) — if enabling it repo-wide makes test files noisy, put it in the build tsconfig only. Add the explicit type annotations it demands in src; keep them minimal and idiomatic. Also delete the now-meaningless tsconfig lines `incremental: false` and `forceConsistentCasingInFileNames` (TS7 removed/absorbed them; rootDir and types are already explicit which TS7 requires — keep those).\n3. **DELETE** these files and their package.json scripts: `scripts/build.mjs`, `scripts/pack-artifact.mjs`, `scripts/test-exports.mjs`, `scripts/test-pack.mjs`, `scripts/pack-inventory.mjs`, `scripts/path-containment.mjs`, `scripts/archive-paths.mjs` (check nothing else imports them — `test/archive-paths.test.mjs` goes too), `test/build-artifact.mjs` (and the `test:build` script — `test` becomes plain `vitest run`), `test/consumer/pack-inventory.test.mjs`, `test/consumer/test-pack.test.mjs`.\n4. **New inventory gate**: one vitest test (e.g. `test/pack-inventory.test.ts`) that runs `pnpm pack --dry-run --json` (or npm equivalent) in the package dir, extracts the sorted file list + unpacked size, and asserts via inline snapshot / explicit expected array: exactly dist/** + LICENSE + README.md + package.json, nothing else, and a packed-size budget of 150 KiB. This preserves Task 7's guarantee in ~20 lines of conventional test.\n5. **build-contract test**: rewrite `test/build-contract.test.ts` minimally — keep the exports-map assertion against package.json; drop tsconfig.build.json emission assertions that no longer apply (tsdown owns emission; attw/publint now prove the contract). Delete `tsconfig.build.json` if nothing needs it anymore (tsdown config points at entries + its own tsconfig setting).\n6. **CI (.github/workflows/ci.yml)**: keep lint/typecheck/format and the Node 22/24 matrices for unit tests and visual smoke. Replace the pack/inventory/exports producer-consumer trio with ONE `build & package gates` job: `pnpm --filter storyproof build` (tsdown runs publint+attw with level error) + `pnpm --filter storyproof test` already includes the pack snapshot + upload the `pnpm pack` tarball as the `package-tgz` artifact (still produced once, for future consumer jobs) + `git diff --exit-code`. Keep actions SHA-pinned exactly as they are. Run `actionlint` and `zizmor .github/workflows/` — both must be clean.\n7. **Docs**: update packages/storyproof/AGENTS.md commands/structure (scripts/ dir is gone or minimal), root AGENTS.md command list, and the release plan doc (packages/storyproof/docs/2026-07-24-public-preview-release-plan.md): add a dated deviation note in Task 6/Task 7 sections — by owner decision the bespoke scripts were replaced with conventional tooling (tsdown + publint + attw + pack-list snapshot); the guarantees remain (compiled ESM+d.ts, exports resolve from the packed artifact, tarball allowlist + size budget), the mechanisms changed. Update the package CHANGELOG.md `[Unreleased]` → `### Changed` accordingly. ROADMAP: check P0/P2 wording still holds (the SRI/pack-once bullet stays — that's release-workflow).\n8. Known risks to handle explicitly: (a) `src/storybook-theme.d.ts` is an ambient declaration — make sure typecheck still sees it and dts output doesn't need it; (b) preset.ts's `compiled`/directory detection against tsdown output; (c) vitest importing built artifacts anywhere; (d) the visual smoke (`test:visual`) uses the fixture project which loads `src/preset.ts` — confirm nothing there depended on deleted scripts.\n\n## Verification (all must exit 0; redirect long output to /tmp/claude-1000/-home-leon0399-Projects-llame/c1063c2c-b807-4e6e-bd5b-9bce08cdabcf/scratchpad/ files, never pipe to head/grep)\n\n```\npnpm install\npnpm --filter storyproof build        # tsdown + publint + attw all green\npnpm --filter storyproof typecheck    # tsc 7.0.2 --noEmit\npnpm --filter storyproof test         # vitest incl. new pack snapshot\npnpm --filter storyproof lint\npnpm format:check\nactionlint && zizmor .github/workflows/\nnode -e \"import('file:///home/leon0399/Projects/storyproof/packages/storyproof/dist/preset.js').then(m => { if (typeof m.managerEntries !== 'function') throw new Error('preset broken'); console.log('preset ok'); })\"\n```\n\n`test:visual` cannot run on this WSL2 host (missing Playwright system libs) — note in the PR body; CI covers it on the PR.\n\n## Commit/PR\n\nConventional commits (may be 2-3 logical commits: toolchain swap, gate replacement, docs). Trailers on every commit:\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_011apGNwN6NEjPRtHLkX4YPF\n\nPR body: the old→new mapping table, what each deleted script's guarantee maps to now, the TS7/isolatedDeclarations rationale (tsdown dts must avoid the TS API), verification results, footer:\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nhttps://claude.ai/code/session_011apGNwN6NEjPRtHLkX4YPF\n\nReport back: PR URL, the mapping table, isolatedDeclarations churn size (how many annotations), any blocker hit (especially TS-API fallback), verification exit codes.\n</teammate-message>",
+          "timestamp": "2026-07-26T21:05:45.953Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Skill",
+          "input": {
+            "skill": "using-superpowers"
+          },
+          "timestamp": "2026-07-26T21:05:50.416Z"
+        },
+        {
+          "type": "user",
+          "text": "Base directory for this skill: /home/leon0399/.claude/plugins/cache/claude-plugins-official/superpowers/6.2.0/skills/using-superpowers\n\n<SUBAGENT-STOP>\nIf you were dispatched as a subagent to execute a specific task, ignore this skill.\n</SUBAGENT-STOP>\n\n<EXTREMELY-IMPORTANT>\nIf you think there is even a 1% chance a skill might apply to what you are doing, you ABSOLUTELY MUST invoke the skill.\n\nIF A SKILL APPLIES TO YOUR TASK, YOU DO NOT HAVE A CHOICE. YOU MUST USE IT.\n\nThis is not negotiable. You cannot rationalize your way out of this.\n</EXTREMELY-IMPORTANT>\n\n## The Rule\n\n**Invoke relevant or requested skills BEFORE any response or action** — including clarifying questions, exploring the codebase, or checking files. If it turns out wrong for the situation, you don't have to use it.\n\n**Before entering plan mode:** if you haven't already brainstormed, invoke the brainstorming skill first.\n\nThen announce \"Using [skill] to [purpose]\" and follow the skill exactly. If it has a checklist, create a todo per item.\n\n## Skill Priority\n\nWhen multiple skills apply, process skills come first — they set the approach, then implementation skills (frontend-design, etc.) carry it out. Brainstorming and systematic-debugging are Superpowers' most common process skills, but the rule holds for any of them.\n\n- \"Let's build X\" → superpowers:brainstorming first, then implementation skills.\n- \"Fix this bug\" → superpowers:systematic-debugging first, then domain skills.\n\n## Red Flags\n\nThese thoughts mean STOP—you're rationalizing:\n\n| Thought | Reality |\n|---------|---------|\n| \"This is just a simple question\" | Questions are tasks. Check for skills. |\n| \"I need more context first\" | Skill check comes BEFORE clarifying questions. |\n| \"Let me explore the codebase first\" | Skills tell you HOW to explore. Check first. |\n| \"I can check git/files quickly\" | Files lack conversation context. Check for skills. |\n| \"Let me gather information first\" | Skills tell you HOW to gather information. |\n| \"This doesn't need a formal skill\" | If a skill exists, use it. |\n| \"I remember this skill\" | Skills evolve. Read current version. |\n| \"This doesn't count as a task\" | Action = task. Check for skills. |\n| \"The skill is overkill\" | Simple things become complex. Use it. |\n| \"I'll just do this one thing first\" | Check BEFORE doing anything. |\n| \"This feels productive\" | Undisciplined action wastes time. Skills prevent this. |\n| \"I know what that means\" | Knowing the concept ≠ using the skill. Invoke it. |\n\n## Platform Adaptation\n\nIf your harness appears here, read its reference file for special instructions:\n\n- Codex: `references/codex-tools.md`\n- Pi: `references/pi-tools.md`\n- Antigravity: `references/antigravity-tools.md`\n\n## User Instructions\n\nUser instructions (CLAUDE.md, AGENTS.md, GEMINI.md, etc, direct requests) take precedence over skills, which in turn override default behavior. Only skip skill workflows or instructions when your human partner has explicitly told you to.\n",
+          "timestamp": "2026-07-26T21:05:51.633Z"
+        },
+        {
+          "type": "assistant",
+          "text": "I'm a teammate dispatched with a specific task — per the skill's own stop condition, I'll skip the generic skill workflow and proceed directly with the assigned work.",
+          "timestamp": "2026-07-26T21:05:58.251Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && pwd && git status && git branch -a",
+            "description": "Confirm repo location and git state"
+          },
+          "timestamp": "2026-07-26T21:05:59.244Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/AGENTS.md"
+          },
+          "timestamp": "2026-07-26T21:05:59.434Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/AGENTS.md"
+          },
+          "timestamp": "2026-07-26T21:06:12.117Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/package.json"
+          },
+          "timestamp": "2026-07-26T21:06:12.533Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "ls -la /home/leon0399/Projects/storyproof/packages/storyproof/scripts/",
+            "description": "List scripts directory"
+          },
+          "timestamp": "2026-07-26T21:06:12.996Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/scripts/build.mjs"
+          },
+          "timestamp": "2026-07-26T21:06:18.036Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/scripts/pack-artifact.mjs"
+          },
+          "timestamp": "2026-07-26T21:06:18.841Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/scripts/test-exports.mjs"
+          },
+          "timestamp": "2026-07-26T21:06:19.254Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/scripts/test-pack.mjs"
+          },
+          "timestamp": "2026-07-26T21:06:19.693Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/scripts/pack-inventory.mjs"
+          },
+          "timestamp": "2026-07-26T21:06:20.553Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/scripts/path-containment.mjs"
+          },
+          "timestamp": "2026-07-26T21:06:20.864Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/scripts/archive-paths.mjs"
+          },
+          "timestamp": "2026-07-26T21:06:21.180Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof/packages/storyproof && find test -type f | sort && echo \"---\" && find . -maxdepth 1 -name \"tsconfig*.json\"",
+            "description": "List test files and tsconfig files"
+          },
+          "timestamp": "2026-07-26T21:06:24.732Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/src/preset.ts"
+          },
+          "timestamp": "2026-07-26T21:06:24.962Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/test/build-contract.test.ts"
+          },
+          "timestamp": "2026-07-26T21:06:31.557Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/test/build-artifact.mjs"
+          },
+          "timestamp": "2026-07-26T21:06:31.931Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/test/archive-paths.test.mjs"
+          },
+          "timestamp": "2026-07-26T21:06:31.914Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/test/consumer/pack-inventory.test.mjs"
+          },
+          "timestamp": "2026-07-26T21:06:32.663Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/test/consumer/test-pack.test.mjs"
+          },
+          "timestamp": "2026-07-26T21:06:33.060Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/tsconfig.json"
+          },
+          "timestamp": "2026-07-26T21:06:33.448Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/tsconfig.build.json"
+          },
+          "timestamp": "2026-07-26T21:06:33.886Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/.github/workflows/ci.yml"
+          },
+          "timestamp": "2026-07-26T21:06:34.259Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof/packages/storyproof && find src -type f | sort",
+            "description": "List src files"
+          },
+          "timestamp": "2026-07-26T21:06:39.842Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/docs/2026-07-24-public-preview-release-plan.md"
+          },
+          "timestamp": "2026-07-26T21:06:40.340Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/ROADMAP.md"
+          },
+          "timestamp": "2026-07-26T21:06:40.741Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/CHANGELOG.md"
+          },
+          "timestamp": "2026-07-26T21:06:41.145Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/AGENTS.md"
+          },
+          "timestamp": "2026-07-26T21:06:41.340Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && npm view typescript@7.0.2 version 2>&1; echo \"---\"; npm view tsdown version 2>&1; echo \"---\"; npm view tsdown versions --json 2>&1 | tail -5; echo \"---publint---\"; npm view publint version 2>&1; echo \"---attw---\"; npm view @arethetypeswrong/core version 2>&1",
+            "description": "Check npm registry for target package versions"
+          },
+          "timestamp": "2026-07-26T21:06:50.979Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && npm view typescript versions --json 2>&1 | tail -20",
+            "description": "Check typescript published versions near 7.0.2"
+          },
+          "timestamp": "2026-07-26T21:06:51.489Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "ToolSearch",
+          "input": {
+            "max_results": 5,
+            "query": "select:WebFetch,WebSearch"
+          },
+          "timestamp": "2026-07-26T21:07:08.241Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "WebFetch",
+          "input": {
+            "prompt": "Extract the exact config options for publint and attw (arethetypeswrong) integration in tsdown: option names, types, default values, and how to enable them. Also mention any required devDependencies.",
+            "url": "https://tsdown.dev/options/lint"
+          },
+          "timestamp": "2026-07-26T21:07:11.281Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "WebFetch",
+          "input": {
+            "prompt": "Extract information about how tsdown generates .d.ts declaration files: does it use the TypeScript compiler API by default or the oxc/isolatedDeclarations backend? What TypeScript versions are supported? What happens with TypeScript 7 / typescript-go which has no programmatic API? Is there a documented fallback to typescript@6.0.3 as an npm alias? Mention isolatedDeclarations requirements.",
+            "url": "https://tsdown.dev/options/typescript-configuration"
+          },
+          "timestamp": "2026-07-26T21:07:12.663Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "WebFetch",
+          "input": {
+            "prompt": "Extract information about how tsdown generates .d.ts declaration files: does it use the TypeScript compiler API by default or an oxc/isolatedDeclarations backend? What TypeScript versions are supported? What happens with TypeScript 7 / typescript-go which has no programmatic API — is there a documented fallback or workaround, such as installing typescript@6.0.3 under an npm alias? Mention isolatedDeclarations requirements and any config options related to the dts backend (e.g. \"oxc\", \"isolatedDeclarations\" option names).",
+            "url": "https://tsdown.dev/options/dts"
+          },
+          "timestamp": "2026-07-26T21:07:25.330Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "WebSearch",
+          "input": {
+            "query": "tsdown isolatedDeclarations oxc TypeScript 7 no programmatic API fallback"
+          },
+          "timestamp": "2026-07-26T21:07:25.818Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "WebFetch",
+          "input": {
+            "prompt": "Extract everything about: (1) whether TypeScript 7.0 ships a programmatic/JS API for tools, (2) the compatibility/fallback story for tools that need the old TS6 API — package name, npm alias syntax, executable name, (3) isolatedDeclarations changes in TS7, (4) any removed/renamed tsconfig compiler options in TS7 (e.g. incremental, forceConsistentCasingInFileNames), (5) rootDir/types requirements in TS7.",
+            "url": "https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/"
+          },
+          "timestamp": "2026-07-26T21:07:44.568Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "npm view @typescript/typescript6 versions --json 2>&1 | tail -10; echo \"---native-preview---\"; npm view @typescript/native-preview versions --json 2>&1 | tail -5",
+            "description": "Check @typescript/typescript6 compat package versions"
+          },
+          "timestamp": "2026-07-26T21:08:15.961Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "WebFetch",
+          "input": {
+            "prompt": "List ALL top-level config options for tsdown.config.ts with their type and default: especially `entry`, `format`, `dts`, `outDir`, `tsconfig`, `platform`, `sourcemap`, `clean`, `external`, `publint`, `attw`. Also describe what `dts` accepts (boolean or object) and whether there's a `dts.sourcemap` suboption. Note whether `tsconfig` accepts a path string to a different tsconfig file than the default.",
+            "url": "https://tsdown.dev/reference/config-options"
+          },
+          "timestamp": "2026-07-26T21:09:00.809Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof/packages/storyproof && cat playwright.config.ts 2>&1 | head -40; echo \"---vitest---\"; cat vitest.config.ts 2>&1",
+            "description": "Check playwright and vitest configs"
+          },
+          "timestamp": "2026-07-26T21:09:01.914Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "WebFetch",
+          "input": {
+            "prompt": "List config options for tsdown.config.ts, especially `entry`, `format`, `dts`, `outDir`, `tsconfig`, `platform`, `sourcemap`, `clean`, `external`. Describe whether `tsconfig` accepts a path string to point at a non-default tsconfig file, and whether `dts` accepts a `sourcemap` sub-option.",
+            "url": "https://tsdown.dev/options/config"
+          },
+          "timestamp": "2026-07-26T21:09:07.510Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "WebFetch",
+          "input": {
+            "prompt": "List the sidebar/navigation links for the options and reference documentation sections, with their URLs.",
+            "url": "https://tsdown.dev/"
+          },
+          "timestamp": "2026-07-26T21:09:08.393Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "WebFetch",
+          "input": {
+            "prompt": "List every property of the UserConfig interface with its full type signature and JSDoc description. I especially need: entry, format, dts, outDir, tsconfig, platform, sourcemap, clean, external, publint, attw, unbundle, exports.",
+            "url": "https://tsdown.dev/reference/api/Interface.UserConfig"
+          },
+          "timestamp": "2026-07-26T21:09:15.179Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && cat pnpm-workspace.yaml 2>&1; echo \"---root package.json---\"; cat package.json 2>&1",
+            "description": "Check workspace catalog config and root package.json"
+          },
+          "timestamp": "2026-07-26T21:09:51.613Z"
+        },
+        {
+          "type": "assistant",
+          "text": "No catalog — straightforward. Now let's create the branch and start implementing.",
+          "timestamp": "2026-07-26T21:09:55.745Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && git fetch origin && git checkout -b chore/conventional-toolchain origin/main && git status",
+            "description": "Create working branch from origin/main"
+          },
+          "timestamp": "2026-07-26T21:09:56.580Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/package.json",
+            "new_string": "  \"scripts\": {\n    \"build\": \"tsdown\",\n    \"prepack\": \"pnpm build\",\n    \"lint\": \"oxlint --deny-warnings\",\n    \"test\": \"vitest run\",\n    \"test:visual\": \"playwright test\",\n    \"typecheck\": \"tsc --noEmit\"\n  },",
+            "old_string": "  \"scripts\": {\n    \"build\": \"node ./scripts/build.mjs\",\n    \"prepack\": \"pnpm build\",\n    \"pack:artifact\": \"node ./scripts/pack-artifact.mjs\",\n    \"lint\": \"oxlint --deny-warnings\",\n    \"test\": \"pnpm test:build && vitest run\",\n    \"test:build\": \"node ./test/build-artifact.mjs\",\n    \"test:exports\": \"node ./scripts/test-exports.mjs\",\n    \"test:pack\": \"node ./scripts/test-pack.mjs\",\n    \"test:visual\": \"playwright test\",\n    \"typecheck\": \"tsgo --noEmit\"\n  },",
+            "replace_all": false
+          },
+          "timestamp": "2026-07-26T21:10:06.698Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/package.json",
+            "new_string": "    \"@types/react\": \"^19\",\n    \"@types/react-dom\": \"^19\",\n    \"@arethetypeswrong/core\": \"^0.18.5\",\n    \"oxlint\": \"^1.72.0\",\n    \"publint\": \"^0.3.22\",\n    \"react\": \"^19.2.0\",\n    \"react-dom\": \"^19.2.0\",\n    \"storybook\": \"^10.5.0\",\n    \"tsdown\": \"^0.22.14\",\n    \"tsx\": \"^4.20.3\",\n    \"typescript\": \"7.0.2\",\n    \"vitest\": \"^4.1.10\"\n  },",
+            "old_string": "    \"@types/react\": \"^19\",\n    \"@types/react-dom\": \"^19\",\n    \"@typescript/native-preview\": \"7.0.0-dev.20260703.1\",\n    \"oxlint\": \"^1.72.0\",\n    \"react\": \"^19.2.0\",\n    \"react-dom\": \"^19.2.0\",\n    \"storybook\": \"^10.5.0\",\n    \"tsx\": \"^4.20.3\",\n    \"typescript\": \"5.7.3\",\n    \"vitest\": \"^4.1.10\"\n  },",
+            "replace_all": false
+          },
+          "timestamp": "2026-07-26T21:10:19.170Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/package.json"
+          },
+          "timestamp": "2026-07-26T21:10:26.351Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/package.json",
+            "new_string": "  \"devDependencies\": {\n    \"@arethetypeswrong/core\": \"^0.18.5\",\n    \"@playwright/test\": \"1.55.1\",\n    \"@storybook/react-vite\": \"^10.5.0\",\n    \"@types/node\": \"^22\",\n    \"@types/pngjs\": \"^6.0.5\",\n    \"@types/react\": \"^19\",\n    \"@types/react-dom\": \"^19\",\n    \"oxlint\": \"^1.72.0\",\n    \"publint\": \"^0.3.22\",\n    \"react\": \"^19.2.0\",",
+            "old_string": "  \"devDependencies\": {\n    \"@playwright/test\": \"1.55.1\",\n    \"@storybook/react-vite\": \"^10.5.0\",\n    \"@types/node\": \"^22\",\n    \"@types/pngjs\": \"^6.0.5\",\n    \"@types/react\": \"^19\",\n    \"@types/react-dom\": \"^19\",\n    \"@arethetypeswrong/core\": \"^0.18.5\",\n    \"oxlint\": \"^1.72.0\",\n    \"publint\": \"^0.3.22\",\n    \"react\": \"^19.2.0\",",
+            "replace_all": false
+          },
+          "timestamp": "2026-07-26T21:10:30.951Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/tsconfig.json",
+            "new_string": "    \"declaration\": true,\n    \"declarationMap\": true,\n    \"esModuleInterop\": true,\n    \"isolatedModules\": true,",
+            "old_string": "    \"declaration\": true,\n    \"declarationMap\": true,\n    \"esModuleInterop\": true,\n    \"forceConsistentCasingInFileNames\": true,\n    \"incremental\": false,\n    \"isolatedModules\": true,",
+            "replace_all": false
+          },
+          "timestamp": "2026-07-26T21:11:28.675Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/tsconfig.build.json",
+            "new_string": "{\n  \"extends\": \"./tsconfig.json\",\n  \"compilerOptions\": {\n    \"rootDir\": \"src\",\n    // Scoped to the build surface (src) rather than the root tsconfig: TS7\n    // has no programmatic compiler API, so tsdown's dts generation requires\n    // isolatedDeclarations to take the oxc-transform backend instead of\n    // falling back to the (currently API-less) TypeScript compiler. Enabling\n    // it repo-wide would also force explicit exported types onto test\n    // helpers that never ship a declaration file.\n    \"isolatedDeclarations\": true\n  },\n  \"include\": [\"src/**/*.ts\", \"src/**/*.tsx\"],\n  \"exclude\": [\"src/**/*.stories.ts\", \"src/**/*.stories.tsx\"]\n}",
+            "old_string": "{\n  \"extends\": \"./tsconfig.json\",\n  \"compilerOptions\": {\n    \"module\": \"NodeNext\",\n    \"moduleResolution\": \"NodeNext\",\n    \"jsx\": \"react-jsx\",\n    \"rootDir\": \"src\",\n    \"outDir\": \"dist\",\n    \"declaration\": true,\n    \"declarationMap\": true,\n    \"sourceMap\": true\n  },\n  \"include\": [\"src/**/*.ts\", \"src/**/*.tsx\"],\n  \"exclude\": [\"src/**/*.stories.ts\", \"src/**/*.stories.tsx\"]\n}",
+            "replace_all": false
+          },
+          "timestamp": "2026-07-26T21:11:39.950Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Write",
+          "input": {
+            "content": "import { defineConfig } from \"tsdown\";\n\nexport default defineConfig({\n  entry: [\"src/index.ts\", \"src/manager.tsx\", \"src/preset.ts\", \"src/preview.ts\"],\n  format: \"esm\",\n  platform: \"node\",\n  tsconfig: \"tsconfig.build.json\",\n  dts: {\n    sourcemap: true,\n  },\n  sourcemap: true,\n  // Dependencies and peerDependencies stay external by tsdown's library\n  // defaults; internal modules (src/node, src/manager, src/shared) are\n  // bundled per entry, with chunks shared across entries where reachable\n  // from more than one (e.g. src/shared) split out automatically.\n  publint: true,\n  attw: {\n    profile: \"esm-only\",\n    level: \"error\",\n  },\n});\n",
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/tsdown.config.ts"
+          },
+          "timestamp": "2026-07-26T21:11:47.256Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Now let's delete the obsolete scripts and tests.",
+          "timestamp": "2026-07-26T21:11:53.961Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof/packages/storyproof && git rm -q \\\n  scripts/build.mjs \\\n  scripts/pack-artifact.mjs \\\n  scripts/test-exports.mjs \\\n  scripts/test-pack.mjs \\\n  scripts/pack-inventory.mjs \\\n  scripts/path-containment.mjs \\\n  scripts/archive-paths.mjs \\\n  test/archive-paths.test.mjs \\\n  test/build-artifact.mjs \\\n  test/consumer/pack-inventory.test.mjs \\\n  test/consumer/test-pack.test.mjs \\\n  tsconfig.build.json 2>&1\necho \"---restore tsconfig.build.json (we're keeping a rewritten version, not deleting)---\"\ngit status --short | head -30\nls scripts 2>&1\nls test/consumer 2>&1",
+            "description": "Remove obsolete build/pack scripts and their tests"
+          },
+          "timestamp": "2026-07-26T21:11:56.634Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Good — it correctly refused to delete the still-modified tsconfig.build.json. Let me delete the rest without it.",
+          "timestamp": "2026-07-26T21:12:01.297Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof/packages/storyproof && git rm -q \\\n  scripts/build.mjs \\\n  scripts/pack-artifact.mjs \\\n  scripts/test-exports.mjs \\\n  scripts/test-pack.mjs \\\n  scripts/pack-inventory.mjs \\\n  scripts/path-containment.mjs \\\n  scripts/archive-paths.mjs \\\n  test/archive-paths.test.mjs \\\n  test/build-artifact.mjs \\\n  test/consumer/pack-inventory.test.mjs \\\n  test/consumer/test-pack.test.mjs 2>&1\nls scripts 2>&1\nls test/consumer 2>&1\ngit status --short",
+            "description": "Remove obsolete build/pack scripts and their tests (keeping tsconfig.build.json)"
+          },
+          "timestamp": "2026-07-26T21:12:02.766Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Good, both empty directories were auto-removed. Now let's rewrite `test/build-contract.test.ts` and add the new `test/pack-inventory.test.ts`.",
+          "timestamp": "2026-07-26T21:12:08.702Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/test/build-contract.test.ts",
+            "new_string": "describe(\"compiled package contract\", () => {\n  test(\"builds all public entry points to explicit JavaScript and declaration targets\", async () => {\n    const packageJson = await readJson(\"package.json\");\n    const scripts = packageJson.scripts as Record<string, string>;\n    const exports = packageJson.exports as Record<\n      string,\n      { import?: string; types?: string }\n    >;\n\n    expect(scripts.build).toBeTypeOf(\"string\");\n    expect(Object.keys(exports).sort()).toEqual(\n      [\".\", \"./manager\", \"./preset\", \"./preview\"].sort(),\n    );\n    expect(exports).toMatchObject({\n      \".\": {\n        types: \"./dist/index.d.ts\",\n        import: \"./dist/index.js\",\n      },\n      \"./manager\": {\n        types: \"./dist/manager.d.ts\",\n        import: \"./dist/manager.js\",\n      },\n      \"./preset\": {\n        types: \"./dist/preset.d.ts\",\n        import: \"./dist/preset.js\",\n      },\n      \"./preview\": {\n        types: \"./dist/preview.d.ts\",\n        import: \"./dist/preview.js\",\n      },\n    });\n  });\n});",
+            "old_string": "describe(\"compiled package contract\", () => {\n  test(\"builds all public entry points to explicit JavaScript and declaration targets\", async () => {\n    const packageJson = await readJson(\"package.json\");\n    const scripts = packageJson.scripts as Record<string, string>;\n    const exports = packageJson.exports as Record<\n      string,\n      { import?: string; types?: string }\n    >;\n\n    expect(scripts.build).toBeTypeOf(\"string\");\n    expect(scripts.test).toContain(\"pnpm test:build\");\n    expect(Object.keys(exports).sort()).toEqual(\n      [\".\", \"./manager\", \"./preset\", \"./preview\"].sort(),\n    );\n    expect(exports).toMatchObject({\n      \".\": {\n        types: \"./dist/index.d.ts\",\n        import: \"./dist/index.js\",\n      },\n      \"./manager\": {\n        types: \"./dist/manager.d.ts\",\n        import: \"./dist/manager.js\",\n      },\n      \"./preset\": {\n        types: \"./dist/preset.d.ts\",\n        import: \"./dist/preset.js\",\n      },\n      \"./preview\": {\n        types: \"./dist/preview.d.ts\",\n        import: \"./dist/preview.js\",\n      },\n    });\n  });\n\n  test(\"configures NodeNext React emission\", async () => {\n    const buildConfig = await readJson(\"tsconfig.build.json\");\n    const compilerOptions = buildConfig.compilerOptions as Record<\n      string,\n      unknown\n    >;\n\n    expect(compilerOptions).toMatchObject({\n      rootDir: \"src\",\n      outDir: \"dist\",\n      declaration: true,\n      declarationMap: true,\n      sourceMap: true,\n    });\n    expect(buildConfig.extends).toBe(\"./tsconfig.json\");\n    expect(buildConfig.include).toEqual([\"src/**/*.ts\", \"src/**/*.tsx\"]);\n    expect(buildConfig.exclude).toEqual([\n      \"src/**/*.stories.ts\",\n      \"src/**/*.stories.tsx\",\n    ]);\n  });\n});",
+            "replace_all": false
+          },
+          "timestamp": "2026-07-26T21:12:16.282Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && pnpm install 2>&1 | tail -60",
+            "description": "Install workspace dependencies with new toolchain"
+          },
+          "timestamp": "2026-07-26T21:12:26.119Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof/packages/storyproof && pnpm pack --dry-run --json 2>/tmp/pack-dry-err.log | tee /tmp/pack-dry.json | head -c 3000; echo; echo \"---stderr---\"; cat /tmp/pack-dry-err.log",
+            "description": "Inspect pnpm pack dry-run JSON output shape (before build, dist likely missing)"
+          },
+          "timestamp": "2026-07-26T21:12:38.830Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/src/constants.ts"
+          },
+          "timestamp": "2026-07-26T21:12:47.273Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/src/constants.ts",
+            "new_string": "export const ADDON_ID = \"storyproof\";\nexport const PANEL_ID: string = `${ADDON_ID}/panel`;\nexport const TEST_PROVIDER_ID: string = `${ADDON_ID}/provider`;\nexport const STATUS_TYPE_ID: string = `${ADDON_ID}/status`;\n\nexport const COMMAND_EVENT: string = `${ADDON_ID}/command`;\nexport const COMMAND_ERROR_EVENT: string = `${ADDON_ID}/command-error`;\nexport const STATE_EVENT: string = `${ADDON_ID}/state`;\nexport const BASELINE_EVENT: string = `${ADDON_ID}/baseline`;\nexport const ARTIFACT_ROUTE = \"/__storyproof__/artifact\";",
+            "old_string": "export const ADDON_ID = \"storyproof\";\nexport const PANEL_ID = `${ADDON_ID}/panel`;\nexport const TEST_PROVIDER_ID = `${ADDON_ID}/provider`;\nexport const STATUS_TYPE_ID = `${ADDON_ID}/status`;\n\nexport const COMMAND_EVENT = `${ADDON_ID}/command`;\nexport const COMMAND_ERROR_EVENT = `${ADDON_ID}/command-error`;\nexport const STATE_EVENT = `${ADDON_ID}/state`;\nexport const BASELINE_EVENT = `${ADDON_ID}/baseline`;\nexport const ARTIFACT_ROUTE = \"/__storyproof__/artifact\";",
+            "replace_all": false
+          },
+          "timestamp": "2026-07-26T21:12:56.944Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && pnpm --filter storyproof build > /tmp/tsdown-build.log 2>&1; echo \"EXIT:$?\"; tail -100 /tmp/tsdown-build.log",
+            "description": "Run tsdown build and capture full output"
+          },
+          "timestamp": "2026-07-26T21:13:04.076Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/tsdown.config.ts",
+            "new_string": "  format: \"esm\",\n  platform: \"node\",\n  // package.json is \"type\": \"module\", so plain `.js` is already unambiguous\n  // ESM — the fixed `.mjs` extension tsdown defaults to for Node platforms\n  // would break preset.ts's directory/entry-name resolution and the\n  // required exports-map targets (dist/index.js, dist/manager.js, etc).\n  fixedExtension: false,\n  tsconfig: \"tsconfig.build.json\",",
+            "old_string": "  format: \"esm\",\n  platform: \"node\",\n  tsconfig: \"tsconfig.build.json\",",
+            "replace_all": false
+          },
+          "timestamp": "2026-07-26T21:13:22.608Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && pnpm --filter storyproof build > /tmp/tsdown-build2.log 2>&1; echo \"EXIT:$?\"; cat /tmp/tsdown-build2.log",
+            "description": "Rerun tsdown build with fixedExtension: false"
+          },
+          "timestamp": "2026-07-26T21:13:27.455Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof/packages/storyproof && echo \"--- manager.d.ts ---\"; cat dist/manager.d.ts; echo; echo \"--- src/manager.tsx ---\"; cat src/manager.tsx; echo \"--- index.d.ts ---\"; cat dist/index.d.ts; echo \"--- preview.d.ts ---\"; cat dist/preview.d.ts; echo \"--- preset.d.ts ---\"; cat dist/preset.d.ts",
+            "description": "Inspect generated declaration files"
+          },
+          "timestamp": "2026-07-26T21:13:37.608Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && pnpm --filter storyproof typecheck > /tmp/typecheck.log 2>&1; echo \"EXIT:$?\"; cat /tmp/typecheck.log",
+            "description": "Run typecheck with TypeScript 7.0.2"
+          },
+          "timestamp": "2026-07-26T21:13:45.256Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof/packages/storyproof && rg -n \"pack-inventory|pack-artifact|test-exports|test-pack|archive-paths|path-containment|build-artifact|scripts/build\\.mjs|tsgo|native-preview\" --glob '!dist/**' --glob '!node_modules/**' . 2>&1",
+            "description": "Find remaining references to deleted scripts/tools"
+          },
+          "timestamp": "2026-07-26T21:14:01.419Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof/packages/storyproof && pnpm pack --dry-run --json > /tmp/pack-dry2.json 2>/tmp/pack-dry2-err.log; echo \"EXIT:$?\"; wc -c /tmp/pack-dry2.json; cat /tmp/pack-dry2-err.log; echo \"---json head---\"; head -c 4000 /tmp/pack-dry2.json",
+            "description": "Inspect pnpm pack dry-run JSON now that dist exists"
+          },
+          "timestamp": "2026-07-26T21:14:09.171Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof/packages/storyproof && python3 -c \"\nimport sys\ndata = open('/tmp/pack-dry2.json', 'r', errors='replace').read()\nprint(repr(data[:200]))\nprint('---LEN---', len(data))\n\"\n",
+            "description": "Inspect raw bytes of pack dry-run json output"
+          },
+          "timestamp": "2026-07-26T21:14:35.883Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof/packages/storyproof && rm -rf /tmp/pack-real && mkdir -p /tmp/pack-real && pnpm pack --json --pack-destination /tmp/pack-real > /tmp/pack-real.json 2>/tmp/pack-real.err; echo \"EXIT:$?\"; echo \"---stdout tail---\"; tail -c 1500 /tmp/pack-real.json; echo; echo \"---stderr---\"; cat /tmp/pack-real.err; echo \"---dir---\"; ls -la /tmp/pack-real",
+            "description": "Try a real (non-dry-run) pnpm pack with JSON output"
+          },
+          "timestamp": "2026-07-26T21:14:44.513Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "mkdir -p /tmp/pack-real-2 && cd /home/leon0399/Projects/storyproof/packages/storyproof && pnpm pack --json --pack-destination /tmp/pack-real-2 > /tmp/pack-real.json 2>/tmp/pack-real.err; echo \"EXIT:$?\"; echo \"---stdout tail---\"; tail -c 1500 /tmp/pack-real.json; echo; echo \"---stderr---\"; cat /tmp/pack-real.err; echo \"---dir---\"; ls -la /tmp/pack-real-2",
+            "description": "Try a real (non-dry-run) pnpm pack with JSON output to a fresh directory"
+          },
+          "timestamp": "2026-07-26T21:14:48.597Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "npm --version; echo \"---\"; cd /home/leon0399/Projects/storyproof/packages/storyproof && npm pack --dry-run --json > /tmp/npm-pack-dry.json 2>/tmp/npm-pack-dry.err; echo \"EXIT:$?\"; echo \"---stdout---\"; cat /tmp/npm-pack-dry.json; echo \"---stderr---\"; cat /tmp/npm-pack-dry.err",
+            "description": "Test npm pack --dry-run --json as alternative"
+          },
+          "timestamp": "2026-07-26T21:15:12.781Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Write",
+          "input": {
+            "content": "import { spawnSync } from \"node:child_process\";\nimport { mkdtemp, rm, stat } from \"node:fs/promises\";\nimport { tmpdir } from \"node:os\";\nimport path from \"node:path\";\nimport { fileURLToPath } from \"node:url\";\n\nimport { describe, expect, test } from \"vitest\";\n\nconst packageRoot = fileURLToPath(new URL(\"../\", import.meta.url));\n\n/**\n * Packed-archive size budget in bytes. Measured 2026-07-26 with the tsdown\n * toolchain: the clean archive (dist + LICENSE + README.md + package.json,\n * including sourcemaps and declarations) packs to about 53 kB (pack output\n * is not byte-deterministic across runs -- gzip embeds mtimes -- so this is\n * an order-of-magnitude baseline, not an exact figure). 150 KiB keeps\n * comfortable headroom for legitimate growth (new modules, a bundled icon,\n * longer docs) while still catching a real leak: a stray source/test tree\n * bundled into the tarball would be many times this size.\n */\nconst MAX_PACKED_ARCHIVE_SIZE_BYTES = 150 * 1024;\n\ninterface PnpmPackResult {\n  filename: string;\n  files: { path: string }[];\n}\n\n/**\n * `pnpm pack --json` always runs the package's `prepack` (build) lifecycle\n * script first, and that script's own stdout precedes the JSON result on the\n * same stream -- so this takes the last top-level (column-0) `{` rather than\n * parsing stdout as a single document.\n */\nfunction parseTrailingJson(stdout: string): PnpmPackResult {\n  const jsonStart = stdout.lastIndexOf(\"\\n{\");\n  return JSON.parse(stdout.slice(jsonStart + 1)) as PnpmPackResult;\n}\n\ndescribe(\"packed tarball inventory\", () => {\n  test(\"ships exactly dist/**, LICENSE, README.md, and package.json within the size budget\", async () => {\n    const destination = await mkdtemp(\n      path.join(tmpdir(), \"storyproof-pack-\"),\n    );\n    try {\n      const packed = spawnSync(\n        \"pnpm\",\n        [\"pack\", \"--json\", \"--pack-destination\", destination],\n        { cwd: packageRoot, encoding: \"utf8\" },\n      );\n      expect(packed.status, packed.stderr || packed.stdout).toBe(0);\n\n      const result = parseTrailingJson(packed.stdout);\n      const paths = result.files.map((file) => file.path).sort();\n\n      const disallowed = paths.filter(\n        (entryPath) =>\n          entryPath !== \"LICENSE\" &&\n          entryPath !== \"README.md\" &&\n          entryPath !== \"package.json\" &&\n          !entryPath.startsWith(\"dist/\"),\n      );\n      expect(disallowed, \"unallowlisted packed entries\").toEqual([]);\n\n      // The hashed shared-chunk filenames tsdown emits (e.g.\n      // `dist/constants-DA4oGclz.js`) change with build content, so this\n      // checks the stable, publicly-relied-upon entries rather than an\n      // exact full-list snapshot.\n      expect(paths).toEqual(\n        expect.arrayContaining([\n          \"LICENSE\",\n          \"README.md\",\n          \"package.json\",\n          \"dist/index.js\",\n          \"dist/index.d.ts\",\n          \"dist/manager.js\",\n          \"dist/manager.d.ts\",\n          \"dist/preset.js\",\n          \"dist/preset.d.ts\",\n          \"dist/preview.js\",\n          \"dist/preview.d.ts\",\n        ]),\n      );\n\n      const { size } = await stat(result.filename);\n      expect(size).toBeGreaterThan(0);\n      expect(size).toBeLessThan(MAX_PACKED_ARCHIVE_SIZE_BYTES);\n    } finally {\n      await rm(destination, { recursive: true, force: true });\n    }\n  });\n});\n",
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/test/pack-inventory.test.ts"
+          },
+          "timestamp": "2026-07-26T21:16:49.931Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && pnpm --filter storyproof exec vitest run test/pack-inventory.test.ts > /tmp/vitest-pack.log 2>&1; echo \"EXIT:$?\"; cat /tmp/vitest-pack.log",
+            "description": "Run the new pack-inventory vitest test in isolation"
+          },
+          "timestamp": "2026-07-26T21:16:57.942Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Now let's run the full test suite.",
+          "timestamp": "2026-07-26T21:17:04.527Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && pnpm --filter storyproof test > /tmp/vitest-full.log 2>&1; echo \"EXIT:$?\"; tail -150 /tmp/vitest-full.log",
+            "description": "Run full vitest suite"
+          },
+          "timestamp": "2026-07-26T21:17:05.336Z"
+        },
+        {
+          "type": "assistant",
+          "text": "All 111 tests pass. Now let's run lint and format:check.",
+          "timestamp": "2026-07-26T21:17:12.436Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && pnpm --filter storyproof lint > /tmp/lint.log 2>&1; echo \"LINT EXIT:$?\"; tail -60 /tmp/lint.log",
+            "description": "Run oxlint"
+          },
+          "timestamp": "2026-07-26T21:17:12.838Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Now let's update the CI workflow per the target state.",
+          "timestamp": "2026-07-26T21:17:17.361Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/.github/workflows/ci.yml",
+            "new_string": "  # Build & package gates: build owns emission and lints the compiled\n  # package (publint + attw, configured in tsdown.config.ts and run as part\n  # of `pnpm build`); test owns the tarball-inventory snapshot\n  # (test/pack-inventory.test.ts, which packs and inspects its own tarball);\n  # this job additionally packs once and uploads that tarball so future\n  # packed-consumer jobs (release plan Task 8) can reuse it without\n  # rebuilding or repacking.\n  build-and-package:\n    name: build & package gates\n    runs-on: ubuntu-latest\n    timeout-minutes: 15\n    steps:\n      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0\n        with:\n          persist-credentials: false\n      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9\n      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0\n        with:\n          node-version-file: \".node-version\"\n          cache: pnpm\n      - run: pnpm install --frozen-lockfile\n      - run: pnpm --filter storyproof build\n      - run: pnpm --filter storyproof test\n      - run: mkdir -p /tmp/storyproof-ci\n      - run: pnpm --filter storyproof pack --pack-destination /tmp/storyproof-ci\n      - run: mv /tmp/storyproof-ci/storyproof-*.tgz /tmp/storyproof-ci/package.tgz\n      - run: git diff --exit-code\n      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2\n        with:\n          name: package-tgz\n          path: /tmp/storyproof-ci/package.tgz\n          if-no-files-found: error\n          retention-days: 7\n\n  visual:",
+            "old_string": "  # Producer: build and pack the archive exactly once. The gate jobs below\n  # download this exact artifact and fail independently — an inventory\n  # failure never masks an exports failure (same shape the release plan's\n  # Task 10 prescribes for the CI producer/consumer artifact flow).\n  pack:\n    name: pack the archive\n    runs-on: ubuntu-latest\n    timeout-minutes: 15\n    steps:\n      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0\n        with:\n          persist-credentials: false\n      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9\n      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0\n        with:\n          node-version-file: \".node-version\"\n          cache: pnpm\n      - run: pnpm install --frozen-lockfile\n      - run: pnpm --filter storyproof pack:artifact -- /tmp/storyproof-ci/package.tgz\n      - run: git diff --exit-code\n      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2\n        with:\n          name: package-tgz\n          path: /tmp/storyproof-ci/package.tgz\n          if-no-files-found: error\n          retention-days: 7\n\n  inventory:\n    name: tarball inventory\n    needs: pack\n    runs-on: ubuntu-latest\n    timeout-minutes: 10\n    steps:\n      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0\n        with:\n          persist-credentials: false\n      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9\n      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0\n        with:\n          node-version-file: \".node-version\"\n          cache: pnpm\n      - run: pnpm install --frozen-lockfile\n      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0\n        with:\n          name: package-tgz\n          path: /tmp/storyproof-ci\n      - run: pnpm --filter storyproof test:pack -- /tmp/storyproof-ci/package.tgz\n\n  exports:\n    name: packed exports resolve (Node ${{ matrix.node }})\n    needs: pack\n    runs-on: ubuntu-latest\n    timeout-minutes: 15\n    strategy:\n      fail-fast: false\n      matrix:\n        node: [22, 24]\n    steps:\n      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0\n        with:\n          persist-credentials: false\n      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9\n      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0\n        with:\n          node-version: ${{ matrix.node }}\n          cache: pnpm\n      - run: pnpm install --frozen-lockfile\n      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0\n        with:\n          name: package-tgz\n          path: /tmp/storyproof-ci\n      - run: pnpm --filter storyproof test:exports -- /tmp/storyproof-ci/package.tgz\n\n  visual:",
+            "replace_all": false
+          },
+          "timestamp": "2026-07-26T21:17:33.585Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && cat .gitignore 2>&1; echo \"---git status---\"; git status --short | head -20",
+            "description": "Check gitignore and current git status after builds"
+          },
+          "timestamp": "2026-07-26T21:17:45.534Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Good, dist/ is gitignored. Now let's view the full CI file for a sanity check.",
+          "timestamp": "2026-07-26T21:17:49.824Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/.github/workflows/ci.yml"
+          },
+          "timestamp": "2026-07-26T21:17:50.236Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/.github/workflows/ci.yml",
+            "new_string": "      - run: pnpm install --frozen-lockfile",
+            "old_string": "      # Unit tests include the isolated build-artifact contract (test:build).\n      - run: pnpm install --frozen-lockfile",
+            "replace_all": false
+          },
+          "timestamp": "2026-07-26T21:17:55.866Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "mkdir -p /tmp/pack-filter-test && cd /home/leon0399/Projects/storyproof && pnpm --filter storyproof pack --pack-destination /tmp/pack-filter-test > /tmp/pack-filter.log 2>&1; echo \"EXIT:$?\"; tail -20 /tmp/pack-filter.log; ls -la /tmp/pack-filter-test",
+            "description": "Verify pnpm --filter storyproof pack works from repo root"
+          },
+          "timestamp": "2026-07-26T21:18:01.468Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Confirmed working from repo root. Now let's run `actionlint` and `zizmor` on the workflow.",
+          "timestamp": "2026-07-26T21:18:07.720Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && which actionlint zizmor 2>&1; actionlint 2>&1; echo \"ACTIONLINT EXIT:$?\"",
+            "description": "Run actionlint on the workflow"
+          },
+          "timestamp": "2026-07-26T21:18:08.493Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && zizmor .github/workflows/ 2>&1; echo \"ZIZMOR EXIT:$?\"",
+            "description": "Run zizmor security audit on workflows"
+          },
+          "timestamp": "2026-07-26T21:18:12.793Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Both clean. Now let's update `packages/storyproof/AGENTS.md` and root `AGENTS.md` command lists.",
+          "timestamp": "2026-07-26T21:18:20.355Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/AGENTS.md",
+            "new_string": "```bash\npnpm --filter storyproof build       # tsdown (ESM + declarations; publint + attw gates)\npnpm --filter storyproof test        # vitest run (node unit tests, incl. the pack-inventory snapshot)\npnpm --filter storyproof test:visual # playwright integration smoke\npnpm --filter storyproof typecheck   # tsc --noEmit (TypeScript 7)\npnpm --filter storyproof lint        # oxlint --deny-warnings\n```\n\nNormal visual runs start from the Storybook **Visual tests** panel/widget, not a\nCLI. `test:visual` is the isolated addon smoke test.\n\n`pnpm pack` (and therefore `pnpm --filter storyproof pack`) always reruns\n`build` via the `prepack` lifecycle script first, so a stale `dist` can never\nbe packed. `test/pack-inventory.test.ts` packs the package itself and asserts\nthe tarball ships only `dist/**`, `LICENSE`, `README.md`, and `package.json`\nwithin a 150 KiB budget — there is no separate inventory script or CLI flag.",
+            "old_string": "```bash\npnpm --filter storyproof test        # vitest run (node unit tests)\npnpm --filter storyproof test:visual # playwright integration smoke\npnpm --filter storyproof typecheck   # tsgo --noEmit\npnpm --filter storyproof lint        # oxlint --deny-warnings\n```\n\nNormal visual runs start from the Storybook **Visual tests** panel/widget, not a\nCLI. `test:visual` is the isolated addon smoke test.",
+            "replace_all": false
+          },
+          "timestamp": "2026-07-26T21:18:25.345Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof/packages/storyproof && rg -n \"scripts/|pack:artifact|test:pack|test:exports|test:build\" AGENTS.md docs/*.md README.md 2>&1",
+            "description": "Search for remaining stale script references in package docs"
+          },
+          "timestamp": "2026-07-26T21:18:31.928Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/docs/2026-07-24-public-preview-release-plan.md",
+            "limit": 30,
+            "offset": 490
+          },
+          "timestamp": "2026-07-26T21:18:44.919Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/docs/2026-07-24-public-preview-release-plan.md",
+            "new_string": "  Expected: all pass and `dist` contains only intended runtime/declaration\n  output.\n\n- [x] **Step 6: Commit**\n\n  ```bash\n  git add packages/storybook-addon-visual-tests\n  git commit -m \"build(storybook-addon): emit public package artifacts\"\n  ```\n\n**Deviation (2026-07-26):** by owner decision, the bespoke\n`scripts/build.mjs` (a `tsc -p tsconfig.build.json` wrapper) was replaced\nwith **tsdown**, configured in `tsdown.config.ts`, with **publint** and\n**attw** (`@arethetypeswrong/core`, `profile: \"esm-only\"`) run as build-time\ngates instead of the separate `test:exports` isolated-consumer script. The\nguarantee this task shipped is unchanged — compiled ESM and declarations at\nexactly `dist/index.js`, `dist/manager.js`, `dist/preset.js`, `dist/preview.js`\nand their `.d.ts` siblings, with `preset.ts`'s compiled-vs-source directory\ndetection intact — only the mechanism producing and verifying it changed.\n`test:exports`'s isolated-project resolution check is now subsumed by attw's\nown resolution analysis of the packed tarball. This also moved TypeScript to\n**7.0.2** (exact) as the sole `typescript` devDependency, replacing\n`@typescript/native-preview`, with `isolatedDeclarations` scoped to\n`tsconfig.build.json` (the build surface only, so tsdown's `.d.ts` generation\ntakes the oxc-transform backend — TypeScript 7.0 ships no programmatic\ncompiler API, so tsdown's TS-compiler fallback path is unusable until 7.1;\nthe documented escape hatch, if oxc's isolatedDeclarations proves\ninsufficient for some future file, is aliasing `typescript` to\n`npm:@typescript/typescript6` — the highest published compatible version at\nthis writing is `6.0.2`, not `6.0.3`). `typecheck` is now plain\n`tsc --noEmit` (dropping the `tsgo` binary name, which TypeScript 7 no\nlonger ships under).\n\n### Task 7: Control and inspect the npm tarball",
+            "old_string": "  Expected: all pass and `dist` contains only intended runtime/declaration\n  output.\n\n- [x] **Step 6: Commit**\n\n  ```bash\n  git add packages/storybook-addon-visual-tests\n  git commit -m \"build(storybook-addon): emit public package artifacts\"\n  ```\n\n### Task 7: Control and inspect the npm tarball",
+            "replace_all": false
+          },
+          "timestamp": "2026-07-26T21:18:56.938Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Now the Task 7 deviation note (right after its Step 5 commit).",
+          "timestamp": "2026-07-26T21:19:01.426Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/docs/2026-07-24-public-preview-release-plan.md",
+            "limit": 15,
+            "offset": 635
+          },
+          "timestamp": "2026-07-26T21:19:02.753Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/docs/2026-07-24-public-preview-release-plan.md",
+            "limit": 10,
+            "offset": 649
+          },
+          "timestamp": "2026-07-26T21:19:05.626Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/docs/2026-07-24-public-preview-release-plan.md",
+            "new_string": "- [x] **Step 5: Commit**\n\n  ```bash\n  git add packages/storybook-addon-visual-tests/package.json \\\n    packages/storybook-addon-visual-tests/test/consumer\n  git commit -m \"build(storybook-addon): constrain the published tarball\"\n  ```\n\n**Deviation (2026-07-26):** by owner decision, the bespoke\n`scripts/pack-inventory.mjs` allowlist plus its `test:pack`/`test:exports`\nCLI scripts and `test/consumer/*.test.mjs` unit tests were replaced with one\nconventional vitest test, `test/pack-inventory.test.ts`. It packs the\npackage itself (`pnpm pack --json --pack-destination <tmpdir>`, which always\nreruns `build` via `prepack` first, so a stale `dist` still can never be\npacked) and asserts the resulting file list is exactly `dist/**` plus\n`LICENSE`, `README.md`, and `package.json`, that the four public entry\npoints and their declarations are present, and that the tarball stays under\nthe same 150 KiB budget. The traversal/canonical-path-segment hardening the\nold allowlist needed (`hasCanonicalSegments`, rejecting entries like\n`package/dist/../../AGENTS.md`) is no longer necessary: that hardening\nexisted because the old test parsed raw `tar -tzf` entry names, which an\nadversarial archive could craft; the new test reads `pnpm pack --json`'s own\nfile list, which pnpm derives directly from its `files` allowlist resolution\nagainst the real filesystem, not from parsing archive member names. The\nguarantee is unchanged — nothing but the allowlisted entries ships, within\nbudget — only the mechanism (and the entry-name attack surface it needed to\ndefend against) changed. The exact packed-size baseline moved slightly, from\nabout 46 kB to about 53 kB (still measured non-deterministically), because\ntsdown's bundled output now includes a shared chunk file and updated\nsourcemap content shape versus the old per-module `tsc` emission; the 150\nKiB budget was not changed and still keeps comfortable headroom.\n\n### Task 8: Run an in-repo fixture outside the workspace",
+            "old_string": "- [x] **Step 5: Commit**\n\n  ```bash\n  git add packages/storybook-addon-visual-tests/package.json \\\n    packages/storybook-addon-visual-tests/test/consumer\n  git commit -m \"build(storybook-addon): constrain the published tarball\"\n  ```\n\n### Task 8: Run an in-repo fixture outside the workspace",
+            "replace_all": false
+          },
+          "timestamp": "2026-07-26T21:19:17.174Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/docs/2026-07-24-public-preview-release-plan.md",
+            "limit": 15,
+            "offset": 1095
+          },
+          "timestamp": "2026-07-26T21:19:27.762Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/docs/2026-07-24-public-preview-release-plan.md",
+            "limit": 10,
+            "offset": 1109
+          },
+          "timestamp": "2026-07-26T21:19:31.571Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/docs/2026-07-24-public-preview-release-plan.md",
+            "new_string": "  renderer-agnostic, and the `react` peer is scheduled for removal at Task\n  10's metadata finalization. Scheduled an evidence-gated Storybook 9.x\n  compatibility investigation with a 9.1 floor.\n- **v8 (2026-07-26):** By owner decision, replaced Task 6/7's bespoke\n  build/pack/verify scripts with conventional tooling: **tsdown** (with\n  publint and attw as build-time gates) instead of `scripts/build.mjs`'s\n  `tsc -p tsconfig.build.json` wrapper, one vitest test\n  (`test/pack-inventory.test.ts`) instead of `scripts/pack-inventory.mjs` +\n  `test:pack`/`test:exports` + `test/consumer/*.test.mjs`, and **TypeScript\n  7.0.2** (exact) instead of `@typescript/native-preview`, with\n  `isolatedDeclarations` scoped to `tsconfig.build.json` so tsdown's `.d.ts`\n  generation takes the oxc-transform backend rather than the TypeScript\n  compiler fallback (TS 7.0 ships no programmatic compiler API until 7.1).\n  See the deviation notes under Task 6 and Task 7 for the guarantee-by-\n  guarantee mapping. CI's `pack`/`inventory`/`exports` producer-consumer\n  trio collapsed into one `build-and-package` job.\n\n## Final release gate",
+            "old_string": "  renderer-agnostic, and the `react` peer is scheduled for removal at Task\n  10's metadata finalization. Scheduled an evidence-gated Storybook 9.x\n  compatibility investigation with a 9.1 floor.\n\n## Final release gate",
+            "replace_all": false
+          },
+          "timestamp": "2026-07-26T21:19:38.843Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/AGENTS.md",
+            "new_string": "```bash\npnpm install\npnpm --filter storyproof build         # tsdown (ESM + declarations; publint + attw gates)\npnpm --filter storyproof test          # vitest unit tests, incl. the pack-inventory snapshot\npnpm --filter storyproof test:visual   # playwright integration smoke (needs Chromium + system libs)\npnpm --filter storyproof typecheck     # tsc --noEmit (TypeScript 7)\npnpm --filter storyproof lint          # oxlint --deny-warnings\npnpm format / pnpm format:check        # prettier, repo-wide\n```\n\n`pnpm pack` always rebuilds first (via the `prepack` lifecycle script) and\nthe tarball allowlist/size budget is asserted by\n`test/pack-inventory.test.ts` — see `packages/storyproof/AGENTS.md`.",
+            "old_string": "```bash\npnpm install\npnpm --filter storyproof test          # build-artifact contract + vitest unit tests\npnpm --filter storyproof test:visual   # playwright integration smoke (needs Chromium + system libs)\npnpm --filter storyproof typecheck     # tsgo --noEmit\npnpm --filter storyproof lint          # oxlint --deny-warnings\npnpm format / pnpm format:check        # prettier, repo-wide\n```\n\nTarball gates (`pack:artifact`, `test:pack`, `test:exports`) take an absolute\n`.tgz` path — see `packages/storyproof/AGENTS.md`.",
+            "replace_all": false
+          },
+          "timestamp": "2026-07-26T21:19:49.546Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/CHANGELOG.md",
+            "new_string": "### Changed\n\n- Extracted from the llame monorepo into\n  [leon0399/storyproof](https://github.com/leon0399/storyproof) with full\n  history; `repository` and `bugs` metadata now point here. Panel story meta\n  types moved from `@storybook/nextjs-vite` to `@storybook/react-vite`\n  (type-only).\n- Replaced the bespoke build/pack/verify scripts with conventional tooling:\n  **tsdown** (with publint and attw as build-time gates) builds the compiled\n  ESM and declarations that used to come from `scripts/build.mjs`'s\n  `tsc -p tsconfig.build.json` wrapper, and one vitest test\n  (`test/pack-inventory.test.ts`) replaces `scripts/pack-inventory.mjs`,\n  `test:pack`, and `test:exports`. TypeScript moved to **7.0.2** (exact),\n  replacing `@typescript/native-preview`; `typecheck` is now plain\n  `tsc --noEmit`. The published tarball's contents and 150 KiB size budget\n  are unchanged.",
+            "old_string": "### Changed\n\n- Extracted from the llame monorepo into\n  [leon0399/storyproof](https://github.com/leon0399/storyproof) with full\n  history; `repository` and `bugs` metadata now point here. Panel story meta\n  types moved from `@storybook/nextjs-vite` to `@storybook/react-vite`\n  (type-only).",
+            "replace_all": false
+          },
+          "timestamp": "2026-07-26T21:20:02.029Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && rg -n \"tsgo|native-preview|pack:artifact|test:exports\\b|test:pack\\b|test:build\\b\" --glob '!node_modules/**' --glob '!dist/**' --glob '!pnpm-lock.yaml' . 2>&1",
+            "description": "Final sweep for stale references across the repo"
+          },
+          "timestamp": "2026-07-26T21:20:12.301Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/CHANGELOG.md"
+          },
+          "timestamp": "2026-07-26T21:20:26.680Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/CHANGELOG.md",
+            "new_string": "### Added\n\n- Tarball inventory gate: `test/pack-inventory.test.ts` packs the package\n  itself (`pnpm pack`, which always reruns `build` via `prepack` first, so a\n  stale build can never be packed) and asserts the resulting file list is\n  exactly `dist/**` plus `LICENSE`, `README.md`, and `package.json`, with the\n  four public entry points and their declarations present, within a 150 KiB\n  packed-size budget.\n\n### Changed\n\n- Extracted from the llame monorepo into\n  [leon0399/storyproof](https://github.com/leon0399/storyproof) with full\n  history; `repository` and `bugs` metadata now point here. Panel story meta\n  types moved from `@storybook/nextjs-vite` to `@storybook/react-vite`\n  (type-only).\n- Replaced the bespoke build/pack/verify scripts with conventional tooling:\n  **tsdown** (with publint and attw as build-time gates) builds the compiled\n  ESM and declarations that used to come from `scripts/build.mjs`'s\n  `tsc -p tsconfig.build.json` wrapper. TypeScript moved to **7.0.2** (exact),\n  replacing `@typescript/native-preview`, with `isolatedDeclarations` scoped\n  to `tsconfig.build.json` so tsdown's declaration generation takes the\n  oxc-transform backend; `typecheck` is now plain `tsc --noEmit`. The\n  published tarball's contents and 150 KiB size budget are unchanged.",
+            "old_string": "### Added\n\n- Tarball inventory gate: `test:pack` read-only inspector enforcing a positive\n  entry allowlist (`dist/**`, `LICENSE`, `README.md`, `package.json`), a\n  required-entries lower bound, canonical path segments (traversal member\n  names rejected), and a 150 KiB packed-size budget; `prepack` now always\n  rebuilds `dist` so a stale build can never be packed.\n\n### Changed\n\n- Extracted from the llame monorepo into\n  [leon0399/storyproof](https://github.com/leon0399/storyproof) with full\n  history; `repository` and `bugs` metadata now point here. Panel story meta\n  types moved from `@storybook/nextjs-vite` to `@storybook/react-vite`\n  (type-only).\n- Replaced the bespoke build/pack/verify scripts with conventional tooling:\n  **tsdown** (with publint and attw as build-time gates) builds the compiled\n  ESM and declarations that used to come from `scripts/build.mjs`'s\n  `tsc -p tsconfig.build.json` wrapper, and one vitest test\n  (`test/pack-inventory.test.ts`) replaces `scripts/pack-inventory.mjs`,\n  `test:pack`, and `test:exports`. TypeScript moved to **7.0.2** (exact),\n  replacing `@typescript/native-preview`; `typecheck` is now plain\n  `tsc --noEmit`. The published tarball's contents and 150 KiB size budget\n  are unchanged.",
+            "replace_all": false
+          },
+          "timestamp": "2026-07-26T21:20:35.959Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && pnpm run format:check > /tmp/format-check.log 2>&1; echo \"EXIT:$?\"; tail -80 /tmp/format-check.log",
+            "description": "Run repo-wide format check"
+          },
+          "timestamp": "2026-07-26T21:20:41.591Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && pnpm exec prettier --write packages/storyproof/test/pack-inventory.test.ts packages/storyproof/tsdown.config.ts 2>&1",
+            "description": "Format only the newly-added files, not repo-wide"
+          },
+          "timestamp": "2026-07-26T21:20:48.469Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Good, formatted. Let's rerun format:check and the full test suite to confirm everything's still green.",
+          "timestamp": "2026-07-26T21:20:53.321Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && pnpm run format:check > /tmp/format-check2.log 2>&1; echo \"FORMAT EXIT:$?\"; tail -20 /tmp/format-check2.log",
+            "description": "Re-run format check"
+          },
+          "timestamp": "2026-07-26T21:20:53.858Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Now let's run the full verification suite one more time end-to-end, plus the preset.js runtime smoke check the team lead specified.",
+          "timestamp": "2026-07-26T21:20:59.844Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && \\\npnpm install > /tmp/v-install.log 2>&1; echo \"install:$?\" && \\\npnpm --filter storyproof build > /tmp/v-build.log 2>&1; echo \"build:$?\" && \\\npnpm --filter storyproof typecheck > /tmp/v-typecheck.log 2>&1; echo \"typecheck:$?\" && \\\npnpm --filter storyproof test > /tmp/v-test.log 2>&1; echo \"test:$?\" && \\\npnpm --filter storyproof lint > /tmp/v-lint.log 2>&1; echo \"lint:$?\" && \\\npnpm format:check > /tmp/v-format.log 2>&1; echo \"format:$?\" && \\\nactionlint > /tmp/v-actionlint.log 2>&1; echo \"actionlint:$?\" && \\\nzizmor .github/workflows/ > /tmp/v-zizmor.log 2>&1; echo \"zizmor:$?\"",
+            "description": "Run the full verification suite"
+          },
+          "timestamp": "2026-07-26T21:21:02.610Z"
+        },
+        {
+          "type": "assistant",
+          "text": "All green. Now the preset.js runtime smoke check.",
+          "timestamp": "2026-07-26T21:21:15.164Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "node -e \"import('file:///home/leon0399/Projects/storyproof/packages/storyproof/dist/preset.js').then(m => { if (typeof m.managerEntries !== 'function') throw new Error('preset broken'); console.log('preset ok'); })\"",
+            "description": "Smoke-check the compiled preset entry point"
+          },
+          "timestamp": "2026-07-26T21:21:16.535Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "node -e \"\nimport('file:///home/leon0399/Projects/storyproof/packages/storyproof/dist/preset.js').then(async m => {\n  const managerEntries = await m.managerEntries();\n  const previewEntries = await m.previewAnnotations();\n  console.log('manager:', managerEntries);\n  console.log('preview:', previewEntries);\n  if (!managerEntries[0].endsWith('/dist/manager.js')) throw new Error('manager entry wrong: ' + managerEntries[0]);\n  if (!previewEntries[0].endsWith('/dist/preview.js')) throw new Error('preview entry wrong: ' + previewEntries[0]);\n  console.log('compiled path resolution OK');\n});\n\"",
+            "description": "Verify preset's compiled-path resolution logic against real dist output"
+          },
+          "timestamp": "2026-07-26T21:21:23.348Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && git status --short | grep -v '^ M \\|^D \\|^?? packages/storyproof/test/pack-inventory.test.ts\\|^?? packages/storyproof/tsdown.config.ts' ; git diff --exit-code -- pnpm-lock.yaml > /dev/null; echo \"lockfile diff check: $?\"; git status --short",
+            "description": "Confirm no stray untracked/dirty files beyond intended changes"
+          },
+          "timestamp": "2026-07-26T21:21:32.318Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && git add \\\n  packages/storyproof/package.json \\\n  packages/storyproof/tsconfig.json \\\n  packages/storyproof/tsconfig.build.json \\\n  packages/storyproof/tsdown.config.ts \\\n  packages/storyproof/src/constants.ts \\\n  packages/storyproof/scripts/build.mjs \\\n  pnpm-lock.yaml\ngit status --short",
+            "description": "Stage the toolchain-swap commit"
+          },
+          "timestamp": "2026-07-26T21:21:48.795Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && git commit -- \\\n  packages/storyproof/package.json \\\n  packages/storyproof/tsconfig.json \\\n  packages/storyproof/tsconfig.build.json \\\n  packages/storyproof/tsdown.config.ts \\\n  packages/storyproof/src/constants.ts \\\n  packages/storyproof/scripts/build.mjs \\\n  packages/storyproof/scripts/pack-artifact.mjs \\\n  pnpm-lock.yaml \\\n  -m \"$(cat <<'EOF'\nbuild(storyproof): replace tsc build with tsdown\n\nSwap the bespoke `scripts/build.mjs` (`tsc -p tsconfig.build.json`) for\ntsdown, with publint and attw (@arethetypeswrong/core, esm-only, error\nlevel) as build-time gates in tsdown.config.ts. Entries and dist filenames\nare unchanged (dist/index.js, dist/manager.js, dist/preset.js,\ndist/preview.js) since preset.ts's compiled/source directory detection\ndepends on them.\n\nMove TypeScript to 7.0.2 (exact) as the sole devDependency, replacing\n@typescript/native-preview; typecheck is now plain `tsc --noEmit`.\nTypeScript 7.0 ships no programmatic compiler API until 7.1, so\nisolatedDeclarations is scoped to tsconfig.build.json (the build surface\nonly) to make tsdown's declaration generation take the oxc-transform\nbackend instead of the (currently unusable) TypeScript-compiler fallback;\nscoping it out of the root tsconfig avoids forcing explicit exported types\nonto test helpers. Also drops the now-removed/no-op tsconfig lines\n`incremental: false` and `forceConsistentCasingInFileNames`.\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_011apGNwN6NEjPRtHLkX4YPF\nEOF\n)\"\ngit log --oneline -3",
+            "description": "Commit 1: toolchain swap"
+          },
+          "timestamp": "2026-07-26T21:22:12.535Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && git add packages/storyproof/tsdown.config.ts && git status --short | head -30",
+            "description": "Stage the new tsdown.config.ts file"
+          },
+          "timestamp": "2026-07-26T21:22:19.487Z"
+        }
+      ],
+      "total_additions": 248,
+      "total_deletions": 120,
+      "accepted_lines": 238,
+      "overriden_lines": 1
+    }
+  }
+}
