@@ -17,7 +17,11 @@ monorepo until 2026-07-26; the day-by-day pre-extraction record lives in
   stale build can never be packed) and asserts the resulting file list is
   exactly `dist/**` plus `LICENSE`, `README.md`, and `package.json`, with the
   four public entry points and their declarations present, within a 150 KiB
-  packed-size budget.
+  packed-size budget. The same test then installs that exact tarball into an
+  isolated project and imports the compiled preset, asserting
+  `managerEntries()`/`previewAnnotations()` resolve to real, existing
+  `dist/manager.js`/`dist/preview.js` files — the only runtime exercise of
+  `preset.ts`'s compiled-vs-source directory detection in the suite.
 
 ### Changed
 

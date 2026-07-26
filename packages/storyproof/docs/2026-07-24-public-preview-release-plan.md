@@ -522,8 +522,15 @@ guarantee this task shipped is unchanged — compiled ESM and declarations at
 exactly `dist/index.js`, `dist/manager.js`, `dist/preset.js`, `dist/preview.js`
 and their `.d.ts` siblings, with `preset.ts`'s compiled-vs-source directory
 detection intact — only the mechanism producing and verifying it changed.
-`test:exports`'s isolated-project resolution check is now subsumed by attw's
-own resolution analysis of the packed tarball. This also moved TypeScript to
+attw replaces the _static_ half of `test:exports`'s isolated-project
+resolution check — type/exports-map resolution across module systems —
+but attw never imports or executes the package. The _runtime_ half
+(`import()`ing the installed `/preset` entry and asserting
+`managerEntries()`/`previewAnnotations()` resolve to real `dist/manager.js`
+and `dist/preview.js` at runtime) is covered by
+`test/pack-inventory.test.ts` (Task 7), which installs the exact tarball it
+just packed into an isolated project and imports the compiled preset from
+there. This also moved TypeScript to
 **7.0.2** (exact) as the sole `typescript` devDependency, replacing
 `@typescript/native-preview`, with `isolatedDeclarations` scoped to
 `tsconfig.build.json` (the build surface only, so tsdown's `.d.ts` generation
@@ -678,6 +685,20 @@ about 46 kB to about 53 kB (still measured non-deterministically), because
 tsdown's bundled output now includes a shared chunk file and updated
 sourcemap content shape versus the old per-module `tsc` emission; the 150
 KiB budget was not changed and still keeps comfortable headroom.
+
+The same test also restores the one runtime guarantee the deleted
+`scripts/test-exports.mjs` carried that nothing else in this PR replaced:
+after packing, it installs the exact tarball into an isolated project
+(`pnpm add --ignore-workspace --ignore-scripts <tgz>`, mirroring what
+`test-exports.mjs` did) and `import()`s the installed `/preset` entry,
+asserting `managerEntries()`/`previewAnnotations()` resolve to real,
+existing `dist/manager.js`/`dist/preview.js` files inside the installed
+package's `node_modules` — never `.ts`/`.tsx` source and never a path
+outside the install. This is the only place in the surviving suite that
+exercises `preset.ts`'s `compiled === true` branch: `test/server.test.ts`
+imports `src/preset.ts` directly, so it only ever runs the source-mode
+branch, and attw's resolution analysis is static and never imports the
+package.
 
 ### Task 8: Run an in-repo fixture outside the workspace
 
