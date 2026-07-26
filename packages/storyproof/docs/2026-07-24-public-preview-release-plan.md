@@ -525,12 +525,18 @@ detection intact — only the mechanism producing and verifying it changed.
 attw replaces the _static_ half of `test:exports`'s isolated-project
 resolution check — type/exports-map resolution across module systems —
 but attw never imports or executes the package. The _runtime_ half
-(`import()`ing the installed `/preset` entry and asserting
+(`import()`ing the `/preset` entry and asserting
 `managerEntries()`/`previewAnnotations()` resolve to real `dist/manager.js`
 and `dist/preview.js` at runtime) is covered by
-`test/pack-inventory.test.ts` (Task 7), which installs the exact tarball it
-just packed into an isolated project and imports the compiled preset from
-there. This also moved TypeScript to
+`test/pack-inventory.test.ts` (Task 7), which imports the built
+`dist/preset.js` directly after `pnpm build` — not through an isolated
+consumer install: `preset.ts` resolves both entries purely from its own
+`import.meta.url`, never through `node_modules` resolution, so a real
+package-manager install (and the network/`playwright`-download cost that
+comes with it) proves nothing a direct import doesn't already prove for this
+specific code path. Genuine `node_modules`-resolution and end-to-end
+behavior against an installed package is Task 8's concern, not a packaging
+unit test's. This also moved TypeScript to
 **7.0.2** (exact) as the sole `typescript` devDependency, replacing
 `@typescript/native-preview`, with `isolatedDeclarations` scoped to
 `tsconfig.build.json` (the build surface only, so tsdown's `.d.ts` generation
@@ -686,19 +692,28 @@ tsdown's bundled output now includes a shared chunk file and updated
 sourcemap content shape versus the old per-module `tsc` emission; the 150
 KiB budget was not changed and still keeps comfortable headroom.
 
-The same test also restores the one runtime guarantee the deleted
+A second test restores the one runtime guarantee the deleted
 `scripts/test-exports.mjs` carried that nothing else in this PR replaced:
-after packing, it installs the exact tarball into an isolated project
-(`pnpm add --ignore-workspace --ignore-scripts <tgz>`, mirroring what
-`test-exports.mjs` did) and `import()`s the installed `/preset` entry,
+it runs `pnpm build`, then `import()`s the built `dist/preset.js` directly,
 asserting `managerEntries()`/`previewAnnotations()` resolve to real,
-existing `dist/manager.js`/`dist/preview.js` files inside the installed
-package's `node_modules` — never `.ts`/`.tsx` source and never a path
-outside the install. This is the only place in the surviving suite that
-exercises `preset.ts`'s `compiled === true` branch: `test/server.test.ts`
-imports `src/preset.ts` directly, so it only ever runs the source-mode
-branch, and attw's resolution analysis is static and never imports the
-package.
+existing `dist/manager.js`/`dist/preview.js` files — never `.ts`/`.tsx`
+source. This is the only place in the surviving suite that exercises
+`preset.ts`'s `compiled === true` branch: `test/server.test.ts` imports
+`src/preset.ts` directly, so it only ever runs the source-mode branch, and
+attw's resolution analysis is static and never imports the package.
+
+An earlier version of this test installed the packed tarball into an
+isolated consumer project via a real `pnpm add` before importing the
+preset, mirroring `test-exports.mjs`'s approach — deliberately, but
+unnecessarily: `preset.ts` resolves both entries purely from its own
+`import.meta.url` (see `src/preset.ts`), never through `node_modules`
+resolution, so the install proved nothing a direct import of the build
+output doesn't already prove for this code path, at the cost of a real
+network-dependent package-manager install (resolving `playwright` and the
+addon's other runtime deps) inside a unit test — which is also what pushed
+the test past vitest's default timeout on one Node minor in CI and not
+another. Genuine installed-package `node_modules` resolution belongs to
+Task 8's real external-project harness, not a packaging unit test.
 
 ### Task 8: Run an in-repo fixture outside the workspace
 

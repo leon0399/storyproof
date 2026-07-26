@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -82,83 +82,58 @@ describe("packed tarball inventory", () => {
       const { size } = await stat(result.filename);
       expect(size).toBeGreaterThan(0);
       expect(size).toBeLessThan(MAX_PACKED_ARCHIVE_SIZE_BYTES);
-
-      // Runtime coverage for preset.ts's compiled/source directory detection
-      // (`path.basename(directory) === "dist"`): nothing else in this suite
-      // exercises that branch, since test/server.test.ts imports src/preset.ts
-      // directly and only ever runs the source-mode branch. Install the exact
-      // tarball just packed into an isolated project (mirroring what the
-      // deleted scripts/test-exports.mjs did) so the compiled branch runs
-      // against the real published artifact -- a bare tar extraction is not
-      // enough, since the compiled preset's dependency graph imports real
-      // dependencies (pixelmatch, pngjs, playwright) that only resolve once
-      // installed.
-      const consumerRoot = path.join(destination, "consumer");
-      await mkdir(consumerRoot);
-      await writeFile(
-        path.join(consumerRoot, "package.json"),
-        `${JSON.stringify({ name: "storyproof-pack-inventory-consumer", private: true, type: "module" }, null, 2)}\n`,
-      );
-      const installed = spawnSync(
-        "pnpm",
-        [
-          "add",
-          "--prefer-offline",
-          "--ignore-workspace",
-          "--ignore-scripts",
-          "--save-exact",
-          result.filename,
-        ],
-        { cwd: consumerRoot, encoding: "utf8" },
-      );
-      expect(installed.status, installed.stderr || installed.stdout).toBe(0);
-
-      const presetPath = path.join(
-        consumerRoot,
-        "node_modules",
-        "storyproof",
-        "dist",
-        "preset.js",
-      );
-      const preset = (await import(pathToFileURL(presetPath).href)) as {
-        managerEntries: (existing?: string[]) => Promise<string[]>;
-        previewAnnotations: (existing?: string[]) => Promise<string[]>;
-      };
-      expect(preset.managerEntries).toBeTypeOf("function");
-      expect(preset.previewAnnotations).toBeTypeOf("function");
-
-      const managerEntries = await preset.managerEntries();
-      const previewEntries = await preset.previewAnnotations();
-      expect(managerEntries).toHaveLength(1);
-      expect(previewEntries).toHaveLength(1);
-
-      const consumerNodeModules = path.join(consumerRoot, "node_modules");
-      for (const entryPath of [...managerEntries, ...previewEntries]) {
-        expect(path.isAbsolute(entryPath)).toBe(true);
-        expect(entryPath.endsWith(".js")).toBe(true);
-        // The compiled branch must never resolve back to TypeScript source
-        // (that's exactly what regresses if a build-config change moves
-        // where dist/preset.js lands relative to its siblings).
-        expect(entryPath.endsWith(".ts") || entryPath.endsWith(".tsx")).toBe(
-          false,
-        );
-        const relativeToNodeModules = path.relative(
-          consumerNodeModules,
-          entryPath,
-        );
-        expect(
-          relativeToNodeModules !== "" &&
-            !relativeToNodeModules.startsWith("..") &&
-            !path.isAbsolute(relativeToNodeModules),
-          `${entryPath} must resolve inside the installed package's node_modules`,
-        ).toBe(true);
-        const entryStat = await stat(entryPath);
-        expect(entryStat.isFile()).toBe(true);
-      }
-      expect(managerEntries[0]).toMatch(/\/manager\.js$/);
-      expect(previewEntries[0]).toMatch(/\/preview\.js$/);
     } finally {
       await rm(destination, { recursive: true, force: true });
     }
-  }, 60_000); // pack (full build) + two real pnpm installs, including playwright
+  });
+});
+
+describe("compiled preset entry resolution", () => {
+  // Runtime coverage for preset.ts's compiled/source directory detection
+  // (`path.basename(directory) === "dist"`): nothing else in this suite
+  // exercises that branch, since test/server.test.ts imports src/preset.ts
+  // directly and only ever runs the source-mode branch.
+  //
+  // `pnpm pack` above already proves dist/manager.js and dist/preview.js
+  // ship in the tarball; preset.ts resolves both entries purely from its own
+  // `import.meta.url` (see src/preset.ts), never through node_modules
+  // resolution, so importing the built dist/preset.js directly -- no
+  // install, no isolated consumer project -- exercises the identical code
+  // path a real installed consumer hits, for the cost of an import instead
+  // of a network-dependent package-manager install.
+  test("resolves manager and preview entries to real, existing built files", async () => {
+    const built = spawnSync("pnpm", ["build"], {
+      cwd: packageRoot,
+      encoding: "utf8",
+    });
+    expect(built.status, built.stderr || built.stdout).toBe(0);
+
+    const presetPath = path.join(packageRoot, "dist", "preset.js");
+    const preset = (await import(pathToFileURL(presetPath).href)) as {
+      managerEntries: (existing?: string[]) => Promise<string[]>;
+      previewAnnotations: (existing?: string[]) => Promise<string[]>;
+    };
+    expect(preset.managerEntries).toBeTypeOf("function");
+    expect(preset.previewAnnotations).toBeTypeOf("function");
+
+    const managerEntries = await preset.managerEntries();
+    const previewEntries = await preset.previewAnnotations();
+    expect(managerEntries).toHaveLength(1);
+    expect(previewEntries).toHaveLength(1);
+
+    for (const entryPath of [...managerEntries, ...previewEntries]) {
+      expect(path.isAbsolute(entryPath)).toBe(true);
+      expect(entryPath.endsWith(".js")).toBe(true);
+      // The compiled branch must never resolve back to TypeScript source
+      // (that's exactly what regresses if a build-config change moves where
+      // dist/preset.js lands relative to its siblings).
+      expect(entryPath.endsWith(".ts") || entryPath.endsWith(".tsx")).toBe(
+        false,
+      );
+      const entryStat = await stat(entryPath);
+      expect(entryStat.isFile()).toBe(true);
+    }
+    expect(managerEntries[0]).toMatch(/\/manager\.js$/);
+    expect(previewEntries[0]).toMatch(/\/preview\.js$/);
+  });
 });
