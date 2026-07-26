@@ -23,15 +23,17 @@ Turborepo — two workspaces with no cross-dependencies don't need a task graph.
 
 ```bash
 pnpm install
-pnpm --filter storyproof test          # build-artifact contract + vitest unit tests
+pnpm --filter storyproof build         # tsdown (ESM + declarations; publint + attw gates)
+pnpm --filter storyproof test          # vitest unit tests, incl. the pack-inventory snapshot
 pnpm --filter storyproof test:visual   # playwright integration smoke (needs Chromium + system libs)
-pnpm --filter storyproof typecheck     # tsgo --noEmit
+pnpm --filter storyproof typecheck     # tsc --noEmit (TypeScript 7)
 pnpm --filter storyproof lint          # oxlint --deny-warnings
 pnpm format / pnpm format:check        # prettier, repo-wide
 ```
 
-Tarball gates (`pack:artifact`, `test:pack`, `test:exports`) take an absolute
-`.tgz` path — see `packages/storyproof/AGENTS.md`.
+`pnpm pack` always rebuilds first (via the `prepack` lifecycle script) and
+the tarball allowlist/size budget is asserted by
+`test/pack-inventory.test.ts` — see `packages/storyproof/AGENTS.md`.
 
 ## Key documentation
 

@@ -14,14 +14,21 @@ Product-facing detail (storage layout, capture contract, config) lives in
 ## Commands
 
 ```bash
-pnpm --filter storyproof test        # vitest run (node unit tests)
+pnpm --filter storyproof build       # tsdown (ESM + declarations; publint + attw gates)
+pnpm --filter storyproof test        # vitest run (node unit tests, incl. the pack-inventory snapshot)
 pnpm --filter storyproof test:visual # playwright integration smoke
-pnpm --filter storyproof typecheck   # tsgo --noEmit
+pnpm --filter storyproof typecheck   # tsc --noEmit (TypeScript 7)
 pnpm --filter storyproof lint        # oxlint --deny-warnings
 ```
 
 Normal visual runs start from the Storybook **Visual tests** panel/widget, not a
 CLI. `test:visual` is the isolated addon smoke test.
+
+`pnpm pack` (and therefore `pnpm --filter storyproof pack`) always reruns
+`build` via the `prepack` lifecycle script first, so a stale `dist` can never
+be packed. `test/pack-inventory.test.ts` packs the package itself and asserts
+the tarball ships only `dist/**`, `LICENSE`, `README.md`, and `package.json`
+within a 150 KiB budget — there is no separate inventory script or CLI flag.
 
 ## Structure
 
