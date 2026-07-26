@@ -1,8 +1,8 @@
 # CI — parallel jobs; Node 22/24 matrix on every job where the runtime
-# matters (unit tests, tarball gates, visual smoke). The Storybook-version ×
-# framework matrix arrives with the packed-consumer harness (release plan
-# Task 8) — those rows install the packed archive into fixture projects, so
-# they can't exist before the harness does.
+# matters (unit tests, visual smoke). The Storybook-version × framework
+# matrix arrives with the packed-consumer harness (release plan Task 8) —
+# those rows install the packed archive into fixture projects, so they
+# can't exist before the harness does.
 #
 # Actions are pinned to commit SHAs (comment = the release tag they resolve to).
 
@@ -85,15 +85,16 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter storyproof test
 
-  # Build & package gates: build owns emission and lints the compiled
-  # package (publint + attw, configured in tsdown.config.ts and run as part
-  # of `pnpm build`); test owns the tarball-inventory snapshot
-  # (test/pack-inventory.test.ts, which packs and inspects its own tarball);
-  # this job additionally packs once and uploads that tarball so future
-  # packed-consumer jobs (release plan Task 8) can reuse it without
-  # rebuilding or repacking.
-  build-and-package:
-    name: build & package gates
+  # Pack the archive once and upload it. `pnpm pack` always reruns `build`
+  # first via the `prepack` lifecycle script (so a stale build can never be
+  # packed), and `build` itself runs publint + attw as build-time gates
+  # (configured in tsdown.config.ts) -- so packing alone proves build,
+  # publint, and attw all pass, with no separate build step needed. Test
+  # coverage (including the tarball-inventory snapshot,
+  # test/pack-inventory.test.ts) is the `test` job's job, not this one's --
+  # this job does not run the suite.
+  package:
+    name: package
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -106,8 +107,6 @@ jobs:
           node-version-file: ".node-version"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter storyproof build
-      - run: pnpm --filter storyproof test
       - run: mkdir -p /tmp/storyproof-ci
       - run: pnpm --filter storyproof pack --pack-destination /tmp/storyproof-ci
       - run: mv /tmp/storyproof-ci/storyproof-*.tgz /tmp/storyproof-ci/package.tgz
