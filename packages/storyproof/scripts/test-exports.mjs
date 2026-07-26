@@ -45,7 +45,7 @@ try {
     "pnpm",
     [
       "add",
-      "--offline",
+      "--prefer-offline",
       "--ignore-workspace",
       "--ignore-scripts",
       "--save-exact",
