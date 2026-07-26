@@ -861,13 +861,17 @@ Task 8's real external-project harness, not a packaging unit test.
   nextjs-vite-sb10.5) rather than a developer machine command. The published
   package's `peerDependencies.storybook` is `"^10.5.0"`, narrower than the
   release plan's `^10.0.0` target — real packed-consumer evidence for Task 10
-  to reconcile when it finalizes peer ranges. It surfaced as an install-time
-  warning when the `react-vite-sb10.0` example depended on the published
-  `storyproof@0.0.1-alpha.1` directly; with examples now on
-  `storyproof: workspace:*` (see the deviation note), the mismatch still
-  exists in the manifest but pnpm does not surface an unmet-peer warning for
-  a workspace-linked dependency the same way — the gap is otherwise
-  unchanged and still Task 10's to close.
+  to reconcile when it finalizes peer ranges. With examples now on
+  `storyproof: workspace:*` (see the deviation note), pnpm does not surface
+  an unmet-peer warning for a workspace-linked dependency in the local dev
+  loop — but the `consumer` job's copy-out-of-tree install (`pnpm pkg set
+dependencies.storyproof=file:<tarball>` then `pnpm install
+--ignore-workspace`, verified empirically against a `react-vite-sb10.0`
+  copy) is a fully standalone `file:` install again, and the warning
+  reappears there exactly as it did when the example depended on the
+  published version directly. The `consumer` job's own output is therefore
+  still the canonical evidence for Task 10, unaffected by the local dev-loop
+  change.
 
 - [x] **Step 7: Commit**
 
