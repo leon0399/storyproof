@@ -6,7 +6,22 @@ import path from "node:path";
 const packageRoot = process.cwd();
 const fixtureSource = path.join(packageRoot, "test/fixtures/project");
 const fixtureCopy = path.join(packageRoot, "test/.tmp/project");
-const staticOutput = path.join(packageRoot, "test/.tmp/storybook-static");
+// VISUAL_TEST_CONSUMER_DIR points the whole fixture flow at a real installed
+// example (see examples/**) instead of the workspace-source fixture: no
+// copy step runs, and Storybook/its CLI resolve from the example's own
+// node_modules (an installed `storyproof`, not workspace source) because
+// spawned children's cwd becomes that directory. The example directory
+// already carries the same acceptance-fixture story/control content as
+// test/fixtures/project (see docs/2026-07-24-public-preview-release-plan.md
+// Task 8's "examples-as-fixtures" deviation), so registerAddonAcceptanceSuite
+// runs unmodified either way.
+const consumerDir = process.env.VISUAL_TEST_CONSUMER_DIR
+  ? path.resolve(packageRoot, process.env.VISUAL_TEST_CONSUMER_DIR)
+  : undefined;
+const spawnCwd = consumerDir ?? packageRoot;
+const staticOutput = consumerDir
+  ? path.join(consumerDir, "storybook-static")
+  : path.join(packageRoot, "test/.tmp/storybook-static");
 const devPort = process.env.VISUAL_TEST_DEV_PORT ?? "6010";
 const staticPort = process.env.VISUAL_TEST_STATIC_PORT ?? "6011";
 const gracefulShutdownTimeout = 5_000;
@@ -30,7 +45,7 @@ let staticServer: Server | undefined;
 function spawnChild(args: string[]): TrackedChild {
   const useProcessGroup = process.platform !== "win32";
   const child = spawn("pnpm", args, {
-    cwd: packageRoot,
+    cwd: spawnCwd,
     detached: useProcessGroup,
     stdio: "inherit",
   });
@@ -283,17 +298,20 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
 async function main(): Promise<void> {
   await cleanup();
   if (shutdownPromise) return;
-  await mkdir(path.dirname(fixtureCopy), { recursive: true });
-  if (shutdownPromise) return;
-  await cp(fixtureSource, fixtureCopy, { recursive: true });
-  if (shutdownPromise) return;
+  if (!consumerDir) {
+    await mkdir(path.dirname(fixtureCopy), { recursive: true });
+    if (shutdownPromise) return;
+    await cp(fixtureSource, fixtureCopy, { recursive: true });
+    if (shutdownPromise) return;
+  }
+  const configDir = path.join(consumerDir ?? fixtureCopy, ".storybook");
 
   const build = spawnChild([
     "exec",
     "storybook",
     "build",
     "--config-dir",
-    path.join(fixtureCopy, ".storybook"),
+    configDir,
     "--output-dir",
     staticOutput,
     "--quiet",
@@ -314,7 +332,7 @@ async function main(): Promise<void> {
     "storybook",
     "dev",
     "--config-dir",
-    path.join(fixtureCopy, ".storybook"),
+    configDir,
     "--port",
     devPort,
     "--no-open",
