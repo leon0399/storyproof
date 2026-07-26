@@ -330,6 +330,10 @@ export function registerAddonAcceptanceSuite({
   test("cancels completed partial results before they can be approved", async ({
     page,
   }) => {
+    test.skip(
+      !(await hasControlFixture(projectRoot)),
+      "requires the fault-injection control fixture (control/state.json + the Controlled story), which only test/fixtures/project carries",
+    );
     await openVisualPanel({
       expect,
       page,
@@ -389,6 +393,10 @@ export function registerAddonAcceptanceSuite({
   test("reports a browser connection failure with actionable text", async ({
     page,
   }) => {
+    test.skip(
+      !(await hasControlFixture(projectRoot)),
+      "requires the fault-injection control fixture (control/state.json + the Controlled story), which only test/fixtures/project carries",
+    );
     const panel = await openVisualPanel({
       expect,
       page,
@@ -576,7 +584,7 @@ export function registerAddonAcceptanceSuite({
 }
 
 async function resetFixtureState(projectRoot: string): Promise<void> {
-  await Promise.all([
+  const tasks = [
     rm(path.join(projectRoot, "src/__screenshots__"), {
       recursive: true,
       force: true,
@@ -585,11 +593,25 @@ async function resetFixtureState(projectRoot: string): Promise<void> {
       recursive: true,
       force: true,
     }),
-    writeFile(
-      path.join(projectRoot, "control/state.json"),
-      `${JSON.stringify({ mode: "ready" }, null, 2)}\n`,
-    ),
-  ]);
+  ];
+  // The control-file-driven hang/connection-failure fixture (see
+  // hasControlFixture) is fault-injection plumbing that only
+  // test/fixtures/project carries -- a real installed consumer (the
+  // examples exercised by the CI `consumer` job) has no control/ directory
+  // at all, so this write is skipped there rather than failing closed.
+  if (await hasControlFixture(projectRoot)) {
+    tasks.push(
+      writeFile(
+        path.join(projectRoot, "control/state.json"),
+        `${JSON.stringify({ mode: "ready" }, null, 2)}\n`,
+      ),
+    );
+  }
+  await Promise.all(tasks);
+}
+
+async function hasControlFixture(projectRoot: string): Promise<boolean> {
+  return pathExists(path.join(projectRoot, "control/state.json"));
 }
 
 async function openVisualPanel({
