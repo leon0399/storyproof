@@ -89,7 +89,7 @@ files require a task-level justification.
 - `LICENSE` — license grant, added no later than the release-metadata task.
 
 Every shipping task PR must update this plan's checkboxes, remove completed
-work from the forward-only `ROADMAP.md`, and add a dated `CHANGELOG.md` entry.
+work from the forward-only root `ROADMAP.md`, and record user-visible package changes under `## [Unreleased]` in the package `CHANGELOG.md` (Keep a Changelog sections; Changesets takes over version rollup once integrated).
 The commit snippets below name the core implementation paths; those three
 tracking files are part of the required commit whenever their state changes.
 

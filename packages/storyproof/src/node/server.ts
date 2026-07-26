@@ -68,11 +68,10 @@ export function registerArtifactRoute(
   });
 }
 
-interface RuntimeRunner
-  extends Pick<
-    VisualTestRunner,
-    "approve" | "cancel" | "getState" | "loadBaseline" | "run" | "setOnState"
-  > {}
+interface RuntimeRunner extends Pick<
+  VisualTestRunner,
+  "approve" | "cancel" | "getState" | "loadBaseline" | "run" | "setOnState"
+> {}
 
 interface RuntimeChannel extends Pick<Channel, "emit" | "on"> {}
 

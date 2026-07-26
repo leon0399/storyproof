@@ -11,9 +11,8 @@ vi.mock("storybook/preview-api", () => ({
   },
 }));
 
-const { beforeEach: reportVisualParameters } = await import(
-  "../src/preview.js"
-);
+const { beforeEach: reportVisualParameters } =
+  await import("../src/preview.js");
 
 describe("visual preview readiness", () => {
   const report = vi.fn();

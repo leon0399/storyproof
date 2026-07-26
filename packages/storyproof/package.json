@@ -19,10 +19,10 @@
   "homepage": "https://storyproof.dev",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/leon0399/llame.git",
-    "directory": "packages/storybook-addon-visual-tests"
+    "url": "git+https://github.com/leon0399/storyproof.git",
+    "directory": "packages/storyproof"
   },
-  "bugs": "https://github.com/leon0399/llame/issues",
+  "bugs": "https://github.com/leon0399/storyproof/issues",
   "author": "Leonid Meleshin (https://leon0399.me)",
   "license": "MIT",
   "files": [
@@ -74,26 +74,24 @@
   "dependencies": {
     "@storybook/icons": "2.1.0",
     "pixelmatch": "^7.1.0",
-    "playwright": "catalog:",
+    "playwright": "1.55.1",
     "pngjs": "^7.0.0"
   },
   "devDependencies": {
-    "@playwright/test": "catalog:",
-    "@storybook/nextjs-vite": "catalog:",
+    "@playwright/test": "1.55.1",
     "@storybook/react-vite": "^10.5.0",
-    "@types/node": "catalog:",
+    "@types/node": "^22",
     "@types/pngjs": "^6.0.5",
-    "@types/react": "catalog:",
-    "@types/react-dom": "catalog:",
-    "@typescript/native-preview": "catalog:",
-    "@workspace/config-typescript": "workspace:*",
-    "oxlint": "catalog:",
-    "react": "catalog:",
-    "react-dom": "catalog:",
-    "storybook": "catalog:",
-    "tsx": "catalog:",
-    "typescript": "catalog:",
-    "vitest": "catalog:"
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@typescript/native-preview": "7.0.0-dev.20260703.1",
+    "oxlint": "^1.72.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "storybook": "^10.5.0",
+    "tsx": "^4.20.3",
+    "typescript": "5.7.3",
+    "vitest": "^4.1.10"
   },
   "peerDependencies": {
     "react": "^19.0.0",

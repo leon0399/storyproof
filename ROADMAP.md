@@ -1,13 +1,16 @@
 # Roadmap
 
-Forward-only work for the Storybook visual-tests addon. Completed work belongs
-in the consuming repository's changelog, not here. The implementation sequence
+Forward-only work for storyproof. Completed work belongs in the package's
+version-keyed [CHANGELOG](packages/storyproof/CHANGELOG.md) (Keep a Changelog
+format; repo-only chores may skip it), not here. The implementation sequence
 and verification gates live in
-[the public preview release plan](docs/2026-07-24-public-preview-release-plan.md).
+[the public preview release plan](packages/storyproof/docs/2026-07-24-public-preview-release-plan.md).
 
-Development stays inside the llame monorepo through the initial public preview.
-Repository extraction is optional and last; the package boundary is tested
-earlier by installing the packed tarball into an isolated temporary fixture.
+The repository was extracted from the llame monorepo on 2026-07-26 (ahead of
+the plan's original "optional and last" sequencing, by owner decision: the
+announcement creates the independent lifecycle, and release workflows should
+be built once in their final home). The package boundary is still tested by
+installing the packed tarball into an isolated temporary fixture.
 
 ## P0 — Publishable package boundary
 
@@ -51,6 +54,12 @@ earlier by installing the packed tarball into an isolated temporary fixture.
 - [ ] Rewrite README/configuration/troubleshooting around the verified packed
       consumer, including browser installation, artifact ignores, trust
       boundary, Ubuntu-only support, and Playwright upgrade policy.
+- [ ] Adopt Changesets for version/changelog automation (decided 2026-07-26,
+      over semantic-release: monorepo-native, and it separates versioning from
+      publishing so the protected tag-triggered publisher below stays as
+      designed). Integrate no later than the first `0.1.0-next.*` prerelease;
+      until then the package CHANGELOG's `[Unreleased]` section is maintained
+      by hand in Keep a Changelog format.
 - [ ] Add protected npm trusted publishing with provenance, package-scoped
       version/tag validation, least-privilege permissions, SHA-pinned actions,
       exact-artifact publication from the same protected tag workflow run, and
@@ -61,20 +70,19 @@ earlier by installing the packed tarball into an isolated temporary fixture.
       Publish under the `next` dist-tag and verify `latest` remains absent or
       unchanged.
 
-## P3 — Optional repository extraction
+## P3 — Complete the extraction (split done 2026-07-26)
 
-- [ ] Extract only when the addon has a genuinely independent maintainer,
-      contributor, issue, or release lifecycle. npm publication alone does not
-      require a separate repository.
-- [ ] Prefer `git subtree split`; use `git filter-repo` when precise history
-      filtering is required. Do not use deprecated `git filter-branch`.
-- [ ] Add standalone package-manager, lockfile, build, test, lint, CI, release,
-      contribution, and security scaffolding that the extracted package
-      previously inherited from the monorepo.
+The subtree split, monorepo scaffolding, and metadata move landed with the
+extraction. Remaining:
+
 - [ ] Run the same build, pack, isolated-consumer, visual, type, lint, and format
-      gates in the extracted checkout before moving publication authority.
-- [ ] Move repository metadata, issue routing, security reporting, tags, and
-      trusted-publisher configuration deliberately.
+      gates in this checkout's CI before moving publication authority.
+- [ ] Move publication authority deliberately: npm trusted-publisher
+      configuration points at this repository's release workflow (P2), and
+      llame switches to consuming the published package (removal PR in llame).
+- [ ] Decide issue routing and security reporting for this repository
+      (SECURITY.md / private vulnerability reporting) before the public
+      announcement.
 
 ## P4 — Post-preview feature leverage
 

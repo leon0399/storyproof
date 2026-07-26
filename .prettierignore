@@ -1,0 +1,7 @@
+node_modules
+dist
+pnpm-lock.yaml
+test-results
+storybook-static
+**/__screenshots__
+packages/storyproof/test/.tmp

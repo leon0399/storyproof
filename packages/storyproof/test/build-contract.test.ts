@@ -46,14 +46,12 @@ describe("compiled package contract", () => {
     });
   });
 
-  test("configures NodeNext React emission and caches dist", async () => {
+  test("configures NodeNext React emission", async () => {
     const buildConfig = await readJson("tsconfig.build.json");
     const compilerOptions = buildConfig.compilerOptions as Record<
       string,
       unknown
     >;
-    const turbo = await readJson("turbo.json");
-    const tasks = turbo.tasks as Record<string, { outputs?: string[] }>;
 
     expect(compilerOptions).toMatchObject({
       rootDir: "src",
@@ -68,6 +66,5 @@ describe("compiled package contract", () => {
       "src/**/*.stories.ts",
       "src/**/*.stories.tsx",
     ]);
-    expect(tasks.build?.outputs).toEqual(["dist/**"]);
   });
 });

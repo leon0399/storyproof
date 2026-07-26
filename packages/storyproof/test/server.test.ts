@@ -45,12 +45,8 @@ describe("visual addon preset", () => {
     expect(preview[0]).toBe("existing-preview");
     expect(path.isAbsolute(manager[1]!)).toBe(true);
     expect(path.isAbsolute(preview[1]!)).toBe(true);
-    expect(manager[1]).toMatch(
-      /storybook-addon-visual-tests\/src\/manager\.tsx$/,
-    );
-    expect(preview[1]).toMatch(
-      /storybook-addon-visual-tests\/src\/preview\.ts$/,
-    );
+    expect(manager[1]).toMatch(/storyproof\/src\/manager\.tsx$/);
+    expect(preview[1]).toMatch(/storyproof\/src\/preview\.ts$/);
   });
 });
 

@@ -1,0 +1,10 @@
+node_modules
+dist
+test-results/
+storybook-static/
+
+# Local visual-test run artifacts. Baseline PNG/JSON remain committed.
+**/__screenshots__/**/candidate.png
+**/__screenshots__/**/diff.png
+**/__screenshots__/**/*.tmp
+packages/storyproof/test/.tmp/
