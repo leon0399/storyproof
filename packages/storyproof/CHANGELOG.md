@@ -63,6 +63,26 @@ monorepo until 2026-07-26; the day-by-day pre-extraction record lives in
   added `"./package.json"` export. Rebuilding reproduces the manifest
   byte-for-byte, so the committed generated file also serves as a drift gate
   in CI.
+- `peerDependencies.storybook` widened from `^10.5.0` to `^10.0.0`, matching
+  the release plan's stated target: the packed-consumer CI matrix (see
+  Added, above) now installs and runs the addon under Storybook `~10.0.0`
+  specifically to prove that range, so the manifest no longer contradicts
+  what it's actually tested against.
+
+### Removed
+
+- `test/build-contract.test.ts` and `test/identifier-contract.test.ts`:
+  both were change-detector tests that read a config value or constant and
+  asserted it against a hardcoded copy of itself, verifying nothing that
+  couldn't already fail loudly elsewhere. Packaging correctness is now
+  verified by publint and attw (build-time gates), `test/pack-inventory.test.ts`
+  (a real pack asserting real shipped files), and the packed-consumer CI
+  matrix (a real project installing the tarball and Storybook loading the
+  addon through those exports) — behavioral checks the config-assertion
+  tests were only ever a shadow of. The identifier scan for legacy
+  (`llame`/`@workspace`) branding was a rebrand-migration guard; the package
+  has since been extracted into its own repository, so there's no such
+  source within reach to scan for.
 
 ## [0.0.1-alpha.1] - 2026-07-26
 

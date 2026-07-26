@@ -589,13 +589,22 @@ full because the reasoning matters more than the back-and-forth:
   `git diff --exit-code` (after packing, which always rebuilds via
   `prepack`) now also functions as a drift gate: editing `entry` without
   rebuilding and committing the result fails CI.
-- **`test/build-contract.test.ts` updated** to assert the new shape
-  directly (`toEqual` against the five expected bare-string entries) rather
-  than the old `{types, import}` object form — still independent of
-  `tsdown.config.ts`'s `entry` list itself, so the test doesn't derive its
-  expectation from the config it validates (which would pass vacuously).
-  This mirrors `test/pack-inventory.test.ts`'s existing allowlist, which is
-  deliberately independent of the `files` field for the same reason.
+- **`test/build-contract.test.ts` updated, then deleted (2026-07-27,
+  owner call).** It was first updated to assert the new shape directly
+  (`toEqual` against the five expected bare-string entries) rather than the
+  old `{types, import}` object form. On reflection it — and separately,
+  `test/identifier-contract.test.ts` (Task 1) — were both change-detector
+  tests: each read a config value or constant and asserted it against a
+  hardcoded copy of itself, which can only fail when someone edits the
+  thing (who already knows they did) and never catches a real defect.
+  Packaging correctness is verified behaviorally instead: publint and attw
+  (build-time gates), `test/pack-inventory.test.ts` (a real pack asserting
+  real shipped files and entry points), and the packed-consumer CI matrix
+  (Task 8 — a real project installs the tarball and Storybook loads the
+  addon through those exports). The identifier scan for legacy
+  (`llame`/`@workspace`) branding was a rebrand-migration guard, made moot
+  by the 2026-07-26 extraction into this package's own repository. Neither
+  test was replaced with a substitute assertion or snapshot.
 
 ### Task 7: Control and inspect the npm tarball
 
