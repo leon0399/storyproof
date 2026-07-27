@@ -4,8 +4,10 @@ Why a baseline is only valid for the environment that rendered it, what
 storyproof now records about that environment, and how container capture makes
 every machine render identically.
 
-Companion evidence: `experiments/render-determinism/` (temporary harness; its
-README carries the raw hashes). This document is the durable record.
+The temporary measurement harness (`experiments/render-determinism/`, deleted
+once its questions were answered) produced the evidence; this document is the
+durable record, and the appendix at the bottom carries the complete hash
+matrices and findings.
 
 ## The measurements this design rests on
 
@@ -154,3 +156,63 @@ never rendered), so this is the window where identity can change:
 - Acceptance suite (container capture) — `STORYPROOF_CONTAINER=1`, exercised
   locally against Docker Desktop and by CI's `visual-container` job on native
   Linux Docker, which covers both `host-gateway` implementations.
+
+## Appendix — the measurement record (2026-07-27/28)
+
+The complete results of the deleted `experiments/render-determinism/` harness:
+one fixed probe page (system-ui text at several weights, a border radius, a
+rotation, a gradient — no network, no webfonts), captured at 1280×720@1x,
+hashed as PNG bytes. Chromium `140.0.7339.186`, Firefox `141.0`, WebKit
+`26.0`, image `mcr.microsoft.com/playwright:v1.55.1-noble` throughout.
+
+### Hashes
+
+| Engine   | container amd64 | container arm64 | container WSL2 (Docker Desktop) | bare linux CI | bare macOS  | bare WSL2   |
+| -------- | --------------- | --------------- | ------------------------------- | ------------- | ----------- | ----------- |
+| chromium | `3c157705…`     | `3c157705…`     | `3c157705…`                     | `bec2dc20…`   | `50f1ac62…` | `bc480c76…` |
+| firefox  | `b3f9f40f…`     | `b3f9f40f…`     | `b3f9f40f…`                     | `019ccb35…`   | `c16c7b11…` | —           |
+| webkit   | `013f0c73…`     | `013f0c73…`     | `013f0c73…`                     | `594f974e…`   | `2d518865…` | —           |
+
+`docker run` on a bare Linux host also produced `3c157705…` (chromium), so
+GitHub's `container:` key and plain `docker run` are equivalent.
+
+### Findings
+
+1. **Architecture never changed pixels** — amd64 and arm64 byte-identical in
+   the container, for all three engines. Arch does not belong in the
+   environment key; Apple Silicon needs no emulation.
+2. **The OS always did** — bare macOS ≠ bare Linux, per engine.
+3. **The font stack always did** — bare ≠ containerized on the same machine,
+   per engine (the container pins fonts the host does not).
+4. **Two "identical" bare Linux hosts disagreed** (chromium: CI runner
+   `bec2dc20…` vs WSL2 `bc480c76…`) despite identical platform, arch, browser
+   build, and measured font metrics — the difference is invisible to every
+   enumerable attribute, which is what the render fingerprint exists for.
+5. **The container erased that disagreement**, including through Docker
+   Desktop's VM — hypervisor-mediated Docker matched native Linux Docker
+   byte-for-byte, for all three engines.
+6. **The start mechanism is irrelevant** (`container:` vs `docker run`).
+7. **Determinism held over time** — chromium's three hashes replicated
+   exactly across runs on consecutive days.
+8. **Engines are distinct rendering environments** — three engines, three
+   hashes in the identical container; hence the engine name leads the
+   environment key and per-engine baselines coexist.
+9. **Container-on-macOS-host remains measured-by-analogy**: GitHub's macOS
+   runners cannot start a container runtime (no nested virtualization —
+   colima dies at VM creation), so the direct cell never ran. The analogy is
+   strong (result 5 covers the same VM-shaped boundary via Docker Desktop on
+   WSL2); anyone with a Mac closes it by running the Playwright image against
+   the probe and comparing against the container hashes above.
+
+### Operational traps found while measuring (all fixed in code)
+
+- Vite's DNS-rebinding protection 403s the `host.docker.internal` hostname
+  but trusts IP-literal Host headers → the container resolves the gateway IP
+  itself and the browser navigates by IP.
+- Default name resolution prefers the IPv6 gateway alias, unreachable from
+  the container on Docker Desktop → `getent ahostsv4`.
+- Firefox refuses to launch when `$HOME` isn't owned by the current user →
+  `HOME=/root` pinned in the container invocation.
+- `playwright install --with-deps` inside the image is pointless and adds a
+  third-party apt dependency that transiently broke (unsigned NodeSource
+  repo) → never install browsers where the image already ships them.

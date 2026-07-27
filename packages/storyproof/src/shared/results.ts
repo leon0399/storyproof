@@ -77,7 +77,8 @@ export interface BaselineMetadata {
    * SHA-256 of a fixed probe page rendered by the capturing browser. Catches
    * environment differences no enumerable attribute can — two hosts with
    * identical platform, browser build, and font metrics have been measured
-   * rasterizing differently (experiments/render-determinism, 2026-07-27).
+   * rasterizing differently (2026-07-27; render-determinism appendix in the
+   * environment-identity design doc).
    */
   renderFingerprint: string;
   viewport: {

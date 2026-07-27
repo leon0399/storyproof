@@ -9,7 +9,8 @@ import { DEFAULT_ENVIRONMENT } from "../constants.js";
  *   It holds only stable, coexistence-worthy dimensions: platform, browser
  *   name, viewport, scale. Two platforms' baselines live side by side instead
  *   of overwriting each other. Architecture is deliberately absent — measured
- *   2026-07-27 (experiments/render-determinism): amd64 and arm64 render the
+ *   2026-07-27 (render-determinism appendix in the environment-identity
+ *   design doc): amd64 and arm64 render the
  *   same image byte-identically, so keying on arch would fragment baselines
  *   along a dimension that does not affect pixels.
  *
