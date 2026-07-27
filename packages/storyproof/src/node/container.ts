@@ -17,8 +17,8 @@ const CONNECTORS = { chromium, firefox, webkit } as const;
  * the official image, with the addon's Node side staying on the host so
  * approval keeps writing host files through the existing path guards.
  *
- * Topology (each leg measured 2026-07-27; evidence in
- * docs/2026-07-27-environment-identity-design.md, incl. its appendix):
+ * Topology — each leg below carries its own measured justification
+ * (all 2026-07-27):
  *
  * - **Bridge network + `host.docker.internal:host-gateway`**, NOT
  *   `--network host`: host networking fails on Docker Desktop (WSL2/macOS,

@@ -23,7 +23,7 @@
     // packed npm tarball, pnpm, or npm -- confirmed absent only when
     // Storybook compiles `src/manager.tsx` directly from source, which is
     // the only path any test exercised before the packed-consumer harness
-    // (release plan Task 8) checked a real browser instead of just the dev
+    // checked a real browser instead of just the dev
     // server's REST endpoints. Classic transform routes every manager-side
     // JSX call through the already-imported `React` global instead, so
     // `dist/manager.js` carries no "react/jsx-runtime" import at all.

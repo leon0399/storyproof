@@ -196,7 +196,7 @@ function incompatibilityReason(options: {
  * explanatory: a platform mismatch subsumes a fingerprint mismatch, and the
  * fingerprint is the catch-all for differences no attribute can name — two
  * hosts with identical platform, browser build, and font metrics have been
- * measured rasterizing differently (render-determinism appendix,
+ * measured rasterizing differently (measured
  * 2026-07-27). Comparator fields need no comparison here: parsing already
  * pins them to the fixed policy.
  */

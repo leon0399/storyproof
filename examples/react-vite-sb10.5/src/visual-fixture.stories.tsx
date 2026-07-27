@@ -8,7 +8,7 @@ import { expect, userEvent, within } from "storybook/test";
 // storyproof's own reusable acceptance specification
 // (packages/storyproof/test/acceptance/addon-suite.ts), exercised here
 // against a real installed package rather than the workspace source — see
-// the package's docs/2026-07-24-public-preview-release-plan.md, Task 8.
+// the root AGENTS.md's Examples section.
 // (Fault-injection scenarios — a story that hangs or fails its connection on
 // command — are harness-only and stay in the workspace's
 // test/fixtures/project; they'd be nonsense in a demo project.)

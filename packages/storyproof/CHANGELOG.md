@@ -24,8 +24,7 @@ monorepo until 2026-07-26; the day-by-day pre-extraction record lives in
   moves to schema 2; a baseline from a different environment now reports a
   message naming the specific mismatch (platform, browser version, Playwright
   version, or fingerprint) instead of a false pixel diff, and schema-1
-  baselines report a migration message asking for one re-approval. See
-  `docs/2026-07-27-environment-identity-design.md` at the repository root.
+  baselines report a migration message asking for one re-approval.
 - Container capture (`capture.container` preset option, opt-in). storyproof
   starts the Playwright container image matching the installed Playwright
   version, connects over a loopback-only WebSocket, and captures stories
@@ -212,7 +211,7 @@ read properties of undefined (reading 'getIndex')` — or, worse, no visible
   generator on 10.0.x without it would require importing Storybook's
   internal core-server module directly instead of its public presets API,
   which is out of scope by design, so the range stays `^10.5.0`. Recorded as
-  open, characterized future work in `ROADMAP.md` rather than silently
+  open, characterized future work rather than silently
   dropped.
 
 - `test/build-contract.test.ts` and `test/identifier-contract.test.ts`:

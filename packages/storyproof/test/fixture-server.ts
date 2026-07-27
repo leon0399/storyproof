@@ -16,7 +16,7 @@ const fixtureCopy = path.join(packageRoot, "test/.tmp/project");
 // (and thus outside the pnpm workspace) is what proves the packed artifact
 // rather than the workspace-linked `storyproof: workspace:*` the examples
 // otherwise use for local development. See
-// docs/2026-07-24-public-preview-release-plan.md's Task 8 deviation note.
+// the root AGENTS.md's Examples section for the isolation mechanics.
 const consumerDir = process.env.VISUAL_TEST_PROJECT_DIR
   ? path.resolve(packageRoot, process.env.VISUAL_TEST_PROJECT_DIR)
   : undefined;

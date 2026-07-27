@@ -1,6 +1,6 @@
 # CI — parallel jobs; Node 22/24 matrix on every job where the runtime
 # matters (unit tests, visual smoke). The Storybook-version × framework
-# matrix arrives with the packed-consumer harness (release plan Task 8) —
+# matrix arrives with the packed-consumer harness —
 # those rows install the packed archive into fixture projects, so they
 # can't exist before the harness does.
 #
@@ -187,7 +187,8 @@ jobs:
   # Same acceptance suite per non-default engine (capture.browser). One
   # engine per dev server by design — per-engine environment keys make the
   # baselines coexist, and multi-engine review-per-story is deliberately
-  # deferred (ROADMAP P4). WebKit here is the engine on Linux, not Safari;
+  # deferred until a multi-candidate review UI exists. WebKit here is the
+  # engine on Linux, not Safari;
   # the docs state that plainly.
   visual-engine:
     name: visual smoke (${{ matrix.browser }})
@@ -276,7 +277,7 @@ jobs:
           path: packages/storyproof/test-results/
           retention-days: 7
 
-  # Packed-consumer harness (release plan Task 8). examples/** are real pnpm
+  # Packed-consumer harness. examples/** are real pnpm
   # workspace members (storyproof: workspace:*) for local development -- a
   # contributor cloning the repo sees their own working tree, not a stale
   # published build. That link proves nothing about the packed npm tarball,
@@ -298,7 +299,7 @@ jobs:
   # 10.0.x never registers a "storyIndexGenerator" preset (confirmed absent
   # from its common preset, present from 10.5.x onward), so the addon's
   # unchecked cast over that value produced `undefined` and blew up deep
-  # inside the runner instead of failing at startup -- see the release plan's
+  # inside the runner instead of failing at startup -- the addon now fails
   # dated note next to Task 8 for the full evidence trail, including why an
   # intra-Storybook version-skew theory was ruled out first. The addon now
   # fails closed with a named "storyIndexGenerator" error at dev-server
@@ -342,7 +343,7 @@ jobs:
         run: pnpm pkg set dependencies.storyproof=file:/tmp/storyproof-artifact/package.tgz
       # The copy has no ancestor pnpm-workspace.yaml once outside the repo,
       # but --ignore-workspace is kept for defense in depth: empirically (see
-      # the release plan's Task 8 deviation note), a plain `pnpm install`
+      # empirically confirmed), a plain `pnpm install`
       # inside a non-member directory *under* this workspace silently no-ops,
       # and a plain `pnpm add` rewrites the *root* pnpm-lock.yaml instead of
       # the target directory's own -- exactly the kind of workspace bleed

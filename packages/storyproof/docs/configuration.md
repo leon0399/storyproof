@@ -82,8 +82,9 @@ evidence, not fidelity claims about real user rendering.
 
 Engine determinism is measured separately per engine — the Chromium results
 (arch-independence in the container, host-dependence when bare) were
-re-measured for Firefox and WebKit rather than assumed; see the experiment
-record referenced from the environment-identity design.
+re-measured for Firefox and WebKit rather than assumed, with the same
+result: identical in the container across architectures, divergent on bare
+hosts.
 
 ### Container capture (`capture.container`)
 
@@ -108,8 +109,10 @@ capturing inside one shared container:
 With `container: true` the image is derived from the installed Playwright
 version (`mcr.microsoft.com/playwright:v<version>-noble`); pass
 `{ image: "…" }` to override. Every machine then renders under the same
-`linux-chromium-…` key and produces identical pixels — measured, not assumed;
-see [the environment-identity design](../../../docs/2026-07-27-environment-identity-design.md).
+`linux-chromium-…` key and produces identical pixels — measured, not
+assumed: hosts that render differently when capturing bare (including two
+Linux machines with identical font metrics) produce byte-identical output
+inside the same image, across amd64 and arm64, for all three engines.
 
 Requirements and behavior:
 

@@ -32,7 +32,7 @@ Storybook process's `cwd` becomes that directory so `storyproof/preset`
 resolves from its real `node_modules`, not workspace source. CI's `consumer`
 job sets this to a temporary copy of an `examples/**` project, made outside
 this workspace with the packed tarball installed into it (root `AGENTS.md`'s
-Examples section, release plan Task 8 deviation note). The two
+Examples section). The two
 fault-injection scenarios in `addon-suite.ts` (simulated hang, forced
 connection failure) skip automatically when the target has no
 `control/state.json` — only `test/fixtures/project` carries that fixture.
@@ -52,8 +52,7 @@ Split by execution environment — the boundary is load-bearing:
   session + content-clip + render-fingerprint probe), `environment.ts`
   (environment key, platform resolution, probe page), `container.ts`
   (containerized capture: version-matched Playwright image, loopback-only ws,
-  host.docker.internal rewrite — see docs/2026-07-27-environment-identity-design.md
-  at the repo root), `compare.ts` (pixelmatch policy + environment
+  gateway-IP rewrite; the measured rationale is in its comments), `compare.ts` (pixelmatch policy + environment
   compatibility, baseline metadata schema 2), `paths.ts` (artifact-path
   resolution + security guards), `approval.ts`, `story-index.ts`, `server.ts`
   (artifact HTTP route + command endpoint).

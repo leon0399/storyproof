@@ -71,8 +71,7 @@ describe("comparePngs", () => {
 
   // Reversal of the original "platform is provenance only" decision, with
   // evidence: bare macOS and bare Linux render measurably different pixels
-  // (2026-07-27; the render-determinism appendix in
-  // docs/2026-07-27-environment-identity-design.md), so a cross-platform
+  // (measured 2026-07-27), so a cross-platform
   // comparison must surface as a named incompatibility, not a pixel diff.
   test("names a platform mismatch instead of diffing across platforms", () => {
     const result = comparePngs({

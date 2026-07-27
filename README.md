@@ -13,7 +13,7 @@ in your repository.
 - **Website**: [storyproof.dev](https://storyproof.dev) (in progress —
   [`apps/website`](apps/website))
 - [Support target and trust boundary](packages/storyproof/README.md)
-- [Roadmap](ROADMAP.md) · [Changelog](packages/storyproof/CHANGELOG.md)
+- [Changelog](packages/storyproof/CHANGELOG.md)
 
 Extracted with history from [llame](https://github.com/leon0399/llame), where
 it was built and is dogfooded against a 226-story Storybook.

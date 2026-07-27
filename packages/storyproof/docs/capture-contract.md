@@ -37,8 +37,8 @@ local capture (`linux`, `darwin`, `win32`), and always `linux` for
 [container capture](configuration.md#container-capture-capturecontainer)
 regardless of the host. Different platforms therefore keep coexisting
 baselines instead of overwriting one another. Architecture is deliberately
-absent from the key: amd64 and arm64 were measured rendering byte-identically
-(see the [environment-identity design](../../../docs/2026-07-27-environment-identity-design.md)).
+absent from the key: amd64 and arm64 were measured rendering the identical
+probe image byte-for-byte in the capture container, for all three engines.
 Screenshot framing changes which pixels inside that environment become the
 candidate; it does not resize the browser.
 

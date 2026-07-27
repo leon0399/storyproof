@@ -14,8 +14,8 @@ CHANGELOG holds the pre-extraction shipped record.
 pnpm workspace monorepo (Node >= 22.12, pinned in `.node-version`; pnpm 10)
 orchestrated by Turborepo. The graph is real, not ceremony: `examples/*` need
 `packages/storyproof` to have been **built**, not merely linked, and Storybook
-cannot hot-reload an addon — so `turbo watch` is what rebuilds and restarts it.
-See [the dev-loop design](docs/2026-07-27-examples-dev-loop-design.md).
+cannot hot-reload an addon (its manager bundle compiles once at startup) —
+so `turbo watch` is what rebuilds and restarts it.
 
 | Path                  | Role                                                                                |
 | --------------------- | ----------------------------------------------------------------------------------- |
@@ -49,8 +49,8 @@ the tarball allowlist/size budget is asserted by
 no CJS build and none is planned unless a demonstrated consumer requires
 one. This is why `tsdown.config.ts` runs attw's `esm-only` profile as a
 build-time gate, why `exports: true`-derived subpaths are bare strings with
-no explicit `"types"` condition (see the release plan's Task 6 2026-07-27
-deviation note), and why a CJS output should not be "helpfully" added later
+no explicit `"types"` condition (TypeScript resolves the sibling `.d.ts`;
+attw passing is the authority), and why a CJS output should not be "helpfully" added later
 without that evidence.
 
 ## Examples
@@ -58,7 +58,8 @@ without that evidence.
 `examples/react-vite-sb10.5` and `examples/nextjs-vite-sb10.5` are two things
 at once, deliberately, and both matter — this is a two-tier design, not
 redundancy to simplify away (a third example pinning Storybook `~10.0.0` was
-tried and removed — see the release plan's dated note next to Task 8):
+tried and removed: 10.0.x never registers the `storyIndexGenerator` preset
+the addon requires, so it fails closed there by design):
 
 1. **A real dev loop.** Each is a genuine pnpm workspace member
    (`examples/*` is in `pnpm-workspace.yaml`'s `packages:` list) depending on
@@ -104,17 +105,16 @@ tried and removed — see the release plan's dated note next to Task 8):
    means the question never gets asked.
 
 2. **The packed-artifact proof, separately.** A `workspace:*` link proves
-   nothing about the actual npm tarball, which is release plan Task 8's
-   subject. CI's `consumer` job copies an example directory _out_ of the
+   nothing about the actual npm tarball. CI's `consumer` job copies an example directory _out_ of the
    workspace (`cp -r`, before any `pnpm install` has populated
    `node_modules` anywhere in the checkout) into a temporary directory,
    points it at the exact tarball the `package` job built
    (`pnpm pkg set dependencies.storyproof=file:<tarball>`), and installs it
    there with `pnpm install --ignore-workspace`. Being outside the
    repository (and thus outside the pnpm workspace) is what makes that
-   install meaningful — see the release plan's Task 8 2026-07-27 deviation
-   note for the full mechanics and the empirically-confirmed reasons
-   `--ignore-workspace` matters even there.
+   install meaningful — and `--ignore-workspace` is load-bearing even there:
+   without it, a plain install in a non-member directory under a workspace
+   silently no-ops, and `pnpm add` rewrites the ROOT lockfile.
 
 **Examples are documentation-by-example — that's the acceptance bar for what
 goes in one.** They exist to teach the addon by showing it; being CI's
@@ -135,21 +135,27 @@ something a user hits, so it stays only in
 
 ## Key documentation
 
-- [ROADMAP.md](ROADMAP.md) — forward-only unshipped work
+**User-facing docs only — by owner decision (2026-07-28).** No roadmaps,
+release plans, or design documents live in this repository: the "why" behind
+every non-obvious decision belongs in a code comment at the decision site,
+and git history is the archive (the deleted plans and design records last
+existed at the commits that removed them). Do not reintroduce the pattern.
+
 - [packages/storyproof/CHANGELOG.md](packages/storyproof/CHANGELOG.md) — the
   package changelog (Keep a Changelog, version-keyed; deliberately NOT the
   llame-style dated work-log)
-- [packages/storyproof/docs/2026-07-24-public-preview-release-plan.md](packages/storyproof/docs/2026-07-24-public-preview-release-plan.md)
-  — the authoritative release plan (tasks, gates, deviations)
 - [packages/storyproof/README.md](packages/storyproof/README.md) — the npm-published
   README: support target, trust boundary, storage, capture contract links
+- [packages/storyproof/docs/configuration.md](packages/storyproof/docs/configuration.md)
+  and [packages/storyproof/docs/capture-contract.md](packages/storyproof/docs/capture-contract.md)
+  — the user-facing options reference and capture semantics
 
 ## Conventions
 
 - Conventional commits (`feat:`, `fix:`, `build:`, `docs:`; no monorepo scope
   needed — the addon is the default subject, use `website:` scope for the site).
-- Update ROADMAP.md and the package CHANGELOG in the same PR that ships the
-  work: user-visible package changes go under `## [Unreleased]` in the Keep a
+- Update the package CHANGELOG in the same PR that ships the work:
+  user-visible package changes go under `## [Unreleased]` in the Keep a
   Changelog sections (Added/Changed/Fixed/Removed) and are rolled into a
   version heading at release time. Repo-only chores (website, CI plumbing)
   don't need a changelog entry.

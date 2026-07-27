@@ -6,7 +6,7 @@
   // Makes `turbo watch` re-run tasks whose declared `inputs` match the changed
   // files, instead of re-running every task in a changed package. Without it,
   // editing a story file would restart that example's Storybook and destroy
-  // Vite's HMR. See docs/2026-07-27-examples-dev-loop-design.md.
+  // Vite's HMR.
   "futureFlags": {
     "watchUsingTaskInputs": true
   },
