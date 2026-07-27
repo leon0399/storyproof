@@ -80,7 +80,14 @@ jobs:
         env:
           LABEL: ${{ matrix.cell }}-${{ matrix.browser }}
           BROWSER: ${{ matrix.browser }}
-        run: node capture.mjs
+        # GitHub's `container:` overrides HOME to a runner-owned mount, and
+        # Firefox refuses to launch when $HOME isn't owned by the current
+        # user (its own error text). Product container capture is unaffected:
+        # a plain `docker run` keeps HOME=/root, which is why firefox passed
+        # the full acceptance suite in storyproof's own container path.
+        run: |
+          if [ -n "${{ matrix.image }}" ]; then export HOME=/root; fi
+          node capture.mjs
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:

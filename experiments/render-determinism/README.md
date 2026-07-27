@@ -125,8 +125,34 @@ First local data (WSL2, Docker Desktop, same v1.55.1-noble image):
 **8. Engines are distinct rendering environments**, as expected — three
 engines, three hashes in the identical container. This is why the
 environment key leads with the engine name and why per-engine baselines
-coexist rather than fight. The per-engine arch/OS cells land with the next
-CI run of this workflow.
+coexist rather than fight.
+
+CI matrix results (run 30310714048):
+
+| Engine   | container amd64 | container arm64 | bare linux  | bare macOS  |
+| -------- | --------------- | --------------- | ----------- | ----------- |
+| chromium | `3c157705…`     | `3c157705…`     | `bec2dc20…` | `50f1ac62…` |
+| firefox  | HOME quirk      | HOME quirk      | `019ccb35…` | `c16c7b11…` |
+| webkit   | `013f0c73…`     | `013f0c73…`     | `594f974e…` | `2d518865…` |
+
+**9. WebKit fully replicates the Chromium story.** Byte-identical across
+amd64/arm64 in the container, AND its container hash matches the local
+WSL2 Docker Desktop run (`013f0c73…`) — so arch-independence and
+container-normalization hold for a second, unrelated rasterizer. Bare
+hosts differ per OS, as with Chromium.
+
+**10. The Firefox container cells failed for a GitHub-mechanism reason, not
+a rendering one:** GH's `container:` overrides `HOME` to a runner-owned
+mount and Firefox refuses to launch when `$HOME` isn't owned by the current
+user (its own error message). Product container capture is unaffected — a
+plain `docker run` keeps `HOME=/root`, and Firefox passed the full 11/11
+acceptance suite through storyproof's own container path locally. Fixed in
+the workflow by exporting `HOME=/root` in container cells; hashes land next
+run.
+
+**11. Chromium's hashes replicated exactly across runs** — same image, new
+day, same three hashes. Determinism holds over time, not just across
+machines.
 
 ## What it captures
 
