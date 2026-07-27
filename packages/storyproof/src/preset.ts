@@ -52,9 +52,9 @@ export async function experimental_serverChannel(
   const storyRoots = resolveStoryRoots(options.storyRoots);
   const maxConcurrency = resolveMaxConcurrency(options.maxConcurrency);
 
-  const storyIndexGenerator = (await options.presets.apply(
-    "storyIndexGenerator",
-  )) as StoryIndexGenerator;
+  const storyIndexGenerator = resolveStoryIndexGenerator(
+    await options.presets.apply("storyIndexGenerator"),
+  );
   const runner = new VisualTestRunner({
     baseUrl: `http://127.0.0.1:${String(options.port)}`,
     cwd: process.cwd(),
@@ -112,6 +112,28 @@ function resolveMaxConcurrency(value: unknown): number {
     );
   }
   return value;
+}
+
+const STORY_INDEX_GENERATOR_HINT =
+  'Storybook does not expose this capability via `presets.apply("storyIndexGenerator")` on every minor -- confirmed absent from Storybook 10.0.x\'s common preset and present from 10.5.x onward. Upgrade to Storybook ^10.5.0 or later.';
+
+// Storybook, not the addon consumer, supplies this value, so a mismatch here
+// means an incompatible Storybook version rather than user misconfiguration.
+// Without this check, a missing/renamed capability silently becomes
+// `undefined`, which explodes deep inside the runner the first time a run
+// enumerates stories (`Cannot read properties of undefined (reading
+// 'getIndex')`) instead of failing the dev server at startup with a reason.
+function resolveStoryIndexGenerator(value: unknown): StoryIndexGenerator {
+  if (
+    value !== null &&
+    typeof value === "object" &&
+    typeof (value as { getIndex?: unknown }).getIndex === "function"
+  ) {
+    return value as StoryIndexGenerator;
+  }
+  throw optionError(
+    `Missing required "storyIndexGenerator" preset capability: expected an object with a "getIndex" method, received ${format(value)}. ${STORY_INDEX_GENERATOR_HINT}`,
+  );
 }
 
 function optionError(message: string): Error {

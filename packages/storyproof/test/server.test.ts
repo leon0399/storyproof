@@ -170,6 +170,50 @@ describe("preset option validation", () => {
   });
 });
 
+// Storybook 10.0.x does not register a "storyIndexGenerator" preset at all
+// (confirmed by inspecting its common preset directly), so `presets.apply`
+// resolves `undefined` there. An unchecked cast used to let that `undefined`
+// flow into the runner and explode later, mid-run, with an opaque
+// "Cannot read properties of undefined (reading 'getIndex')" instead of
+// failing the dev server at startup with a named reason.
+describe("storyIndexGenerator capability validation", () => {
+  beforeEach(() => {
+    constructedRunners.length = 0;
+  });
+
+  test.each<[string, unknown]>([
+    ["undefined (Storybook 10.0.x's actual return value)", undefined],
+    ["null", null],
+    ["an object without a getIndex method", {}],
+    ["an object whose getIndex is not a function", { getIndex: "nope" }],
+  ])(
+    "rejects a storyIndexGenerator capability that is %s",
+    async (_label, capability) => {
+      const presets = { apply: vi.fn(async () => capability) };
+
+      await expect(startServerChannel({}, presets)).rejects.toThrow(
+        /storyIndexGenerator/,
+      );
+      expect(constructedRunners).toHaveLength(0);
+    },
+  );
+
+  test("names the missing capability and the required Storybook floor", async () => {
+    const presets = { apply: vi.fn(async () => undefined) };
+
+    await expect(startServerChannel({}, presets)).rejects.toThrow(
+      '[storyproof] Missing required "storyIndexGenerator" preset capability: expected an object with a "getIndex" method, received undefined (undefined). Storybook does not expose this capability via `presets.apply("storyIndexGenerator")` on every minor -- confirmed absent from Storybook 10.0.x\'s common preset and present from 10.5.x onward. Upgrade to Storybook ^10.5.0 or later.',
+    );
+  });
+
+  test("accepts a real storyIndexGenerator capability", async () => {
+    await startServerChannel();
+
+    expect(constructedRunners).toHaveLength(1);
+    expect(constructedRunners[0]!["storyIndexGenerator"]).toBeDefined();
+  });
+});
+
 describe("artifact server", () => {
   test("serves only registered PNGs through opaque GET IDs", async () => {
     const registry = new ArtifactRegistry();
@@ -342,12 +386,16 @@ describe("server channel", () => {
 });
 
 function fakePresets() {
-  return { apply: vi.fn(async () => ({})) };
+  return {
+    apply: vi.fn(async () => ({
+      getIndex: vi.fn(async () => ({ v: 5, entries: {} })),
+    })),
+  };
 }
 
 async function startServerChannel(
   options: Record<string, unknown> = {},
-  presets = fakePresets(),
+  presets: { apply: (key: string) => Promise<unknown> } = fakePresets(),
 ) {
   const channel = { on: vi.fn(), emit: vi.fn() };
   return experimental_serverChannel(
