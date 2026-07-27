@@ -77,3 +77,55 @@ jobs:
           name: render-${{ matrix.label }}
           path: experiments/render-determinism/out/
           retention-days: 7
+
+  # The question cells 1-4 cannot answer: does the SAME container image produce
+  # the same pixels when the host is macOS rather than Linux? Docker on macOS
+  # runs the container inside a Linux VM, a boundary the jobs above never
+  # cross -- and it is the boundary a mixed macOS/Linux team depends on.
+  #
+  # Both cells here use `docker run` rather than the `container:` key above, so
+  # the Linux cell is a control: it isolates the host OS instead of confounding
+  # it with the mechanism used to start the container.
+  capture-docker:
+    name: docker-run-on-${{ matrix.host }}
+    runs-on: ${{ matrix.runner }}
+    continue-on-error: true
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: linux
+            runner: ubuntu-24.04
+          - host: macos
+            runner: macos-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      # GitHub's macOS runners ship no container runtime. colima provides one
+      # via Apple's virtualization stack. If this step fails the cell is simply
+      # unavailable -- which reads nothing like a hash mismatch, so the result
+      # stays unambiguous.
+      - name: Start a container runtime (macOS only)
+        if: matrix.host == 'macos'
+        run: |
+          brew install docker colima
+          colima start
+      - name: Capture inside the container
+        env:
+          LABEL: docker-run-on-${{ matrix.host }}
+        working-directory: experiments/render-determinism
+        run: |
+          docker run --rm \
+            -v "$PWD:/w" -w /w \
+            -e "LABEL=$LABEL" \
+            -e PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
+            mcr.microsoft.com/playwright:v1.55.1-noble \
+            sh -c 'npm i --no-save --silent playwright@1.55.1 && node capture.mjs'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: render-docker-run-on-${{ matrix.host }}
+          path: experiments/render-determinism/out/
+          retention-days: 7
