@@ -114,6 +114,29 @@ once a real packed install was loaded through a real browser's accessibility
 tree on an installed Storybook version. That gap is the reason the
 `consumer` matrix (Added, above) is a required CI gate, not an optional one.
 
+- **A missing `storyIndexGenerator` preset capability silently became
+  `undefined` and exploded later, mid-run, with no diagnostic (2026-07-27)**
+  — the third failure the packed-consumer harness found on Storybook 10.0.8
+  (see Removed, below) traced to `src/preset.ts`'s
+  `experimental_serverChannel`, which cast
+  `options.presets.apply("storyIndexGenerator")` straight to
+  `StoryIndexGenerator` with an unchecked `as`. Storybook 10.0.x never
+  registers a `storyIndexGenerator` preset at all (confirmed absent from its
+  `common-preset.js`; present in 10.5.4's), so that call resolves `undefined`
+  there, and the unchecked cast let it flow all the way into the runner
+  before failing deep inside the first story-enumeration call with `Cannot
+read properties of undefined (reading 'getIndex')` — or, worse, no visible
+  error at all if that call path never surfaced one to the terminal, just a
+  panel that accepts a run and never reports a result. Fixed by validating
+  the resolved value has a callable `getIndex` before use
+  (`resolveStoryIndexGenerator`, matching the existing
+  `optionError`/`resolveStoryRoots`/`resolveMaxConcurrency` pattern), so an
+  incompatible or future-renamed Storybook capability now fails the dev
+  server at startup with a named `[storyproof]` error instead of hanging or
+  throwing an unattributed error mid-run. This is independent of the 10.0
+  floor decision below — it protects against any future Storybook minor
+  that changes this preset key.
+
 ### Removed
 
 - The `react-vite-sb10.0` example and its `consumer` CI matrix cell, and the
@@ -130,9 +153,17 @@ tree on an installed Storybook version. That gap is the reason the
   ruled out: `@storybook/react-vite@10.0.8` depends on
   `@storybook/builder-vite` with an exact `"10.0.8"` pin, not a range, and
   the installed tree confirmed both resolve to that exact version. Root
-  cause not isolated further — this is a genuinely third, distinct failure
-  mode from the two fixed above, out of this task's scope. Recorded as open,
-  characterized future work in `ROADMAP.md` rather than silently dropped.
+  cause isolated on 2026-07-27 (see the "missing `storyIndexGenerator`
+  preset capability" entry above): this was addon-side after all, not an
+  unexplained Storybook internal — `presets.apply("storyIndexGenerator")`
+  resolves `undefined` on Storybook 10.0.8 because it never registers that
+  preset (10.5.4's does), and storyproof's own unchecked cast over that
+  value hid the failure until it exploded mid-run. Reaching the story index
+  generator on 10.0.x without it would require importing Storybook's
+  internal core-server module directly instead of its public presets API,
+  which is out of scope by design, so the range stays `^10.5.0`. Recorded as
+  open, characterized future work in `ROADMAP.md` rather than silently
+  dropped.
 
 - `test/build-contract.test.ts` and `test/identifier-contract.test.ts`:
   both were change-detector tests that read a config value or constant and

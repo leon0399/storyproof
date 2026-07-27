@@ -21,10 +21,14 @@ installing the packed tarball into an isolated temporary fixture.
       dependency), bundled Chromium, and direct loopback HTTP. A `~10.0.0`
       floor was attempted via the packed-consumer harness and abandoned: the
       addon's manager UI rendered and worked correctly, but every visual-test
-      run submitted through it never completed, for reasons characterized but
-      not yet isolated (see the release plan's dated note next to Task 8) —
-      re-investigating that floor is separate future work, not blocking this
-      item.
+      run submitted through it never completed. Root cause (2026-07-27):
+      Storybook 10.0.x never registers a `storyIndexGenerator` preset (the
+      addon's own `presets.apply("storyIndexGenerator")` call resolved
+      `undefined` there), so it isn't a defect this package can work around
+      without reaching into Storybook internals — see the release plan's
+      dated note next to Task 8. The addon now fails closed with a named
+      startup error on any Storybook that doesn't expose this capability, so
+      the next attempt starts from a clear signal instead of a silent hang.
 - [ ] Pack once, record the archive's npm-compatible SHA-512 SRI, and carry that
       same `.tgz` through inventory, consumer tests, workflow artifact upload,
       and publication without rebuilding or repacking.
@@ -45,9 +49,17 @@ installing the packed tarball into an isolated temporary fixture.
       submitted through the panel there never completed (systemic
       `toBeVisible` timeouts waiting on a result). An intra-Storybook
       builder-vite/core version-skew theory was checked and ruled out (both
-      resolve to the exact pinned `10.0.8`, no caret range in the path). Root
-      cause not yet isolated — see the release plan's dated note next to Task
-      8 for the full evidence trail before resuming this.
+      resolve to the exact pinned `10.0.8`, no caret range in the path).
+      Root cause isolated (2026-07-27): `options.presets.apply("storyIndexGenerator")`
+      resolves `undefined` on Storybook 10.0.8 — confirmed by direct
+      inspection of 10.0.8's `common-preset.js`, which never registers that
+      preset key at all (10.5.4's does). Reaching the story index generator
+      on 10.0.x would require importing Storybook's internal core-server
+      module directly rather than its public presets API, which this package
+      deliberately avoids; resume only if a future Storybook 10.x patch
+      backports the preset, or a different public API for the index emerges
+      — see the release plan's dated note next to Task 8 for the full
+      evidence trail.
 
 ## P2 — Public prerelease
 

@@ -21,9 +21,9 @@ loopback HTTP. Consumer React is not a runtime dependency — the manager
 consumes Storybook's bundled React and the preview bridge is
 renderer-agnostic. Storybook 9.x (floor 9.1) and non-React renderers are
 tracked, evidence-gated follow-ups; a `~10.0.0` floor was attempted via the
-packed-consumer harness and abandoned for a distinct, uncharacterized defect
-(2026-07-27 note next to Task 8) — also a tracked follow-up, not a supported
-target.
+packed-consumer harness and abandoned — Storybook 10.0.x never registers a
+`storyIndexGenerator` preset (2026-07-27 note next to Task 8) — also a
+tracked follow-up, not a supported target.
 
 **Tech Stack:** TypeScript, Storybook 10, React, Vite, Playwright Chromium,
 Vitest, pnpm, Turborepo, npm trusted publishing.
@@ -40,7 +40,9 @@ The first public preview is not a general visual-testing platform. It supports:
 - Node `>=22.12` (22 and 24 verified by the release matrix);
 - Storybook `^10.5.0` (verified; all four experimental APIs the addon uses
   are registry-verified present since 10.0.0, but a `~10.0.0` floor was
-  attempted and abandoned — see the 2026-07-27 note next to Task 8);
+  attempted and abandoned — Storybook 10.0.x never registers the
+  `storyIndexGenerator` preset the runner needs to enumerate stories, see the
+  2026-07-27 note next to Task 8);
 - the `@storybook/react-vite` and `@storybook/nextjs-vite` framework
   integrations (consumer React is not a runtime dependency; fixtures use
   React 19);
@@ -1091,6 +1093,60 @@ claim matches what's actually verified. The 10.0 floor is recorded as open,
 characterized future work in `ROADMAP.md`'s P1 section (alongside the
 existing 9.x investigation) rather than silently dropped — a later pass can
 resume from this evidence instead of rediscovering it.
+
+**Root cause isolated, and the "unexplained" characterization corrected
+(2026-07-27):** the note above stopped at "root cause not isolated further,
+out of this task's scope" — that framing was wrong, not just incomplete. The
+evidence needed to isolate this was already sufficient at the time; it had
+been attributed to the wrong layer. A local run of the restored
+`react-vite-sb10.0` example under plain `storybook dev` produced `Cannot
+read properties of undefined (reading 'getIndex')`, which a prior pass had
+misattributed to the ruled-out builder-vite skew theory. That error points
+directly at `src/preset.ts`'s own unchecked cast:
+
+```ts
+const storyIndexGenerator = (await options.presets.apply(
+  "storyIndexGenerator",
+)) as StoryIndexGenerator; // unchecked cast — hides `undefined` at startup
+```
+
+Instrumenting that call directly (logging its resolved value from inside the
+preset during a real `storybook dev`) settled it empirically:
+
+- **Storybook 10.0.8**: `options.presets.apply("storyIndexGenerator")`
+  resolves `undefined`.
+- **Storybook 10.5.4**: it resolves a real `StoryIndexGenerator` instance
+  (`getIndex`, `initialize`, `invalidate`, ... present on its prototype).
+
+Confirmed at the source, not just the symptom: grepping Storybook's own
+`common-preset.js` for the literal `storyIndexGenerator` key shows zero
+matches in the installed 10.0.8 tree and several in 10.5.4's (where it
+registers a memoized `storyIndexGeneratorPromise` and exposes it under that
+preset key). Storybook 10.0.x simply never registers this preset — it is not
+a builder-vite skew, not a rendering defect, and not reachable through any
+public API this package uses. It was, however, exactly the kind of defect
+this package's own code was responsible for handling: the unchecked cast let
+that absence flow silently into the runner instead of failing the dev server
+at startup with a reason.
+
+Fixed in `src/preset.ts`: `resolveStoryIndexGenerator` now validates the
+resolved value has a callable `getIndex` before use and throws a named,
+actionable `[storyproof]` error otherwise (matching the existing
+`optionError`/`resolveStoryRoots`/`resolveMaxConcurrency` pattern in the same
+file). Verified against the restored 10.0.8 example: `storybook dev` now
+exits 1 immediately with `Missing required "storyIndexGenerator" preset
+capability: ... Upgrade to Storybook ^10.5.0 or later.` instead of the panel
+hanging with no result. 10.5.4 is unaffected — the real generator still
+passes validation and the dev server starts normally. This matters
+independent of the 10.0 floor: if a future Storybook minor renames or
+removes this preset key again, the addon now fails loudly at startup instead
+of hanging silently mid-run.
+
+No clean recovery path for a `~10.0.0` floor exists without reaching into
+Storybook internals (importing the core-server module directly rather than
+its public presets API), which is out of scope by design — see
+`ROADMAP.md`'s P1 entry for the exact resume condition. The support range
+stays `^10.5.0`.
 
 ## Chunk 4: Prepare and publish the preview
 

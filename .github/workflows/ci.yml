@@ -165,9 +165,15 @@ jobs:
   # `~10.0.0` (react-vite-sb10.0) was tried and removed: the addon's manager
   # panel rendered and its buttons were correctly named, but every visual-test
   # run submitted through it never completed (systemic `toBeVisible` timeouts
-  # waiting on a result, not an addon-side rendering or naming defect) -- see
-  # the release plan's dated note next to Task 8 for the full evidence trail,
-  # including why an intra-Storybook version-skew theory was ruled out.
+  # waiting on a result). This *was* an addon-side defect after all: Storybook
+  # 10.0.x never registers a "storyIndexGenerator" preset (confirmed absent
+  # from its common preset, present from 10.5.x onward), so the addon's
+  # unchecked cast over that value produced `undefined` and blew up deep
+  # inside the runner instead of failing at startup -- see the release plan's
+  # dated note next to Task 8 for the full evidence trail, including why an
+  # intra-Storybook version-skew theory was ruled out first. The addon now
+  # fails closed with a named "storyIndexGenerator" error at dev-server
+  # startup on any Storybook that doesn't expose this capability.
   consumer:
     name: consumer (${{ matrix.example }})
     needs: package
