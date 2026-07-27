@@ -105,6 +105,9 @@ describe("container plumbing", () => {
     // the container on Docker Desktop.
     expect(args.at(-1)).toContain("getent ahostsv4 host.docker.internal");
     expect(args.at(-1)).toContain("STORYPROOF_GATEWAY");
+    // Firefox refuses to launch when $HOME isn't owned by the current user;
+    // pinned so an image override or env-injecting wrapper can't break it.
+    expect(args.join(" ")).toContain("-e HOME=/root");
   });
 
   test("recognizes the server's readiness line", () => {

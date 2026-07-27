@@ -42,6 +42,18 @@ machine, at the cost of the capture fonts differing from your live preview's:
 STORYPROOF_CONTAINER=1 pnpm dev   # requires Docker
 ```
 
+You can also capture with a different engine — baselines are keyed per
+engine (`linux-firefox-…`), so each engine keeps its own set and switching
+never overwrites anything:
+
+```bash
+STORYPROOF_BROWSER=firefox pnpm dev                        # host Firefox
+STORYPROOF_BROWSER=firefox STORYPROOF_CONTAINER=1 pnpm dev # containerized
+```
+
+(Playwright's WebKit on Linux is the engine, not Safari — treat engine
+captures as regression evidence, not fidelity claims.)
+
 The panel labels which environment produced the images, and a baseline
 captured elsewhere reports a named incompatibility instead of a false diff.
 

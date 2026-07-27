@@ -86,6 +86,14 @@ export function containerRunArguments(options: {
     // Desktop as well.
     "--add-host",
     "host.docker.internal:host-gateway",
+    // Pin HOME to the user the container actually runs as. Firefox refuses
+    // to launch when $HOME isn't owned by the current user (measured: this
+    // exact refusal under GitHub's `container:` mechanism, which mounts a
+    // runner-owned HOME). The Docker default happens to align today; an
+    // image override or an env-injecting wrapper would break Firefox with a
+    // confusing error, so make it true by construction rather than by luck.
+    "-e",
+    "HOME=/root",
     // Host side stays loopback-only: the browser server is a local tool, not
     // a network service.
     "-p",
