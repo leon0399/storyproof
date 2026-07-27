@@ -57,6 +57,30 @@ sufficient.** It fixes macOS-vs-Linux, and does nothing for Linux-vs-Linux. Only
 containerized capture makes two developer machines agree — and result 1 says
 that is now affordable for everyone, including Apple Silicon.
 
+### Second round — run 30299367777
+
+**5. The start mechanism is irrelevant.** `docker run` on a Linux host produced
+`3c157705…`, byte-identical to the cells started via GitHub's `container:` key.
+Combined with result 1, the container image **fully determines the output** on a
+Linux host, across both architectures and both ways of starting it.
+
+**6. Container-on-macOS-host remains UNTESTED.** GitHub's macOS runners cannot
+run it: colima installs and downloads its image, then dies starting the VM
+(`error at 'creating and starting': exit status 1`) because the runners are
+themselves VMs without nested virtualization. `--vm-type=qemu` would fall back
+to pure emulation — booting a Linux VM and running Chromium under TCG inside a
+job timeout — which is not worth attempting.
+
+Reasoning, not measurement: Docker on macOS renders inside a Linux guest with
+the same userland, fonts, and Chromium binary. The host supplies CPU and a
+hypervisor. Since changing the _instruction set architecture_ beneath that guest
+changed nothing (result 1), a hypervisor boundary — further from rasterization
+than the ISA — is very unlikely to. The residual macOS risk is operational
+(Docker Desktop licensing, file-sharing performance), not pixels.
+
+**To settle it definitively**, have anyone with a Mac run the container and
+report the `sha256`; a match with `3c157705…` closes the question.
+
 ## What it captures
 
 A single fixed HTML page with no network dependencies: `system-ui` text at
