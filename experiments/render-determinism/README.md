@@ -147,8 +147,14 @@ mount and Firefox refuses to launch when `$HOME` isn't owned by the current
 user (its own error message). Product container capture is unaffected — a
 plain `docker run` keeps `HOME=/root`, and Firefox passed the full 11/11
 acceptance suite through storyproof's own container path locally. Fixed in
-the workflow by exporting `HOME=/root` in container cells; hashes land next
-run.
+the workflow by exporting `HOME=/root` in container cells.
+
+**10a. With the fix (run after 30310714048): Firefox container amd64 =
+arm64 = `b3f9f40f…` — the exact hash the local WSL2 Docker Desktop run
+produced.** The matrix is closed: all three engines are arch-independent
+inside the container and container-normalized across hosts. The conclusions
+are properties of the containerized-capture approach, not Chromium
+accidents.
 
 **11. Chromium's hashes replicated exactly across runs** — same image, new
 day, same three hashes. Determinism holds over time, not just across
