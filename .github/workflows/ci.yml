@@ -30,8 +30,18 @@ jobs:
         with:
           node-version-file: ".node-version"
           cache: pnpm
+      # Turbo's local cache. Each runner starts empty, so without this the
+      # task graph buys ordering but no reuse; restore-keys let an unchanged
+      # task replay across runs on the same lockfile.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            turbo-${{ runner.os }}-
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter storyproof lint
+      - run: pnpm exec turbo run lint
 
   typecheck:
     name: typecheck
@@ -46,8 +56,15 @@ jobs:
         with:
           node-version-file: ".node-version"
           cache: pnpm
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            turbo-${{ runner.os }}-
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter storyproof typecheck
+      - run: pnpm exec turbo run typecheck
 
   format:
     name: format
@@ -82,8 +99,15 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: pnpm
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-node${{ matrix.node }}-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-node${{ matrix.node }}-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            turbo-node${{ matrix.node }}-${{ runner.os }}-
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter storyproof test
+      - run: pnpm exec turbo run test
 
   # Pack the archive. `pnpm pack` always reruns `build` first via the
   # `prepack` lifecycle script (so a stale build can never be packed), and
@@ -133,13 +157,26 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: pnpm
+      # Separate key prefix from the unit-test jobs: this job's cache is
+      # written after a Playwright install, and mixing the two namespaces
+      # just causes needless cache churn.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-visual-node${{ matrix.node }}-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-visual-node${{ matrix.node }}-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            turbo-visual-node${{ matrix.node }}-${{ runner.os }}-
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
         working-directory: packages/storyproof
       # Proves the addon through its actual in-Storybook UI against the
       # fixture project: capture after play, review, approve exact bytes,
-      # and rerun as passed.
-      - run: pnpm --filter storyproof test:visual
+      # and rerun as passed. `test:visual` is declared `cache: false` in
+      # turbo.json -- a replayed cache hit would report green without ever
+      # starting Chromium -- so the turbo cache here only serves its `^build`
+      # dependency.
+      - run: pnpm exec turbo run test:visual
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
         with:

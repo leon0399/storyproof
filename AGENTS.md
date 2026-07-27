@@ -11,8 +11,11 @@ CHANGELOG holds the pre-extraction shipped record.
 
 ## Layout
 
-pnpm workspace monorepo (Node >= 22.12, pinned in `.node-version`; pnpm 10). No
-Turborepo — two workspaces with no cross-dependencies don't need a task graph.
+pnpm workspace monorepo (Node >= 22.12, pinned in `.node-version`; pnpm 10)
+orchestrated by Turborepo. The graph is real, not ceremony: `examples/*` need
+`packages/storyproof` to have been **built**, not merely linked, and Storybook
+cannot hot-reload an addon — so `turbo watch` is what rebuilds and restarts it.
+See [the dev-loop design](docs/2026-07-27-examples-dev-loop-design.md).
 
 | Path                  | Role                                                                                |
 | --------------------- | ----------------------------------------------------------------------------------- |
@@ -23,14 +26,20 @@ Turborepo — two workspaces with no cross-dependencies don't need a task graph.
 ## Commands (from repo root)
 
 ```bash
-pnpm install
-pnpm --filter storyproof build         # tsdown (ESM + declarations; publint + attw gates)
-pnpm --filter storyproof test          # vitest unit tests, incl. the pack-inventory snapshot
+pnpm install                           # also builds the addon, via the root `prepare` hook
+pnpm dev                               # turbo watch dev — every example at once (see Examples)
+pnpm build                             # tsdown (ESM + declarations; publint + attw gates)
+pnpm test                              # vitest unit tests, incl. the pack-inventory snapshot
+pnpm typecheck                         # tsc --noEmit (TypeScript 7)
+pnpm lint                              # oxlint --deny-warnings
+pnpm format / pnpm format:check        # prettier, repo-wide (not a turbo task)
 pnpm --filter storyproof test:visual   # playwright integration smoke (needs Chromium + system libs)
-pnpm --filter storyproof typecheck     # tsc --noEmit (TypeScript 7)
-pnpm --filter storyproof lint          # oxlint --deny-warnings
-pnpm format / pnpm format:check        # prettier, repo-wide
 ```
+
+`turbo` is pinned to an exact version rather than a caret range: a
+`minimumReleaseAge` policy in the maintainer's pnpm config rejects
+freshly-published releases, so a caret resolving to a days-old turbo fails
+`pnpm install` outright.
 
 `pnpm pack` always rebuilds first (via the `prepack` lifecycle script) and
 the tarball allowlist/size budget is asserted by
@@ -57,11 +66,42 @@ tried and removed — see the release plan's dated note next to Task 8):
 
    ```bash
    pnpm install               # from the repository root
-   cd examples/react-vite-sb10.5
-   pnpm storybook
+   pnpm dev                   # every example at once: 6006, 6007, …
    ```
 
    A contributor sees their own working tree, not a stale published build.
+
+   `pnpm dev` is `turbo watch dev`. Editing addon source rebuilds it **and
+   restarts every Storybook** — necessary because Storybook compiles its
+   manager bundle once at startup and never rebuilds it, so nothing about the
+   addon can hot-reload. Editing a story still hot-reloads normally; the `dev`
+   task's `inputs` are scoped to `.storybook/**` precisely so story edits don't
+   trigger restarts.
+
+   To run one example instead of all of them, note that `pnpm` swallows
+   `--filter` as its own flag — call turbo directly:
+
+   ```bash
+   pnpm turbo watch dev --filter=./examples/react-vite-sb10.5
+   ```
+
+   Running an example directly (`cd examples/… && pnpm dev`) works, because the
+   root `prepare` hook builds the addon at install time — but it is a
+   **frozen-addon mode**: no turbo, so no rebuild and no restart. Use it to look
+   at an example, never to develop the addon.
+
+   **Ports are assigned explicitly from a 6106+ block, and a new example must
+   claim the next free one** (6106 react-vite, 6107 nextjs-vite, 6108 next).
+
+   Two reasons they are pinned rather than left to Storybook: concurrent starts
+   race for an auto-selected port, and auto-restart would move the URL out from
+   under an open tab. The reason the block is **6106 and not Storybook's default
+   6006** is that 6006 is routinely occupied by another Storybook on a developer
+   machine (llame's, for instance) — and when the requested port is taken,
+   `storybook dev` does not quietly relocate, it asks an interactive
+   yes/no question (`build-dev.ts`, guarded by `!options.ci`). Under `turbo watch`
+   that prompt blocks a persistent task waiting on stdin. Staying off the default
+   means the question never gets asked.
 
 2. **The packed-artifact proof, separately.** A `workspace:*` link proves
    nothing about the actual npm tarball, which is release plan Task 8's

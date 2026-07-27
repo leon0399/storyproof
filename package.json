@@ -6,10 +6,17 @@
     "node": ">=22.12"
   },
   "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo watch dev",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "lint": "turbo run lint",
+    "prepare": "pnpm --filter storyproof build",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck"
   },
   "devDependencies": {
-    "prettier": "^3.5.1"
+    "prettier": "^3.5.1",
+    "turbo": "2.10.4"
   }
 }

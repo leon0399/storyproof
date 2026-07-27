@@ -13,9 +13,23 @@ the actual packed npm tarball separately, outside this workspace — see
 
 ```bash
 pnpm install     # from the repository root
-cd examples/nextjs-vite-sb10.5
-pnpm storybook
+pnpm dev         # runs every example; this one is http://localhost:6107
 ```
+
+`pnpm dev` is `turbo watch dev`: editing addon source rebuilds it and restarts
+this Storybook, which is required because Storybook cannot hot-reload an addon.
+
+You can also run this example on its own:
+
+```bash
+cd examples/nextjs-vite-sb10.5
+pnpm dev
+```
+
+That works — the repository root's `prepare` hook builds the addon at install
+time — but it is a **frozen-addon mode**: there is no turbo in that path, so the
+addon never rebuilds and never restarts, no matter what you edit. Use it to look
+at the example, not to develop the addon.
 
 ## Stories
 

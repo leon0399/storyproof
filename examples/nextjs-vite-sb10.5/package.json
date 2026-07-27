@@ -5,7 +5,7 @@
   "description": "storyproof quickstart: Next.js + Vite, Storybook 10.5.x",
   "type": "module",
   "scripts": {
-    "storybook": "storybook dev -p 6006",
+    "dev": "storybook dev -p 6107 --no-open",
     "build-storybook": "storybook build"
   },
   "dependencies": {

@@ -1,7 +1,10 @@
 node_modules
 dist
+.turbo
 test-results/
 storybook-static/
+# Storybook writes this next to the project on prompts/debug runs.
+debug-storybook.log
 
 # Local visual-test run artifacts. Baseline PNG/JSON remain committed.
 **/__screenshots__/**/candidate.png
