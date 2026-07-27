@@ -1,0 +1,9 @@
+{
+  "name": "render-determinism-experiment",
+  "private": true,
+  "type": "module",
+  "description": "TEMPORARY. Delete with the whole experiments/ directory once the render-determinism question is answered — see README.md.",
+  "dependencies": {
+    "playwright": "1.55.1"
+  }
+}

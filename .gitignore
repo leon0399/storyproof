@@ -5,6 +5,8 @@ test-results/
 storybook-static/
 # Storybook writes this next to the project on prompts/debug runs.
 debug-storybook.log
+# Captured PNGs from the temporary render-determinism experiment.
+experiments/*/out/
 
 # Local visual-test run artifacts. Baseline PNG/JSON remain committed.
 **/__screenshots__/**/candidate.png

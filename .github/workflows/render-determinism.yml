@@ -1,0 +1,79 @@
+# TEMPORARY EXPERIMENT — delete this file together with experiments/.
+#
+# Measures whether Chromium rasterizes identically across architecture,
+# container image, and operating system, to decide what belongs in storyproof's
+# baseline environment key (today: "chromium-1280x720@1x", carrying neither
+# platform nor architecture). See experiments/render-determinism/README.md.
+#
+# Every job is continue-on-error: this is an investigation, and a cell that
+# cannot run (a missing arm64 image tag, say) is itself a result. It must never
+# turn the pull request red.
+
+name: render determinism (experiment)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [task8-packed-consumer]
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.container }}
+    continue-on-error: true
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Cell 1 — reference. Container fonts, amd64.
+          - label: linux-amd64-container
+            runner: ubuntu-24.04
+            container: mcr.microsoft.com/playwright:v1.55.1-noble
+          # Cell 2 — same image, different architecture. Compared against
+          # cell 1 this isolates arch: identical hashes mean Apple Silicon can
+          # run a native arm64 container instead of emulating amd64.
+          - label: linux-arm64-container
+            runner: ubuntu-24.04-arm
+            container: mcr.microsoft.com/playwright:v1.55.1-noble
+          # Cell 3 — bare runner, host fonts. Against cell 1 this says whether
+          # the container is doing any work for a Linux-only team.
+          - label: linux-amd64-bare
+            runner: ubuntu-24.04
+            container: ""
+          # Cell 4 — different OS entirely. Against cell 3 this is the evidence
+          # for putting platform in the key.
+          - label: macos-arm64-bare
+            runner: macos-latest
+            container: ""
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: ".node-version"
+      # --ignore-workspace keeps this experiment out of the repository's
+      # lockfile and turbo graph entirely.
+      - name: Install
+        working-directory: experiments/render-determinism
+        run: pnpm install --ignore-workspace
+      - name: Install Chromium
+        working-directory: experiments/render-determinism
+        run: pnpm exec playwright install chromium
+      - name: Capture
+        working-directory: experiments/render-determinism
+        env:
+          LABEL: ${{ matrix.label }}
+        run: node capture.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: render-${{ matrix.label }}
+          path: experiments/render-determinism/out/
+          retention-days: 7
