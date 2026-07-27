@@ -46,9 +46,10 @@ without that evidence.
 
 ## Examples
 
-`examples/react-vite-sb10.5`, `examples/react-vite-sb10.0`, and
-`examples/nextjs-vite-sb10.5` are two things at once, deliberately, and both
-matter — this is a two-tier design, not redundancy to simplify away:
+`examples/react-vite-sb10.5` and `examples/nextjs-vite-sb10.5` are two things
+at once, deliberately, and both matter — this is a two-tier design, not
+redundancy to simplify away (a third example pinning Storybook `~10.0.0` was
+tried and removed — see the release plan's dated note next to Task 8):
 
 1. **A real dev loop.** Each is a genuine pnpm workspace member
    (`examples/*` is in `pnpm-workspace.yaml`'s `packages:` list) depending on

@@ -25,20 +25,19 @@ monorepo until 2026-07-26; the day-by-day pre-extraction record lives in
   never through `node_modules` resolution, so a direct import after `build`
   exercises the identical code path an installed consumer hits without an
   isolated project or a real package-manager install.
-- Packed-consumer harness: three real Storybook example projects under root
-  `examples/` (`react-vite-sb10.5`, `react-vite-sb10.0`, `nextjs-vite-sb10.5`)
-  serve as both documentation-by-example (a plain demo plus the same
-  scenario stories as `test/fixtures/project`, minus fault injection) and
-  CI's packed-consumer acceptance fixture. They're pnpm workspace members
-  depending on `storyproof: workspace:*` for local development; a new CI
-  `consumer` job separately proves the actual packed npm tarball by copying
-  an example out of the workspace, installing the exact tarball the
-  `package` job built there (`pnpm pkg set` + `pnpm install
---ignore-workspace`), and running the existing reusable acceptance
-  specification (`test/acceptance/addon-suite.ts`, via `test:visual`'s new
-  `VISUAL_TEST_PROJECT_DIR` environment variable) against that copy's real
-  dev server — proving `storyproof/preset` resolves and runs correctly as an
-  installed package, not just as workspace source.
+- Packed-consumer harness: real Storybook example projects under root
+  `examples/` (`react-vite-sb10.5`, `nextjs-vite-sb10.5`) serve as both
+  documentation-by-example (a plain demo plus the same scenario stories as
+  `test/fixtures/project`, minus fault injection) and CI's packed-consumer
+  acceptance fixture. They're pnpm workspace members depending on
+  `storyproof: workspace:*` for local development; a new CI `consumer` job
+  separately proves the actual packed npm tarball by copying an example out
+  of the workspace, installing the exact tarball the `package` job built
+  there (`pnpm pkg set` + `pnpm install --ignore-workspace`), and running the
+  existing reusable acceptance specification (`test/acceptance/addon-suite.ts`,
+  via `test:visual`'s new `VISUAL_TEST_PROJECT_DIR` environment variable)
+  against that copy's real dev server — proving `storyproof/preset` resolves
+  and runs correctly as an installed package, not just as workspace source.
 
 ### Changed
 
@@ -63,11 +62,6 @@ monorepo until 2026-07-26; the day-by-day pre-extraction record lives in
   added `"./package.json"` export. Rebuilding reproduces the manifest
   byte-for-byte, so the committed generated file also serves as a drift gate
   in CI.
-- `peerDependencies.storybook` widened from `^10.5.0` to `^10.0.0`, matching
-  the release plan's stated target: the packed-consumer CI matrix (see
-  Added, above) now installs and runs the addon under Storybook `~10.0.0`
-  specifically to prove that range, so the manifest no longer contradicts
-  what it's actually tested against.
 
 ### Fixed
 
@@ -108,17 +102,37 @@ monorepo until 2026-07-26; the day-by-day pre-extraction record lives in
   from real text content and works on every supported Storybook version
   regardless of that prop's availability; `ariaLabel` is kept alongside it
   since newer Storybook already deprecates omitting it. Verified via the
-  accessibility tree (not just the prop) on both the 10.0.8 and 10.5.x floor
-  and ceiling.
+  accessibility tree (not just the prop) on both Storybook 10.0.8 (where the
+  prop is absent) and 10.5.x (where it isn't) — the fix itself is confirmed
+  correct on 10.0.8 even though 10.0.8 is not a supported version (see
+  Removed, below).
 
 Both defects above were invisible to every check that existed before Task 8
 — publint, attw, the unit suite, and even a Playwright run against
 `test/fixtures/project` compiled straight from source — and surfaced only
 once a real packed install was loaded through a real browser's accessibility
-tree on the actual floor Storybook version. That gap is the reason the
+tree on an installed Storybook version. That gap is the reason the
 `consumer` matrix (Added, above) is a required CI gate, not an optional one.
 
 ### Removed
+
+- The `react-vite-sb10.0` example and its `consumer` CI matrix cell, and the
+  attempted `peerDependencies.storybook` widening to `^10.0.0` (reverted back
+  to `^10.5.0`, its original value — a net no-op). The packed-consumer
+  harness proved the addon's own manager UI renders correctly and its
+  controls are correctly named on Storybook 10.0.8 (both defects above were
+  fixed and verified there), but every visual-test run submitted through the
+  panel on that version then never completed — a systemic `toBeVisible`
+  timeout waiting on a result, across nearly every acceptance scenario, with
+  the identical suite passing cleanly against the two Storybook 10.5 cells.
+  An intra-Storybook version-skew theory (`@storybook/builder-vite`
+  resolving newer than `@storybook/react-vite`'s pinned core) was checked and
+  ruled out: `@storybook/react-vite@10.0.8` depends on
+  `@storybook/builder-vite` with an exact `"10.0.8"` pin, not a range, and
+  the installed tree confirmed both resolve to that exact version. Root
+  cause not isolated further — this is a genuinely third, distinct failure
+  mode from the two fixed above, out of this task's scope. Recorded as open,
+  characterized future work in `ROADMAP.md` rather than silently dropped.
 
 - `test/build-contract.test.ts` and `test/identifier-contract.test.ts`:
   both were change-detector tests that read a config value or constant and

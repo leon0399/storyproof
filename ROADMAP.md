@@ -15,11 +15,16 @@ installing the packed tarball into an isolated temporary fixture.
 ## P0 — Publishable package boundary
 
 - [ ] Finalize the preview contract only after packed consumer evidence:
-      Ubuntu 24.04 x64, Node 22 and 24, Storybook `^10.0.0` verified at the
-      10.0 and 10.5 boundaries, the `@storybook/react-vite` and
-      `@storybook/nextjs-vite` framework integrations (React 19 fixtures;
-      consumer React is not a runtime dependency), bundled Chromium, and
-      direct loopback HTTP.
+      Ubuntu 24.04 x64, Node 22 and 24, Storybook `^10.5.0` verified, the
+      `@storybook/react-vite` and `@storybook/nextjs-vite` framework
+      integrations (React 19 fixtures; consumer React is not a runtime
+      dependency), bundled Chromium, and direct loopback HTTP. A `~10.0.0`
+      floor was attempted via the packed-consumer harness and abandoned: the
+      addon's manager UI rendered and worked correctly, but every visual-test
+      run submitted through it never completed, for reasons characterized but
+      not yet isolated (see the release plan's dated note next to Task 8) —
+      re-investigating that floor is separate future work, not blocking this
+      item.
 - [ ] Pack once, record the archive's npm-compatible SHA-512 SRI, and carry that
       same `.tgz` through inventory, consumer tests, workflow artifact upload,
       and publication without rebuilding or repacking.
@@ -34,6 +39,15 @@ installing the packed tarball into an isolated temporary fixture.
       record the incompatibility and stay 10.x-only.
 - [ ] Add configurable HTTPS/proxy/container capture topology only when a
       demonstrated consumer requires it.
+- [ ] Re-investigate a Storybook `~10.0.0` floor. Release plan Task 8's
+      packed-consumer harness proved the addon's manager UI renders and its
+      controls are correctly named on 10.0.8, but every visual-test run
+      submitted through the panel there never completed (systemic
+      `toBeVisible` timeouts waiting on a result). An intra-Storybook
+      builder-vite/core version-skew theory was checked and ruled out (both
+      resolve to the exact pinned `10.0.8`, no caret range in the path). Root
+      cause not yet isolated — see the release plan's dated note next to Task
+      8 for the full evidence trail before resuming this.
 
 ## P2 — Public prerelease
 

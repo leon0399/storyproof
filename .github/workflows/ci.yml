@@ -160,7 +160,14 @@ jobs:
   # (test/fixture-server.ts, test/smoke/addon.spec.ts) at that copy instead
   # of the workspace-source fixture -- no new orchestrator script. Single
   # Node version: coverage across 22/24 is already proven by `test`/`visual`;
-  # this matrix's dimension is Storybook minor x framework integration.
+  # this matrix's dimension is framework integration (react-vite, nextjs-vite)
+  # on the verified Storybook 10.5 floor. A third cell pinning Storybook
+  # `~10.0.0` (react-vite-sb10.0) was tried and removed: the addon's manager
+  # panel rendered and its buttons were correctly named, but every visual-test
+  # run submitted through it never completed (systemic `toBeVisible` timeouts
+  # waiting on a result, not an addon-side rendering or naming defect) -- see
+  # the release plan's dated note next to Task 8 for the full evidence trail,
+  # including why an intra-Storybook version-skew theory was ruled out.
   consumer:
     name: consumer (${{ matrix.example }})
     needs: package
@@ -171,7 +178,6 @@ jobs:
       matrix:
         example:
           - react-vite-sb10.5
-          - react-vite-sb10.0
           - nextjs-vite-sb10.5
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0

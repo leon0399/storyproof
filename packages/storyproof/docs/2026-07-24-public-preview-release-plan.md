@@ -15,12 +15,15 @@ control plane. Separate server-only state from channel-visible state, keep one
 reusable browser acceptance specification, verify it through an in-repository
 fixture template executed under `/tmp` outside the workspace, and publish only a
 compiled, allowlisted artifact. The preview targets Ubuntu 24.04 x64, Node 22
-and 24, Storybook `^10.0.0` (verified at the 10.0 and 10.5 boundaries), the
-react-vite and nextjs-vite framework integrations with React 19 fixtures,
-bundled Chromium, and direct loopback HTTP. Consumer React is not a runtime
-dependency — the manager consumes Storybook's bundled React and the preview
-bridge is renderer-agnostic. Storybook 9.x (floor 9.1) and non-React renderers
-are tracked, evidence-gated follow-ups.
+and 24, Storybook `^10.5.0` (verified), the react-vite and nextjs-vite
+framework integrations with React 19 fixtures, bundled Chromium, and direct
+loopback HTTP. Consumer React is not a runtime dependency — the manager
+consumes Storybook's bundled React and the preview bridge is
+renderer-agnostic. Storybook 9.x (floor 9.1) and non-React renderers are
+tracked, evidence-gated follow-ups; a `~10.0.0` floor was attempted via the
+packed-consumer harness and abandoned for a distinct, uncharacterized defect
+(2026-07-27 note next to Task 8) — also a tracked follow-up, not a supported
+target.
 
 **Tech Stack:** TypeScript, Storybook 10, React, Vite, Playwright Chromium,
 Vitest, pnpm, Turborepo, npm trusted publishing.
@@ -35,9 +38,9 @@ The first public preview is not a general visual-testing platform. It supports:
 - Storybook and Playwright running in the same network namespace;
 - direct loopback HTTP access to Storybook;
 - Node `>=22.12` (22 and 24 verified by the release matrix);
-- Storybook `^10.0.0` (10.0 and 10.5 boundaries verified; all four
-  experimental APIs the addon uses are registry-verified present since
-  10.0.0);
+- Storybook `^10.5.0` (verified; all four experimental APIs the addon uses
+  are registry-verified present since 10.0.0, but a `~10.0.0` floor was
+  attempted and abandoned — see the 2026-07-27 note next to Task 8);
 - the `@storybook/react-vite` and `@storybook/nextjs-vite` framework
   integrations (consumer React is not a runtime dependency; fixtures use
   React 19);
@@ -1030,16 +1033,64 @@ independent of whether the host `Button` recognizes `ariaLabel` at all;
 it. See the package CHANGELOG's `Fixed` entry for the full diagnosis.
 Verified via the accessibility tree (`getAttribute('aria-label')` /
 `textContent`-derived accessible name), not just the failing test's
-selector, on both the 10.0.8 floor and the 10.5.x ceiling.
+selector, on both Storybook 10.0.8 and 10.5.x.
 
 **The pattern, stated plainly:** neither defect was visible to publint,
 attw, the unit suite, or a Playwright run against `test/fixtures/project`
 compiled straight from source — all of which passed throughout. Both
 required a real packed install, loaded through a real browser's
-accessibility tree, on the actual floor Storybook version, to surface at
-all. That is the argument for keeping the `consumer` matrix a required CI
-gate rather than an optional or advisory one: it is currently the only
-check in this repository capable of catching this entire class of defect.
+accessibility tree, on an installed Storybook version, to surface at all.
+That is the argument for keeping the `consumer` matrix a required CI gate
+rather than an optional or advisory one: it is currently the only check in
+this repository capable of catching this entire class of defect.
+
+**Third failure found by the same harness, and the decision to narrow
+(2026-07-27):** with both defects above fixed, `consumer(react-vite-sb10.0)`
+still failed CI, but with a new signature — 8 of the suite's 11 acceptance
+tests timed out at `expect(panel.getByText(...)).toBeVisible({timeout:
+30_000})`, waiting for a run result ("New", "Passed", "Capture failed", ...)
+that never appeared. Confirmed by inspecting the log line-by-line: the
+preceding `getByRole("button", {...}).click()` calls all succeeded (the
+accessible-name fix works), so this is not a rendering or naming defect —
+the panel is fully functional, but a visual-test run submitted through it on
+Storybook 10.0.8 specifically never completes and reports a result. Only 1
+of 11 tests passed; the identical suite passed cleanly (11/11, minus the
+two fault-injection tests this fixture correctly skips) against both
+Storybook 10.5 cells.
+
+Before investigating further, the owner proposed a bounded hypothesis worth
+checking first: `@storybook/react-vite` might declare its dependency on
+`@storybook/builder-vite` with a caret range, letting a fresh install pull a
+newer `builder-vite` (e.g. 10.5.x) alongside an older `storybook` core
+(10.0.8) — a version-skew that would produce exactly this kind of
+story-indexing failure, and would mean the defect isn't in `storyproof` at
+all. Checked directly against the actual CI-style installed tree (the same
+copy-out-of-workspace + `pnpm install --ignore-workspace` steps CI runs):
+
+```
+$ pnpm why @storybook/builder-vite
+@storybook/builder-vite@10.0.8
+└─┬ @storybook/react-vite@10.0.8
+  └── storyproof-example-react-vite-sb10.0@0.0.0 (devDependencies)
+```
+
+`@storybook/react-vite@10.0.8`'s own `package.json` pins
+`"@storybook/builder-vite": "10.0.8"` — an exact version, not a range — so
+there is no caret to permit skew through this path, and the installed tree
+confirms both resolve to the identical `10.0.8`. The hypothesis is ruled
+out: this is not an intra-Storybook version-skew problem, at least not one
+reachable through this dependency edge.
+
+Per the owner's explicit instruction, stopping the investigation here
+rather than digging into Storybook 10.0.8's internals further. Decision:
+narrow the supported range back to `^10.5.0` (its value before this task
+touched it — a net no-op on the manifest), delete the `react-vite-sb10.0`
+example and its `consumer` matrix cell, and update the README/ROADMAP
+target tables accordingly, so Task 8 lands fully green and the support
+claim matches what's actually verified. The 10.0 floor is recorded as open,
+characterized future work in `ROADMAP.md`'s P1 section (alongside the
+existing 9.x investigation) rather than silently dropped — a later pass can
+resume from this evidence instead of rediscovering it.
 
 ## Chunk 4: Prepare and publish the preview
 
@@ -1163,8 +1214,9 @@ check in this repository capable of catching this entire class of defect.
   exports, consumer, peer-warning, and compatibility job downloads that exact
   artifact by producing run/job identity and verifies the SRI before use. On
   an explicit `ubuntu-24.04` x64 runner, exercise the supported floor and
-  current target — Node 22 and 24, Storybook 10.0 and 10.5, react-vite and
-  nextjs-vite — without implying support outside those ranges. Every
+  current target — Node 22 and 24, Storybook `^10.5.0`, react-vite and
+  nextjs-vite — without implying support outside those ranges (a `~10.0.0`
+  floor was attempted and abandoned per Task 8's 2026-07-27 note). Every
   packed-consumer job must use one of the two supported Vite-based framework
   integrations, the bundled Chromium build, and direct loopback HTTP. These CI
   artifacts are test
@@ -1456,8 +1508,8 @@ Do not publish the preview unless all of the following are true:
 - a temporary non-workspace project installs and exercises that tarball;
 - the exact inspected and consumer-tested `.tgz` is the workflow artifact that
   publication consumes, with matching recorded and registry SRI;
-- the Ubuntu 24.04 x64 support matrix — Node 22 and 24 × Storybook 10.0 and
-  10.5 × react-vite and nextjs-vite — passes without unexpected peer warnings,
+- the Ubuntu 24.04 x64 support matrix — Node 22 and 24 × Storybook `^10.5.0`
+  × react-vite and nextjs-vite — passes without unexpected peer warnings,
   with every job exercising bundled Chromium and direct loopback HTTP;
 - the testing-widget run-all path completes correctly over multiple stories;
 - roots confinement, stale approval, cancellation, and capture-origin failures
