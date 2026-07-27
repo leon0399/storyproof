@@ -69,10 +69,15 @@ jobs:
       - name: Install
         working-directory: experiments/render-determinism
         run: pnpm install --ignore-workspace
-      # Idempotent in the container (version-matched browsers preinstalled);
-      # on bare runners --with-deps pulls the engine's system libraries,
-      # which WebKit in particular needs.
-      - name: Install browser
+      # Bare runners only: --with-deps pulls the engine's system libraries,
+      # which WebKit in particular needs. Deliberately SKIPPED in container
+      # cells — the image ships version-matched browsers and deps, and
+      # --with-deps there only adds a third-party apt dependency (observed
+      # failing: NodeSource's repo transiently unsigned, taking every
+      # container cell down for a reason that has nothing to do with
+      # rendering).
+      - name: Install browser (bare runners)
+        if: matrix.image == ''
         working-directory: experiments/render-determinism
         run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
       - name: Capture
