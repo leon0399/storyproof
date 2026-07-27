@@ -161,6 +161,7 @@ function Summary({
             onClick={onCancel}
           >
             <StopAltIcon />
+            <VisuallyHidden>Stop visual tests</VisuallyHidden>
           </Button>
         ) : (
           <>
@@ -192,6 +193,7 @@ function Summary({
               onClick={onRun}
             >
               {result ? <SyncIcon /> : <PlayHollowIcon />}
+              <VisuallyHidden>Run visual tests</VisuallyHidden>
             </Button>
           </>
         )}
@@ -519,3 +521,22 @@ const Placeholder = styled.p(({ theme }) => ({
   maxWidth: 260,
   textAlign: "center",
 }));
+
+// The standard visually-hidden clip pattern: gives an icon-only button a real
+// accessible name from its own text content, so it works regardless of
+// whether the host `Button`'s `ariaLabel` prop is recognized -- storyproof's
+// minimum supported Storybook (10.0.8) predates that prop's introduction, so
+// `ariaLabel` alone silently produces an unnamed button there. Keep the
+// `ariaLabel` prop too: it satisfies newer Storybook's own deprecation
+// warning and costs nothing.
+const VisuallyHidden = styled.span({
+  border: 0,
+  clip: "rect(0, 0, 0, 0)",
+  height: 1,
+  margin: -1,
+  overflow: "hidden",
+  padding: 0,
+  position: "absolute",
+  whiteSpace: "nowrap",
+  width: 1,
+});

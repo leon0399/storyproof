@@ -67,6 +67,9 @@ export function TestProviderRow() {
         }
       >
         {state.running ? <StopAltIcon /> : <PlayHollowIcon />}
+        <VisuallyHidden>
+          {state.running ? "Stop visual tests" : "Run visual tests"}
+        </VisuallyHidden>
       </Button>
     </Container>
   );
@@ -94,3 +97,19 @@ const Description = styled.div(({ theme }) => ({
   color: theme.textMutedColor,
   fontSize: theme.typography.size.s1,
 }));
+
+// See PanelView.tsx's VisuallyHidden for why: storyproof's minimum supported
+// Storybook (10.0.8) predates the host Button's `ariaLabel` prop, so an
+// icon-only button relying solely on it renders with no accessible name
+// there. Content-derived names work in every version.
+const VisuallyHidden = styled.span({
+  border: 0,
+  clip: "rect(0, 0, 0, 0)",
+  height: 1,
+  margin: -1,
+  overflow: "hidden",
+  padding: 0,
+  position: "absolute",
+  whiteSpace: "nowrap",
+  width: 1,
+});

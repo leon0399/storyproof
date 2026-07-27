@@ -92,6 +92,31 @@ monorepo until 2026-07-26; the day-by-day pre-extraction record lives in
   already-imported `React` global instead of `react/jsx-runtime`, carrying
   no jsx-runtime import for Storybook's manager builder to duplicate.
   Verified against both supported framework integrations post-fix.
+- **Icon-only manager buttons had no accessible name on Storybook 10.0.8** —
+  the `consumer(react-vite-sb10.0)` matrix cell failed a `getByRole('button',
+{name: 'Run visual tests'})` query even after the jsx-runtime fix above; the
+  panel rendered fine, but the button had no computed accessible name on that
+  specific floor version. `PanelView.tsx` and `TestProviderRow.tsx`'s
+  icon-only Run/Stop buttons relied solely on `storybook/internal/components`'
+  `Button`'s `ariaLabel` prop — a prop that doesn't exist at all in Storybook
+  10.0.8's `Button` (confirmed by inspecting its shipped `dist/`: zero
+  occurrences there, 49 in 10.5.4's, including a Storybook-11 deprecation
+  notice for the prop's later replacement), so it silently produced an
+  unnamed button on that version instead of erroring. Fixed by giving every
+  icon-only button in both files a visually-hidden text child (the standard
+  clip-rect pattern) carrying the same label, so the accessible name comes
+  from real text content and works on every supported Storybook version
+  regardless of that prop's availability; `ariaLabel` is kept alongside it
+  since newer Storybook already deprecates omitting it. Verified via the
+  accessibility tree (not just the prop) on both the 10.0.8 and 10.5.x floor
+  and ceiling.
+
+Both defects above were invisible to every check that existed before Task 8
+— publint, attw, the unit suite, and even a Playwright run against
+`test/fixtures/project` compiled straight from source — and surfaced only
+once a real packed install was loaded through a real browser's accessibility
+tree on the actual floor Storybook version. That gap is the reason the
+`consumer` matrix (Added, above) is a required CI gate, not an optional one.
 
 ### Removed
 

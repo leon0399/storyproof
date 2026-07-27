@@ -1010,6 +1010,37 @@ integrations by loading the manager UI directly (Chrome browser
 automation, not Playwright — this development host cannot run Playwright)
 before and after the change.
 
+**Second defect found by the same harness (2026-07-27):** with the
+jsx-runtime crash fixed, `consumer(react-vite-sb10.0)` still failed —
+`react-vite-sb10.5` and `nextjs-vite-sb10.5` passed. The panel rendered
+completely (confirmed by loading it directly, not inferred from the test
+failure): the failure was a real accessibility defect, not a rendering
+one. `PanelView.tsx`'s and `TestProviderRow.tsx`'s icon-only Run/Stop
+buttons name themselves solely via `storybook/internal/components`'
+`Button`'s `ariaLabel` prop. That prop does not exist on Storybook
+10.0.8's `Button` at all — confirmed by grepping its shipped `dist/`
+directly (zero occurrences, versus 49 in 10.5.4's, one of them a
+Storybook-11 deprecation notice for the prop's later replacement) — so the
+buttons rendered with no accessible name on exactly the floor version this
+package claims to support, `^10.0.0`. Fixed by adding a visually-hidden
+text child (the standard clip-rect pattern) to every icon-only button in
+both files, so the accessible name comes from real text content
+independent of whether the host `Button` recognizes `ariaLabel` at all;
+`ariaLabel` is kept too since newer Storybook already deprecates omitting
+it. See the package CHANGELOG's `Fixed` entry for the full diagnosis.
+Verified via the accessibility tree (`getAttribute('aria-label')` /
+`textContent`-derived accessible name), not just the failing test's
+selector, on both the 10.0.8 floor and the 10.5.x ceiling.
+
+**The pattern, stated plainly:** neither defect was visible to publint,
+attw, the unit suite, or a Playwright run against `test/fixtures/project`
+compiled straight from source — all of which passed throughout. Both
+required a real packed install, loaded through a real browser's
+accessibility tree, on the actual floor Storybook version, to surface at
+all. That is the argument for keeping the `consumer` matrix a required CI
+gate rather than an optional or advisory one: it is currently the only
+check in this repository capable of catching this entire class of defect.
+
 ## Chunk 4: Prepare and publish the preview
 
 ### Task 9: Add public metadata, license, and release documentation
