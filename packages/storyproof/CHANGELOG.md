@@ -69,6 +69,30 @@ monorepo until 2026-07-26; the day-by-day pre-extraction record lives in
   specifically to prove that range, so the manifest no longer contradicts
   what it's actually tested against.
 
+### Fixed
+
+- **The Visual tests panel never rendered for any installed consumer** —
+  discovered by the packed-consumer harness (Added, above) actually loading
+  the manager UI in a real browser, something no prior test did.
+  `src/manager.tsx`'s automatic JSX transform compiled `dist/manager.js` to
+  import `{ jsx, jsxs }` from `"react/jsx-runtime"`; Storybook's manager
+  builder aliases bare `"react"`/`"react-dom"` imports to its own shared
+  React instance but does not extend that aliasing to the `jsx-runtime`
+  subpath, so a fresh copy got bundled into the addon's manager bundle whose
+  `ReactSharedInternals` was never initialized by the same React build,
+  throwing `Cannot read properties of undefined (reading
+'recentlyCreatedOwnerStacks')` (a React 19 dev-mode-only internal field)
+  the instant Storybook tried to render the panel. Reproduced identically
+  across `workspace:*`, a packed npm tarball, pnpm, and npm — anything that
+  loads the compiled manager entry through normal package resolution rather
+  than compiling `src/manager.tsx` from source, which is the only path any
+  test exercised before Task 8. Fixed by building the manager entry with the
+  classic JSX transform (`tsconfig.build.json`'s `"jsx": "react"`, scoped to
+  the build surface only) so `dist/manager.js` routes JSX through the
+  already-imported `React` global instead of `react/jsx-runtime`, carrying
+  no jsx-runtime import for Storybook's manager builder to duplicate.
+  Verified against both supported framework integrations post-fix.
+
 ### Removed
 
 - `test/build-contract.test.ts` and `test/identifier-contract.test.ts`:

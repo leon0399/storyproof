@@ -983,6 +983,33 @@ failure..."`) call `test.skip(!(await hasControlFixture(projectRoot)), ...)`,
   jobs; this matrix's only dimension is Storybook minor × framework
   integration, per the release plan's stated scope for Task 8.
 
+**Defect found and fixed by this task's harness (2026-07-27):** the first
+real `consumer` run failed on all three matrix cells — every scenario
+timed out waiting for the "Visual tests" tab to appear. Root-caused (not
+guessed at) by loading the manager UI in an actual browser, something no
+prior CI job or test had ever done: `src/manager.tsx`'s automatic JSX
+transform compiles `dist/manager.js` to import `react/jsx-runtime`, and
+Storybook's manager builder does not extend its `"react"`/`"react-dom"`
+global-aliasing to that subpath, so a fresh copy gets bundled per addon
+whose `ReactSharedInternals` is never initialized by a matching React
+build — throwing `Cannot read properties of undefined (reading
+'recentlyCreatedOwnerStacks')`, a React 19 dev-mode-only internal field,
+the instant the panel tried to render. Confirmed present regardless of
+package manager or install topology (reproduced identically via
+`workspace:*`, a packed tarball installed with pnpm, and the same tarball
+installed with npm) — it is purely about loading the _compiled_ manager
+entry through _any_ normal package resolution, which only Task 8's
+harness ever exercised; `test/fixtures/project` bypasses `dist/` entirely
+via a source-relative `import.meta.resolve`. This means the addon's
+manager UI has likely never worked for a real installed consumer. Fixed
+in `tsconfig.build.json` (`"jsx": "react"`, scoped to the build surface,
+not the root tsconfig which stories/tests still need on the automatic
+runtime) — see the package CHANGELOG's `Fixed` entry for the full
+diagnosis and fix rationale. Verified fixed against both framework
+integrations by loading the manager UI directly (Chrome browser
+automation, not Playwright — this development host cannot run Playwright)
+before and after the change.
+
 ## Chunk 4: Prepare and publish the preview
 
 ### Task 9: Add public metadata, license, and release documentation

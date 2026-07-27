@@ -8,7 +8,28 @@
     // falling back to the (currently API-less) TypeScript compiler. Enabling
     // it repo-wide would also force explicit exported types onto test
     // helpers that never ship a declaration file.
-    "isolatedDeclarations": true
+    "isolatedDeclarations": true,
+    // Classic (not automatic) JSX for the shipped build only: the manager
+    // entry is the one production surface that renders through Storybook's
+    // own React instance rather than one this package controls. The
+    // automatic runtime's `dist/manager.js` import of "react/jsx-runtime"
+    // gets bundled fresh (not aliased to Storybook's shared React the way
+    // bare "react"/"react-dom" imports are), producing a second copy whose
+    // ReactSharedInternals never gets initialized by the same React build --
+    // observed as a real crash ("Cannot read properties of undefined
+    // (reading 'recentlyCreatedOwnerStacks')", a React 19 dev-mode-only
+    // internal field) the moment Storybook renders the panel from any
+    // installed (dist) consumption path, whether via `workspace:*`, a
+    // packed npm tarball, pnpm, or npm -- confirmed absent only when
+    // Storybook compiles `src/manager.tsx` directly from source, which is
+    // the only path any test exercised before the packed-consumer harness
+    // (release plan Task 8) checked a real browser instead of just the dev
+    // server's REST endpoints. Classic transform routes every manager-side
+    // JSX call through the already-imported `React` global instead, so
+    // `dist/manager.js` carries no "react/jsx-runtime" import at all.
+    // Scoped here (not the root tsconfig) because `*.stories.tsx` fixtures
+    // rely on the automatic runtime and don't import React themselves.
+    "jsx": "react"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["src/**/*.stories.ts", "src/**/*.stories.tsx"]
