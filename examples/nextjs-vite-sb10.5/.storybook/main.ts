@@ -11,12 +11,27 @@ const config: StorybookConfig = {
       name: "storyproof/preset",
       options: {
         storyRoots: ["src"],
-        // Opt into reproducible container capture (requires Docker):
+        // Opt into reproducible container capture (requires Docker) and/or a
+        // different engine:
         //   STORYPROOF_CONTAINER=1 pnpm dev
-        // Every machine then produces identical pixels under the
-        // `linux-chromium-…` environment key instead of per-OS ones.
-        ...(process.env.STORYPROOF_CONTAINER === "1"
-          ? { capture: { container: true } }
+        //   STORYPROOF_BROWSER=firefox pnpm dev
+        // Container capture keys baselines `linux-<engine>-…` so every
+        // machine produces identical pixels; engines keep separate baselines.
+        ...(process.env.STORYPROOF_CONTAINER === "1" ||
+        process.env.STORYPROOF_BROWSER
+          ? {
+              capture: {
+                ...(process.env.STORYPROOF_CONTAINER === "1"
+                  ? { container: true }
+                  : {}),
+                ...(process.env.STORYPROOF_BROWSER
+                  ? {
+                      browser: process.env.STORYPROOF_BROWSER as
+                        "chromium" | "firefox" | "webkit",
+                    }
+                  : {}),
+              },
+            }
           : {}),
       },
     },

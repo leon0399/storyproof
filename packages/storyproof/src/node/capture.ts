@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 
-import { chromium } from "playwright";
+import { chromium, firefox, webkit } from "playwright";
 
 import { DEFAULT_ENVIRONMENT } from "../constants.js";
 import type { VisualCaptureMode } from "../shared/capture.js";
@@ -9,7 +9,13 @@ import {
   acquireContainerBrowser,
   type ContainerBrowserRequest,
 } from "./container.js";
-import { RENDER_PROBE_HTML } from "./environment.js";
+import { RENDER_PROBE_HTML, type CaptureBrowserName } from "./environment.js";
+
+const LAUNCHERS: Record<CaptureBrowserName, unknown> = {
+  chromium,
+  firefox,
+  webkit,
+};
 
 const require = createRequire(import.meta.url);
 export const playwrightVersion = (
@@ -86,7 +92,7 @@ export interface CaptureSessionInfo {
   containerImage?: string;
 }
 
-export interface ChromiumCaptureSession {
+export interface CaptureSession {
   capture(request: CaptureRequest): Promise<CaptureResult>;
   /**
    * SHA-256 of the fixed probe page rendered by this session's browser —
@@ -98,12 +104,16 @@ export interface ChromiumCaptureSession {
   close(): Promise<void>;
 }
 
-export async function createChromiumCaptureSession(
+/** Historical name from the chromium-only era; same contract. */
+export type ChromiumCaptureSession = CaptureSession;
+
+export async function createCaptureSession(
   options: {
     launcher?: BrowserLauncher;
+    browser?: CaptureBrowserName;
     container?: ContainerBrowserRequest;
   } = {},
-): Promise<ChromiumCaptureSession> {
+): Promise<CaptureSession> {
   if (options.container) {
     const remote = await acquireContainerBrowser(options.container);
     return new PlaywrightCaptureSession(
@@ -117,10 +127,15 @@ export async function createChromiumCaptureSession(
       },
     );
   }
-  const launcher = options.launcher ?? (chromium as unknown as BrowserLauncher);
+  const launcher =
+    options.launcher ??
+    (LAUNCHERS[options.browser ?? "chromium"] as BrowserLauncher);
   const browser = await launcher.launch({ headless: true });
   return new PlaywrightCaptureSession(browser);
 }
+
+/** Historical name from the chromium-only era; same behavior. */
+export const createChromiumCaptureSession = createCaptureSession;
 
 interface SessionExtras {
   mapBaseUrl?: (url: string) => string;

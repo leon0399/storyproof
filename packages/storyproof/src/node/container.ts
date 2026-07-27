@@ -2,9 +2,15 @@ import { execFile, spawn, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { promisify } from "node:util";
 
-import { chromium } from "playwright";
+import { chromium, firefox, webkit } from "playwright";
+
+import type { CaptureBrowserName } from "./environment.js";
 
 const execFileAsync = promisify(execFile);
+
+// `playwright run-server` is engine-generic; the CLIENT chooses the engine at
+// connect time, so each engine needs its own connect entry point.
+const CONNECTORS = { chromium, firefox, webkit } as const;
 
 /**
  * Containerized capture: a version-matched Playwright browser server inside
@@ -41,6 +47,8 @@ const CONNECT_TIMEOUT_MS = 30_000;
 export interface ContainerBrowserRequest {
   image: string;
   playwrightVersion: string;
+  /** Engine to connect as; the image ships all three. Default chromium. */
+  browser?: CaptureBrowserName;
 }
 
 // Structural view of what the capture session needs from a connected
@@ -156,20 +164,23 @@ const startedContainers = new Set<string>();
 export async function acquireContainerBrowser(
   request: ContainerBrowserRequest,
 ): Promise<ContainerBrowser> {
-  let entry = shared.get(request.image);
+  // Keyed by image AND engine: one dev server uses one engine, but two
+  // Storybooks (say, the two examples) may run different ones concurrently.
+  const key = `${request.image}\0${request.browser ?? "chromium"}`;
+  let entry = shared.get(key);
   if (entry) {
     const existing = await entry.catch(() => undefined);
     // A crashed or manually stopped container must not poison every later
     // run; drop the cache entry and start fresh.
     if (!existing || !existing.browser.isConnected()) {
-      shared.delete(request.image);
+      shared.delete(key);
       entry = undefined;
     }
   }
   if (!entry) {
     entry = startContainer(request);
-    shared.set(request.image, entry);
-    entry.catch(() => shared.delete(request.image));
+    shared.set(key, entry);
+    entry.catch(() => shared.delete(key));
   }
   const container = await entry;
   return {
@@ -204,7 +215,8 @@ async function startContainer(
     const ready = await waitForEndpoint(child, stderrTail, request);
     const hostPort = await resolvePublishedPort(name);
     const wsEndpoint = publishedWsEndpoint(ready.endpoint, hostPort);
-    const browser = (await chromium.connect(wsEndpoint, {
+    const connector = CONNECTORS[request.browser ?? "chromium"];
+    const browser = (await connector.connect(wsEndpoint, {
       timeout: CONNECT_TIMEOUT_MS,
     })) as unknown as ConnectedBrowser;
     return {

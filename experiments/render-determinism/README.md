@@ -107,6 +107,27 @@ developer machines agree. `platform` in the key remains worth adding — it turn
 an un-containerized cross-OS mistake into a named incompatibility instead of a
 false diff — but it is the safety net, not the solution.
 
+### Fourth round — the engine axis (2026-07-28)
+
+The matrix gained a `browser` dimension (chromium / firefox / webkit ×
+container-amd64 / container-arm64 / bare-linux / bare-macos): every earlier
+conclusion was measured for Chromium only, and Firefox and WebKit have their
+own rasterizers, so nothing transfers by assumption.
+
+First local data (WSL2, Docker Desktop, same v1.55.1-noble image):
+
+| Engine   | Version | SHA-256     |
+| -------- | ------- | ----------- |
+| chromium | 140.0.… | `3c157705…` |
+| firefox  | 141.0   | `b3f9f40f…` |
+| webkit   | 26.0    | `013f0c73…` |
+
+**8. Engines are distinct rendering environments**, as expected — three
+engines, three hashes in the identical container. This is why the
+environment key leads with the engine name and why per-engine baselines
+coexist rather than fight. The per-engine arch/OS cells land with the next
+CI run of this workflow.
+
 ## What it captures
 
 A single fixed HTML page with no network dependencies: `system-ui` text at

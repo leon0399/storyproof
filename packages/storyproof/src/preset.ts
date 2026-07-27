@@ -5,11 +5,12 @@ import type { Channel } from "storybook/internal/channels";
 import type { Options, ServerApp } from "storybook/internal/types";
 
 import { ADDON_ID } from "./constants.js";
+import { createCaptureSession, playwrightVersion } from "./node/capture.js";
 import {
-  createChromiumCaptureSession,
-  playwrightVersion,
-} from "./node/capture.js";
-import { resolveEnvironment } from "./node/environment.js";
+  CAPTURE_BROWSERS,
+  resolveEnvironment,
+  type CaptureBrowserName,
+} from "./node/environment.js";
 import { VisualTestRunner } from "./node/runner.js";
 import type { StoryIndexGenerator } from "./node/story-index.js";
 import {
@@ -29,6 +30,13 @@ export interface VisualTestsPresetOptions {
   storyRoots?: string[];
   maxConcurrency?: number;
   capture?: {
+    /**
+     * Engine to capture with. Baselines are keyed per engine
+     * (`linux-firefox-…`), so switching engines never overwrites another
+     * engine's baselines. Default `"chromium"`. Note: Playwright's WebKit
+     * on Linux is the engine, not Safari — see the configuration docs.
+     */
+    browser?: "chromium" | "firefox" | "webkit";
     /**
      * Capture in the version-matched Playwright container instead of a
      * host browser, so every machine produces identical pixels. `true`
@@ -72,6 +80,7 @@ export async function experimental_serverChannel(
     await options.presets.apply("storyIndexGenerator"),
   );
   const environment = resolveEnvironment({
+    browser: capture.browser,
     container: capture.container,
     playwrightVersion,
   });
@@ -84,15 +93,16 @@ export async function experimental_serverChannel(
     artifactRegistry: artifacts,
     environment,
     createCaptureSession: () =>
-      createChromiumCaptureSession(
+      createCaptureSession(
         environment.container
           ? {
               container: {
                 image: environment.container.image,
                 playwrightVersion,
+                browser: capture.browser,
               },
             }
-          : {},
+          : { browser: capture.browser },
       ),
   });
   installCommandHandlers(channel, runner);
@@ -136,11 +146,12 @@ function resolveStoryRoots(value: unknown): string[] {
 }
 
 const CAPTURE_HINT =
-  'Set "capture" to an object like { container: true } or { container: { image: "mcr.microsoft.com/playwright:v1.55.1-noble" } }, or omit it to capture with the host browser.';
+  'Set "capture" to an object like { browser: "firefox" }, { container: true }, or { container: { image: "mcr.microsoft.com/playwright:v1.55.1-noble" } }; omit it to capture with host chromium.';
 
 // Exported for direct unit coverage; not part of the package's public API
 // (only ./index, ./manager, ./preset, ./preview are exported subpaths).
 export function resolveCaptureOptions(value: unknown): {
+  browser?: CaptureBrowserName;
   container?: { image?: string };
 } {
   if (value === undefined) return {};
@@ -150,15 +161,33 @@ export function resolveCaptureOptions(value: unknown): {
     );
   }
   const keys = Object.keys(value);
-  const unknown = keys.filter((key) => key !== "container");
+  const unknown = keys.filter(
+    (key) => key !== "container" && key !== "browser",
+  );
   if (unknown.length > 0) {
     throw optionError(
       `Invalid "capture" preset option: unknown key ${JSON.stringify(unknown[0])}. ${CAPTURE_HINT}`,
     );
   }
+
+  const browserValue = (value as { browser?: unknown }).browser;
+  let browser: CaptureBrowserName | undefined;
+  if (browserValue !== undefined) {
+    if (
+      typeof browserValue !== "string" ||
+      !(CAPTURE_BROWSERS as readonly string[]).includes(browserValue)
+    ) {
+      throw optionError(
+        `Invalid "capture.browser" preset option: expected one of ${CAPTURE_BROWSERS.map((name) => JSON.stringify(name)).join(", ")}, received ${format(browserValue)}. ${CAPTURE_HINT}`,
+      );
+    }
+    browser = browserValue as CaptureBrowserName;
+  }
+  const withBrowser = browser ? { browser } : {};
+
   const container = (value as { container?: unknown }).container;
-  if (container === undefined || container === false) return {};
-  if (container === true) return { container: {} };
+  if (container === undefined || container === false) return withBrowser;
+  if (container === true) return { ...withBrowser, container: {} };
   if (
     typeof container !== "object" ||
     container === null ||
@@ -176,13 +205,13 @@ export function resolveCaptureOptions(value: unknown): {
     );
   }
   const image = (container as { image?: unknown }).image;
-  if (image === undefined) return { container: {} };
+  if (image === undefined) return { ...withBrowser, container: {} };
   if (typeof image !== "string" || image.trim() === "") {
     throw optionError(
       `Invalid "capture.container.image" preset option: expected a non-empty string, received ${format(image)}. ${CAPTURE_HINT}`,
     );
   }
-  return { container: { image } };
+  return { ...withBrowser, container: { image } };
 }
 
 function resolveMaxConcurrency(value: unknown): number {

@@ -63,6 +63,19 @@ describe("resolveEnvironment", () => {
       "mcr.microsoft.com/playwright:v9.9.9-noble",
     );
   });
+
+  test("the engine leads the key after the platform", () => {
+    expect(resolveEnvironment({ browser: "firefox" }).key).toBe(
+      `${process.platform}-firefox-1280x720@1x`,
+    );
+    expect(
+      resolveEnvironment({
+        browser: "webkit",
+        container: {},
+        playwrightVersion: "1.55.1",
+      }).key,
+    ).toBe("linux-webkit-1280x720@1x");
+  });
 });
 
 describe("container plumbing", () => {
@@ -162,6 +175,21 @@ describe("resolveCaptureOptions", () => {
     expect(resolveCaptureOptions({ container: {} })).toEqual({
       container: {},
     });
+  });
+
+  test("browser is validated against the engine enum and composes with container", () => {
+    expect(resolveCaptureOptions({ browser: "firefox" })).toEqual({
+      browser: "firefox",
+    });
+    expect(
+      resolveCaptureOptions({ browser: "webkit", container: true }),
+    ).toEqual({ browser: "webkit", container: {} });
+    expect(() => resolveCaptureOptions({ browser: "safari" })).toThrow(
+      /expected one of "chromium", "firefox", "webkit"/,
+    );
+    expect(() => resolveCaptureOptions({ browser: 7 })).toThrow(
+      /capture.browser/,
+    );
   });
 
   test.each([

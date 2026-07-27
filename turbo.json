@@ -33,7 +33,11 @@
     "test:visual": {
       "dependsOn": ["^build"],
       "cache": false,
-      "env": ["STORYPROOF_CONTAINER", "VISUAL_TEST_PROJECT_DIR"]
+      "env": [
+        "STORYPROOF_CONTAINER",
+        "STORYPROOF_BROWSER",
+        "VISUAL_TEST_PROJECT_DIR"
+      ]
     },
     // Storybook compiles its manager bundle once at startup and never rebuilds
     // it (see Storybook's own `// TODO: this doesn't watch` in
@@ -49,7 +53,7 @@
       "dependsOn": ["^build"],
       "inputs": [".storybook/**"],
       // Same strict-env-mode passthrough for `STORYPROOF_CONTAINER=1 pnpm dev`.
-      "env": ["STORYPROOF_CONTAINER"]
+      "env": ["STORYPROOF_CONTAINER", "STORYPROOF_BROWSER"]
     }
   }
 }

@@ -14,10 +14,23 @@ const config: StorybookConfig = {
       name: sourcePreset,
       options: {
         storyRoots: ["test/.tmp/project/src"],
-        // CI's container-capture job flips this; everything else captures
-        // with the host browser exactly as before.
-        ...(process.env.STORYPROOF_CONTAINER === "1"
-          ? { capture: { container: true } }
+        // CI's container/engine jobs flip these; everything else captures
+        // with host chromium exactly as before.
+        ...(process.env.STORYPROOF_CONTAINER === "1" ||
+        process.env.STORYPROOF_BROWSER
+          ? {
+              capture: {
+                ...(process.env.STORYPROOF_CONTAINER === "1"
+                  ? { container: true }
+                  : {}),
+                ...(process.env.STORYPROOF_BROWSER
+                  ? {
+                      browser: process.env.STORYPROOF_BROWSER as
+                        "chromium" | "firefox" | "webkit",
+                    }
+                  : {}),
+              },
+            }
           : {}),
       },
     },

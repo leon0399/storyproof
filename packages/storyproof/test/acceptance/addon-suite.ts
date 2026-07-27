@@ -11,12 +11,13 @@ import type {
 } from "@playwright/test";
 import { PNG } from "pngjs";
 
-// The key now leads with the platform the BROWSER renders on: this host's
-// platform for local capture, always linux for container capture
-// (STORYPROOF_CONTAINER=1 — the same switch the fixture's main.ts reads).
+// The key leads with the platform the BROWSER renders on (this host's
+// platform locally, always linux in the capture container) and the engine
+// (STORYPROOF_BROWSER). Both env vars are the same switches the fixture's
+// main.ts reads, so the suite and the addon agree by construction.
 const ENVIRONMENT_KEY = `${
   process.env.STORYPROOF_CONTAINER === "1" ? "linux" : process.platform
-}-chromium-1280x720@1x`;
+}-${process.env.STORYPROOF_BROWSER ?? "chromium"}-1280x720@1x`;
 
 type AddonAcceptanceSuiteOptions = {
   expect: typeof PlaywrightExpect;
@@ -433,7 +434,11 @@ export function registerAddonAcceptanceSuite({
     const alert = panel.getByRole("alert");
     await expect(alert).toContainText(new URL(unavailableUrl).origin);
     await expect(alert).not.toContainText("/unavailable");
-    await expect(alert).toContainText("ERR_CONNECTION_REFUSED");
+    // Engine-agnostic: chromium says net::ERR_CONNECTION_REFUSED, firefox
+    // NS_ERROR_CONNECTION_REFUSED, webkit "Connection refused" — the
+    // contract is that the alert names the refused connection, not which
+    // engine's spelling it uses.
+    await expect(alert).toContainText(/connection[ _]refused/i);
     await expect(panel.getByRole("button", { name: "Accept" })).toHaveCount(0);
     expect(
       await pathExists(path.join(artifactDirectory, "candidate.png")),

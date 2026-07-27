@@ -1,15 +1,23 @@
 // TEMPORARY — see README.md. Delete with the rest of experiments/.
 //
 // Captures one fixed page and prints a SHA-256 of the PNG bytes, so the same
-// content can be hashed across architectures, container images, and operating
-// systems. Deliberately avoids Storybook: the question is how Chromium
-// rasterizes, and a smaller surface makes any difference readable.
+// content can be hashed across architectures, container images, operating
+// systems, and now BROWSER ENGINES. Deliberately avoids Storybook: the
+// question is how the engine rasterizes, and a smaller surface makes any
+// difference readable.
 
 import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { chromium } from "playwright";
+import { chromium, firefox, webkit } from "playwright";
 
 const LABEL = process.env.LABEL ?? "unlabelled";
+const ENGINES = { chromium, firefox, webkit };
+const BROWSER = process.env.BROWSER ?? "chromium";
+const engine = ENGINES[BROWSER];
+if (!engine) {
+  console.error(`Unknown BROWSER "${BROWSER}"`);
+  process.exit(1);
+}
 
 // No network requests, no webfonts: `system-ui` deliberately resolves to
 // whatever the platform provides, because that is precisely the variable under
@@ -63,7 +71,7 @@ const HTML = `<!doctype html>
   </body>
 </html>`;
 
-const browser = await chromium.launch({ headless: true });
+const browser = await engine.launch({ headless: true });
 try {
   // Mirrors DEFAULT_ENVIRONMENT in src/constants.ts so the result speaks to
   // the real capture settings rather than to Playwright's defaults.
@@ -106,6 +114,7 @@ try {
 
   const result = {
     label: LABEL,
+    browser: BROWSER,
     sha256,
     platform: process.platform,
     arch: process.arch,

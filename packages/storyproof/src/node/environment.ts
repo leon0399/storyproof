@@ -20,6 +20,9 @@ import { DEFAULT_ENVIRONMENT } from "../constants.js";
  *   build, and font metrics still rasterizing differently. A fingerprint
  *   mismatch reports as a named incompatibility, never as a pixel diff.
  */
+export const CAPTURE_BROWSERS = ["chromium", "firefox", "webkit"] as const;
+export type CaptureBrowserName = (typeof CAPTURE_BROWSERS)[number];
+
 export interface ContainerCaptureConfig {
   image: string;
 }
@@ -45,6 +48,7 @@ export function defaultContainerImage(playwrightVersion: string): string {
 
 export function resolveEnvironment(
   options: {
+    browser?: CaptureBrowserName;
     container?: { image?: string } | undefined;
     playwrightVersion?: string;
   } = {},
@@ -68,7 +72,11 @@ export function resolveEnvironment(
   const platform = container ? "linux" : process.platform;
   const environment = {
     platform,
-    browserName: DEFAULT_ENVIRONMENT.browserName,
+    // Engines are distinct rendering environments with their own hashes
+    // (measured: chromium/firefox/webkit each produce a different probe
+    // image in the same container), which is exactly why the key leads
+    // with the browser name — per-engine baselines coexist by construction.
+    browserName: options.browser ?? DEFAULT_ENVIRONMENT.browserName,
     viewport: DEFAULT_ENVIRONMENT.viewport,
     deviceScaleFactor: DEFAULT_ENVIRONMENT.deviceScaleFactor,
   };

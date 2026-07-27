@@ -137,8 +137,15 @@ extraction. Remaining:
 - [ ] Widen the _support claim_ beyond Ubuntu 24.04 only after the acceptance
       suite passes on the added OS. Environment identity no longer blocks
       this — each platform keeps its own baselines by key.
-- [ ] Add Firefox and WebKit only after multi-environment review semantics
-      are proven by viewport/theme modes. The environment key already leads
-      with the browser name, so their baselines coexist by construction.
-      Note honestly when this lands: Playwright's WebKit-on-Linux is the
-      engine, not Safari — containerizing makes that gap wider, not narrower.
+- [x] ~~Firefox and WebKit as capture engines~~ — shipped 2026-07-28 as
+      `capture.browser`, **one engine per dev server**: per-engine environment
+      keys (`linux-firefox-…`) make baselines coexist by construction, so no
+      review-semantics expansion was needed. Docs state plainly that
+      Playwright's WebKit-on-Linux is the engine, not Safari. Determinism was
+      re-measured per engine rather than assumed (each engine hashes its own
+      distinct probe image; container amd64/arm64 and bare-host cells in the
+      experiment matrix).
+- [ ] Multi-engine review per story — running one story across several
+      engines in a single run, with N candidates to review and approve. This
+      is the part that genuinely needs the viewport/theme multi-candidate UI
+      design first; `capture.browser` deliberately does not attempt it.

@@ -40,6 +40,16 @@ monorepo until 2026-07-26; the day-by-day pre-extraction record lives in
 container` / `· local`) under the story id, with the environment key,
   image, and fingerprint in its tooltip — so a preview that renders with
   different fonts than a container-captured baseline is a labelled fact.
+- Capture engine selection (`capture.browser`: `"chromium"` | `"firefox"` |
+  `"webkit"`, default chromium) — one engine per Storybook dev server.
+  Baselines are keyed per engine (`linux-firefox-1280x720@1x`), so engines
+  keep separate baseline sets and switching never overwrites anything. Works
+  with `capture.container` (the image ships all three engines;
+  `playwright run-server` is engine-generic and the client picks at connect).
+  Each engine renders its own distinct probe image, confirming per-engine
+  fingerprints. Documented plainly: Playwright's WebKit on Linux is the
+  engine, not Safari. Multi-engine review of one story in a single run is
+  deliberately deferred to the multi-candidate UI design.
 
 ### Changed
 

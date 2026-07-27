@@ -18,9 +18,9 @@ import {
   sha256,
 } from "./compare.js";
 import {
-  createChromiumCaptureSession,
+  createCaptureSession as createCaptureSessionDefault,
   type CaptureResult,
-  type ChromiumCaptureSession,
+  type CaptureSession,
 } from "./capture.js";
 import { resolveEnvironment, type ResolvedEnvironment } from "./environment.js";
 import {
@@ -62,7 +62,7 @@ export interface VisualTestRunnerOptions {
   maxConcurrency?: number;
   onState?: (state: InternalVisualRunState) => void;
   artifactRegistry?: ArtifactRegistrar;
-  createCaptureSession?: () => Promise<ChromiumCaptureSession>;
+  createCaptureSession?: () => Promise<CaptureSession>;
   resolveArtifactPaths?: (
     options: ResolveArtifactPathsOptions,
   ) => Promise<ArtifactPaths>;
@@ -90,7 +90,7 @@ export class VisualTestRunner {
   private onState: ((state: InternalVisualRunState) => void) | undefined;
   private readonly environment: ResolvedEnvironment;
   private readonly completed = new Map<string, CompletedVisualResult>();
-  private readonly createCaptureSession: () => Promise<ChromiumCaptureSession>;
+  private readonly createCaptureSession: () => Promise<CaptureSession>;
   private readonly resolveArtifactPaths: VisualTestRunnerOptions["resolveArtifactPaths"];
   private readonly comparePngs: ComparePngs;
   private readonly approveCandidate: ApproveCandidate;
@@ -99,7 +99,7 @@ export class VisualTestRunner {
     this.onState = options.onState;
     this.environment = options.environment ?? resolveEnvironment();
     this.createCaptureSession =
-      options.createCaptureSession ?? createChromiumCaptureSession;
+      options.createCaptureSession ?? createCaptureSessionDefault;
     this.resolveArtifactPaths =
       options.resolveArtifactPaths ?? resolveArtifactPathsDefault;
     this.comparePngs = options.comparePngs ?? comparePngsDefault;
@@ -226,11 +226,14 @@ export class VisualTestRunner {
   }
 
   private async executeRun(run: ActiveRun): Promise<void> {
-    let session: ChromiumCaptureSession;
+    let session: CaptureSession;
     try {
       session = await this.createCaptureSession();
     } catch (error) {
-      this.failRun(run, `Chromium could not start: ${errorMessage(error)}`);
+      this.failRun(
+        run,
+        `The ${this.environment.browserName} capture browser could not start: ${errorMessage(error)}`,
+      );
       return;
     }
 
@@ -324,7 +327,7 @@ export class VisualTestRunner {
 
   private async runPool(
     run: ActiveRun,
-    session: ChromiumCaptureSession,
+    session: CaptureSession,
   ): Promise<void> {
     let cursor = 0;
     const worker = async () => {
@@ -349,7 +352,7 @@ export class VisualTestRunner {
   private async runStory(
     run: ActiveRun,
     result: InternalVisualResult,
-    session: ChromiumCaptureSession,
+    session: CaptureSession,
   ): Promise<void> {
     result.status = "running";
     this.publish(run);

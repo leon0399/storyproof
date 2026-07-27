@@ -21,35 +21,41 @@ permissions:
 
 jobs:
   capture:
-    name: ${{ matrix.label }}
+    name: ${{ matrix.cell }} / ${{ matrix.browser }}
     runs-on: ${{ matrix.runner }}
-    container: ${{ matrix.container }}
+    container: ${{ matrix.image }}
     continue-on-error: true
-    timeout-minutes: 20
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
+        # The engine axis: every determinism conclusion is per-engine —
+        # Firefox and WebKit have their own rasterizers, so the Chromium
+        # answers (arch-independent in container, host-dependent when bare)
+        # must be re-measured, not assumed, before per-engine capture ships.
+        browser: [chromium, firefox, webkit]
+        cell:
+          - linux-amd64-container
+          - linux-arm64-container
+          - linux-amd64-bare
+          - macos-arm64-bare
         include:
-          # Cell 1 — reference. Container fonts, amd64.
-          - label: linux-amd64-container
+          # Reference: container fonts, amd64.
+          - cell: linux-amd64-container
             runner: ubuntu-24.04
-            container: mcr.microsoft.com/playwright:v1.55.1-noble
-          # Cell 2 — same image, different architecture. Compared against
-          # cell 1 this isolates arch: identical hashes mean Apple Silicon can
-          # run a native arm64 container instead of emulating amd64.
-          - label: linux-arm64-container
+            image: mcr.microsoft.com/playwright:v1.55.1-noble
+          # Same image, different architecture — isolates arch per engine.
+          - cell: linux-arm64-container
             runner: ubuntu-24.04-arm
-            container: mcr.microsoft.com/playwright:v1.55.1-noble
-          # Cell 3 — bare runner, host fonts. Against cell 1 this says whether
-          # the container is doing any work for a Linux-only team.
-          - label: linux-amd64-bare
+            image: mcr.microsoft.com/playwright:v1.55.1-noble
+          # Bare runner, host fonts — is the container doing work per engine?
+          - cell: linux-amd64-bare
             runner: ubuntu-24.04
-            container: ""
-          # Cell 4 — different OS entirely. Against cell 3 this is the evidence
-          # for putting platform in the key.
-          - label: macos-arm64-bare
+            image: ""
+          # Different OS — per-engine evidence for platform in the key.
+          - cell: macos-arm64-bare
             runner: macos-latest
-            container: ""
+            image: ""
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -63,18 +69,22 @@ jobs:
       - name: Install
         working-directory: experiments/render-determinism
         run: pnpm install --ignore-workspace
-      - name: Install Chromium
+      # Idempotent in the container (version-matched browsers preinstalled);
+      # on bare runners --with-deps pulls the engine's system libraries,
+      # which WebKit in particular needs.
+      - name: Install browser
         working-directory: experiments/render-determinism
-        run: pnpm exec playwright install chromium
+        run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
       - name: Capture
         working-directory: experiments/render-determinism
         env:
-          LABEL: ${{ matrix.label }}
+          LABEL: ${{ matrix.cell }}-${{ matrix.browser }}
+          BROWSER: ${{ matrix.browser }}
         run: node capture.mjs
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
-          name: render-${{ matrix.label }}
+          name: render-${{ matrix.cell }}-${{ matrix.browser }}
           path: experiments/render-determinism/out/
           retention-days: 7
 

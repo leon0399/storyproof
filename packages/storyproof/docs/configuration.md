@@ -38,11 +38,12 @@ Both options are optional. Storybook passes addon options through without
 validating them, so the preset validates them itself when the development
 server starts.
 
-| Option              | Type                            | Default | Constraint                                          |
-| ------------------- | ------------------------------- | ------- | --------------------------------------------------- |
-| `storyRoots`        | `string[]`                      | `["."]` | Non-empty array of non-empty strings                |
-| `maxConcurrency`    | `number`                        | `2`     | Integer greater than `0`; there is no upper bound   |
-| `capture.container` | `boolean \| { image?: string }` | `false` | `true` derives the image; `image` must be non-empty |
+| Option              | Type                                  | Default      | Constraint                                          |
+| ------------------- | ------------------------------------- | ------------ | --------------------------------------------------- |
+| `storyRoots`        | `string[]`                            | `["."]`      | Non-empty array of non-empty strings                |
+| `maxConcurrency`    | `number`                              | `2`          | Integer greater than `0`; there is no upper bound   |
+| `capture.browser`   | `"chromium" \| "firefox" \| "webkit"` | `"chromium"` | Exactly one of the three engine names               |
+| `capture.container` | `boolean \| { image?: string }`       | `false`      | `true` derives the image; `image` must be non-empty |
 
 `storyRoots` entries resolve from the Storybook process working directory. A
 story that resolves outside every root is refused rather than given artifacts
@@ -51,6 +52,38 @@ outside the configured tree.
 `maxConcurrency` bounds how many stories are captured at once. The default of
 `2` is deliberate and conservative; no evidence yet supports a specific maximum,
 so none is enforced.
+
+### Capture engine (`capture.browser`)
+
+One engine per Storybook dev server. Baselines are keyed per engine
+(`linux-firefox-1280x720@1x`), so switching engines starts a separate baseline
+set rather than overwriting another engine's — and switching back loses
+nothing. Capturing one story across several engines in a single run is
+deliberately out of scope for now: it multiplies review (N candidates per
+story) and needs its own UI design, tracked in the roadmap.
+
+```ts
+options: {
+  capture: { browser: "firefox" },
+}
+```
+
+Firefox and WebKit need their browsers installed
+(`npx playwright install firefox webkit`) for host capture; the capture
+container ships all three engines.
+
+**Read this before selling WebKit results as Safari coverage:** Playwright's
+WebKit on Linux is the WebKit _engine_ built against a Linux graphics and
+font stack — it is not Safari, and container capture makes that gap wider,
+not narrower. It catches engine-level layout and rendering differences; it
+does not tell you what your UI looks like on a Mac. The same caveat applies
+to a lesser degree to any containerized engine: captures are regression
+evidence, not fidelity claims about real user rendering.
+
+Engine determinism is measured separately per engine — the Chromium results
+(arch-independence in the container, host-dependence when bare) were
+re-measured for Firefox and WebKit rather than assumed; see the experiment
+record referenced from the environment-identity design.
 
 ### Container capture (`capture.container`)
 
