@@ -81,6 +81,32 @@ than the ISA — is very unlikely to. The residual macOS risk is operational
 **To settle it definitively**, have anyone with a Mac run the container and
 report the `sha256`; a match with `3c157705…` closes the question.
 
+### Third round — the decisive one, 2026-07-27 (local)
+
+**7. The container normalizes two Linux hosts that disagree when bare.** Running
+the same image via Docker Desktop on WSL2 produced `3c157705…` — byte-identical
+to every containerized CI cell.
+
+| Host                  | Bare        | In container |
+| --------------------- | ----------- | ------------ |
+| WSL2                  | `bc480c76…` | `3c157705…`  |
+| GitHub `ubuntu-24.04` | `bec2dc20…` | `3c157705…`  |
+
+This is the result the whole design rests on, and until now it was reasoning:
+result 4 showed two Linux machines silently disagreeing, and the claim that
+containerization fixes that was an inference. It is now measured.
+
+**It also strengthens the untested macOS case.** Docker Desktop on WSL2 runs the
+container inside a Linux VM behind a hypervisor — structurally the same shape as
+Docker on macOS. So hypervisor-mediated Docker has now been shown to match
+native Linux Docker byte-for-byte. Different hypervisor and different host OS,
+but the same class of boundary, which is the one that was in doubt.
+
+**Conclusion for the design.** Containerized capture is the mechanism that makes
+developer machines agree. `platform` in the key remains worth adding — it turns
+an un-containerized cross-OS mistake into a named incompatibility instead of a
+false diff — but it is the safety net, not the solution.
+
 ## What it captures
 
 A single fixed HTML page with no network dependencies: `system-ui` text at
