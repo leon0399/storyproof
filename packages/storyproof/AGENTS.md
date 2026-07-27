@@ -49,9 +49,14 @@ Split by execution environment — the boundary is load-bearing:
 
 - `src/node/` — runs on the Storybook server side (Node). `runner.ts`
   (`VisualTestRunner`: run/cancel/approve state machine), `capture.ts` (Chromium
-  session + content-clip), `compare.ts` (pixelmatch policy), `paths.ts`
-  (artifact-path resolution + security guards), `approval.ts`, `story-index.ts`,
-  `server.ts` (artifact HTTP route + command endpoint).
+  session + content-clip + render-fingerprint probe), `environment.ts`
+  (environment key, platform resolution, probe page), `container.ts`
+  (containerized capture: version-matched Playwright image, loopback-only ws,
+  host.docker.internal rewrite — see docs/2026-07-27-environment-identity-design.md
+  at the repo root), `compare.ts` (pixelmatch policy + environment
+  compatibility, baseline metadata schema 2), `paths.ts` (artifact-path
+  resolution + security guards), `approval.ts`, `story-index.ts`, `server.ts`
+  (artifact HTTP route + command endpoint).
 - `src/manager/` — runs in the browser (Storybook manager UI). `PanelView.tsx`
   (pure view), `Panel.tsx`/`TestProviderRow.tsx` (wiring), `state.ts`.
 - `src/shared/` — types crossing the boundary: `protocol.ts` (commands),

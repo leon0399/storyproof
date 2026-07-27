@@ -11,7 +11,12 @@ import type {
 } from "@playwright/test";
 import { PNG } from "pngjs";
 
-const ENVIRONMENT_KEY = "chromium-1280x720@1x";
+// The key now leads with the platform the BROWSER renders on: this host's
+// platform for local capture, always linux for container capture
+// (STORYPROOF_CONTAINER=1 — the same switch the fixture's main.ts reads).
+const ENVIRONMENT_KEY = `${
+  process.env.STORYPROOF_CONTAINER === "1" ? "linux" : process.platform
+}-chromium-1280x720@1x`;
 
 type AddonAcceptanceSuiteOptions = {
   expect: typeof PlaywrightExpect;
@@ -322,9 +327,18 @@ export function registerAddonAcceptanceSuite({
     await expect(panel.getByText("Passed", { exact: true })).toBeVisible({
       timeout: 15_000,
     });
-    expect(JSON.parse(await readFile(metadataPath, "utf8"))).toMatchObject({
-      schemaVersion: 1,
-    });
+    const repaired = JSON.parse(await readFile(metadataPath, "utf8")) as {
+      schemaVersion: number;
+      platform: string;
+      renderFingerprint: string;
+    };
+    expect(repaired).toMatchObject({ schemaVersion: 2 });
+    // Environment identity landed with schema 2: re-approval must record
+    // where and how these pixels were actually rendered.
+    expect(repaired.platform).toBe(
+      process.env.STORYPROOF_CONTAINER === "1" ? "linux" : process.platform,
+    );
+    expect(repaired.renderFingerprint).toMatch(/^[a-f0-9]{64}$/);
   });
 
   test("cancels completed partial results before they can be approved", async ({
@@ -556,7 +570,8 @@ export function registerAddonAcceptanceSuite({
 
     const artifactDirectory = path.join(
       projectRoot,
-      "src/__screenshots__/visual-fixture.stories.tsx.visual/visual-fixture--portal/chromium-1280x720@1x",
+      "src/__screenshots__/visual-fixture.stories.tsx.visual/visual-fixture--portal",
+      ENVIRONMENT_KEY,
     );
     const candidate = await readFile(
       path.join(artifactDirectory, "candidate.png"),

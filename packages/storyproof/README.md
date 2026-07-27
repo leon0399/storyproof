@@ -43,33 +43,42 @@ engine is only a minimum-install floor, not a support claim. These ranges are
 finalized — and the wording here changes from target to verified — only after
 the release CI matrix supplies evidence.
 
-### Additional operating systems require baseline portability
+### Baselines carry an environment identity
 
-The initial preview claims Ubuntu 24.04 x64 only. Adding another operating
-system or Linux distribution requires two separate proofs:
+A baseline is only valid for the environment that rendered it — measured, not
+assumed: bare macOS and bare Linux render different pixels, and even two
+Linux machines with identical platform, browser build, and font metrics have
+been measured rasterizing differently (see
+[the environment-identity design](../../docs/2026-07-27-environment-identity-design.md)).
+storyproof therefore records identity in two layers:
 
-1. **Startup** — the addon launches, captures, and compares on an operating
-   system.
-2. **Baseline portability** — exact baseline files approved on Ubuntu 24.04
-   pass the fixed comparator on the new host without reapproval.
+- **The environment key** (`linux-chromium-1280x720@1x`) leads with the
+  platform the browser renders on, so different platforms keep coexisting
+  baselines instead of overwriting each other. Architecture is deliberately
+  omitted — amd64 and arm64 render byte-identically.
+- **The render fingerprint** in `baseline.json`: the hash of a fixed probe
+  page rendered by the capturing browser. A baseline captured in a different
+  environment reports a message naming the mismatch — never a false pixel
+  diff.
 
-The environment key `chromium-1280x720@1x` deliberately omits the platform, and
-baseline compatibility ignores the recorded `platform` field, so portability is
-_assumed by the current design and unproven_. It is not an Ubuntu-only preview
-release gate. Before claiming another host platform, transfer the exact approved
-baseline files to it and rerun without approval. Candidate bytes need not be
-identical if the fixed comparator passes. Per-platform environment identities
-change baseline paths and review semantics and need their own design.
+For one developer on one machine, none of this needs configuring. A team on
+mixed machines chooses between per-platform baselines (the default) and one
+shared baseline set captured
+[inside the version-matched Playwright container](docs/configuration.md#container-capture-capturecontainer)
+(`capture: { container: true }`, requires Docker) — every machine then
+produces identical pixels, which was likewise measured rather than assumed.
 
 ### Not in the preview
 
 Two different kinds of exclusion, and the difference matters — one is a
 statement about the implementation, the other only about scope:
 
-- **Out of reach today.** HTTPS capture origins, reverse-proxy path prefixes,
-  and capture split across containers or hosts. These are not merely untested:
-  the capture origin is not configurable, so the implementation cannot reach a
-  Storybook it does not share a loopback interface with. The
+- **Out of reach today.** HTTPS capture origins and reverse-proxy path
+  prefixes. These are not merely untested: the capture origin is not
+  configurable, so the implementation cannot reach a Storybook it does not
+  share a loopback interface with — the one exception being the built-in
+  [container capture mode](docs/configuration.md#container-capture-capturecontainer),
+  whose topology the addon itself owns. The
   [capture contract](docs/capture-contract.md) holds the itemized list and the
   reason for each.
 - **Deliberately deferred, not precluded.** Remote approval, browsers other than

@@ -27,9 +27,13 @@
     // external project VISUAL_TEST_PROJECT_DIR points at) are not part of
     // turbo's input hash. Replaying a cached pass would report green without
     // having run the browser at all.
+    // STORYPROOF_CONTAINER must be declared: turbo 2's strict env mode strips
+    // undeclared variables from task processes, which would silently turn the
+    // container-capture CI job back into a host-capture run.
     "test:visual": {
       "dependsOn": ["^build"],
-      "cache": false
+      "cache": false,
+      "env": ["STORYPROOF_CONTAINER", "VISUAL_TEST_PROJECT_DIR"]
     },
     // Storybook compiles its manager bundle once at startup and never rebuilds
     // it (see Storybook's own `// TODO: this doesn't watch` in
@@ -43,7 +47,9 @@
       "persistent": true,
       "interruptible": true,
       "dependsOn": ["^build"],
-      "inputs": [".storybook/**"]
+      "inputs": [".storybook/**"],
+      // Same strict-env-mode passthrough for `STORYPROOF_CONTAINER=1 pnpm dev`.
+      "env": ["STORYPROOF_CONTAINER"]
     }
   }
 }

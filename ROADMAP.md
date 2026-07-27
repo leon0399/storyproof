@@ -41,8 +41,14 @@ installing the packed tarball into an isolated temporary fixture.
       is registry-verified for 9.1.20; behavior is not. Promote 9.x to a
       support claim only if the suite passes without addon changes; otherwise
       record the incompatibility and stay 10.x-only.
-- [ ] Add configurable HTTPS/proxy/container capture topology only when a
-      demonstrated consumer requires it.
+- [x] ~~Add configurable container capture topology~~ — shipped 2026-07-27 as
+      the `capture.container` preset option, gated on the demonstrated
+      consumer (a mixed macOS/WSL/native-Linux team) and on measurement: two
+      Linux hosts that disagree when capturing bare render byte-identically
+      inside the version-matched Playwright image. See
+      [the environment-identity design](docs/2026-07-27-environment-identity-design.md).
+      HTTPS and reverse-proxy capture origins remain out, still awaiting a
+      demonstrated consumer.
 - [ ] Re-investigate a Storybook `~10.0.0` floor. Release plan Task 8's
       packed-consumer harness proved the addon's manager UI renders and its
       controls are correctly named on 10.0.8, but every visual-test run
@@ -121,9 +127,18 @@ extraction. Remaining:
       state that needs capture.
 - [ ] Add narrowly scoped masking only for demonstrated nondeterminism; prefer
       deterministic stories and `play` functions.
-- [ ] Add another operating system or Linux distribution only after exact
-      Ubuntu-approved baseline files transfer to it and pass the fixed comparator
-      without approval. Per-platform environment identities require a separate
-      design.
-- [ ] Add Firefox and WebKit only after multi-environment identity and review
-      semantics are proven by viewport/theme modes.
+- [x] ~~Per-platform environment identities~~ — shipped 2026-07-27: the
+      environment key leads with the browser's platform, baseline metadata
+      (schema 2) records and compares platform plus a render fingerprint, and
+      cross-environment baselines report named incompatibilities instead of
+      false diffs. Baseline _portability_ between platforms is measured
+      impossible for bare hosts (macOS/Linux render differently); the shared
+      identity across machines is container capture, not file transfer.
+- [ ] Widen the _support claim_ beyond Ubuntu 24.04 only after the acceptance
+      suite passes on the added OS. Environment identity no longer blocks
+      this — each platform keeps its own baselines by key.
+- [ ] Add Firefox and WebKit only after multi-environment review semantics
+      are proven by viewport/theme modes. The environment key already leads
+      with the browser name, so their baselines coexist by construction.
+      Note honestly when this lands: Playwright's WebKit-on-Linux is the
+      engine, not Safari — containerizing makes that gap wider, not narrower.

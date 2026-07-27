@@ -31,6 +31,20 @@ time — but it is a **frozen-addon mode**: there is no turbo in that path, so t
 addon never rebuilds and never restarts, no matter what you edit. Use it to look
 at the example, not to develop the addon.
 
+## Reproducible capture (optional)
+
+By default, captures run in a browser on your machine and baselines are keyed
+to your platform (`linux-chromium-…`, `darwin-chromium-…`). To capture inside
+the version-matched Playwright container instead — identical pixels on every
+machine, at the cost of the capture fonts differing from your live preview's:
+
+```bash
+STORYPROOF_CONTAINER=1 pnpm dev   # requires Docker
+```
+
+The panel labels which environment produced the images, and a baseline
+captured elsewhere reports a named incompatibility instead of a false diff.
+
 ## Stories
 
 Open the **Visual tests** panel or the testing widget on any story and click

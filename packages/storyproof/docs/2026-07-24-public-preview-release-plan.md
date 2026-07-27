@@ -1552,6 +1552,27 @@ semantics, or execution topology. None belongs in the initial preview release.
   `exports` map from `tsdown.config.ts`'s `entry` list instead of hand-syncing
   both.
 
+- **v9 (2026-07-27):** Shipped environment identity + container capture ahead
+  of the plan's original sequencing, by owner decision ("build it all …
+  regardless of roadmap"), and on measurement rather than schedule: the
+  render-determinism experiment (temporary harness under `experiments/`,
+  results recorded in `docs/2026-07-27-environment-identity-design.md` at the
+  repository root) showed bare macOS ≠ bare Linux, two "identical" bare Linux
+  hosts ≠ each other, amd64 ≡ arm64 inside one image, and container output
+  byte-identical across disagreeing hosts. Consequences folded into the
+  contract: the environment key gained a platform prefix
+  (`linux-chromium-1280x720@1x`), baseline metadata moved to schema 2
+  (platform compared + a per-session render fingerprint), cross-environment
+  baselines now report named incompatibilities instead of false diffs — this
+  REVERSES v3's "one-OS support via portability transfer" premise, since
+  portability between bare hosts is measured impossible — and an opt-in
+  `capture.container` preset option captures inside the version-matched
+  Playwright image (bridge network + host-gateway alias; host networking
+  fails on Docker Desktop). Task 4's cross-OS baseline-transfer evidence item
+  is superseded: coexisting per-platform keys plus container capture replace
+  file-transfer portability. Breaking pre-release: existing baselines
+  (llame's 394) re-approve once under the new identity.
+
 ## Final release gate
 
 Do not publish the preview unless all of the following are true:

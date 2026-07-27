@@ -4,9 +4,15 @@ import { chromium } from "playwright";
 
 import { DEFAULT_ENVIRONMENT } from "../constants.js";
 import type { VisualCaptureMode } from "../shared/capture.js";
+import { sha256 } from "./compare.js";
+import {
+  acquireContainerBrowser,
+  type ContainerBrowserRequest,
+} from "./container.js";
+import { RENDER_PROBE_HTML } from "./environment.js";
 
 const require = createRequire(import.meta.url);
-const playwrightVersion = (
+export const playwrightVersion = (
   require("playwright/package.json") as { version: string }
 ).version;
 
@@ -74,23 +80,61 @@ export type CaptureResult =
   | { status: "capture-error"; message: string }
   | { status: "cancelled" };
 
+export interface CaptureSessionInfo {
+  browserVersion: string;
+  playwrightVersion: string;
+  containerImage?: string;
+}
+
 export interface ChromiumCaptureSession {
   capture(request: CaptureRequest): Promise<CaptureResult>;
+  /**
+   * SHA-256 of the fixed probe page rendered by this session's browser —
+   * the render fingerprint stored in baseline metadata. Computed once per
+   * session and cached.
+   */
+  fingerprint(): Promise<string>;
+  info(): CaptureSessionInfo;
   close(): Promise<void>;
 }
 
 export async function createChromiumCaptureSession(
   options: {
     launcher?: BrowserLauncher;
+    container?: ContainerBrowserRequest;
   } = {},
 ): Promise<ChromiumCaptureSession> {
+  if (options.container) {
+    const remote = await acquireContainerBrowser(options.container);
+    return new PlaywrightCaptureSession(
+      remote.browser as unknown as CaptureBrowser,
+      {
+        mapBaseUrl: remote.mapBaseUrl,
+        containerImage: remote.image,
+        // The container browser is shared across runs; closing a session
+        // must not tear it down.
+        close: remote.release,
+      },
+    );
+  }
   const launcher = options.launcher ?? (chromium as unknown as BrowserLauncher);
   const browser = await launcher.launch({ headless: true });
   return new PlaywrightCaptureSession(browser);
 }
 
+interface SessionExtras {
+  mapBaseUrl?: (url: string) => string;
+  containerImage?: string;
+  close?: () => Promise<void>;
+}
+
 class PlaywrightCaptureSession implements ChromiumCaptureSession {
-  constructor(private readonly browser: CaptureBrowser) {}
+  private fingerprintPromise: Promise<string> | undefined;
+
+  constructor(
+    private readonly browser: CaptureBrowser,
+    private readonly extras: SessionExtras = {},
+  ) {}
 
   async capture(request: CaptureRequest): Promise<CaptureResult> {
     if (request.signal?.aborted) return { status: "cancelled" };
@@ -131,7 +175,10 @@ class PlaywrightCaptureSession implements ChromiumCaptureSession {
         },
       );
       await page.addInitScript(installPreviewBridge);
-      await page.goto(storyUrl(request.baseUrl, request.storyId));
+      const baseUrl = this.extras.mapBaseUrl
+        ? this.extras.mapBaseUrl(request.baseUrl)
+        : request.baseUrl;
+      await page.goto(storyUrl(baseUrl, request.storyId));
       if (request.signal?.aborted) return { status: "cancelled" };
 
       const readiness = await waitForStoryAfterReload(page, request.storyId);
@@ -176,8 +223,61 @@ class PlaywrightCaptureSession implements ChromiumCaptureSession {
     }
   }
 
+  fingerprint(): Promise<string> {
+    this.fingerprintPromise ??= this.captureFingerprint();
+    return this.fingerprintPromise;
+  }
+
+  info(): CaptureSessionInfo {
+    return {
+      browserVersion: this.browser.version(),
+      playwrightVersion,
+      ...(this.extras.containerImage
+        ? { containerImage: this.extras.containerImage }
+        : {}),
+    };
+  }
+
   async close(): Promise<void> {
+    if (this.extras.close) {
+      await this.extras.close();
+      return;
+    }
     await this.browser.close();
+  }
+
+  private async captureFingerprint(): Promise<string> {
+    // Same context options as story captures, so the fingerprint describes
+    // the configuration baselines are actually captured under.
+    const context = await this.browser.newContext({
+      viewport: DEFAULT_ENVIRONMENT.viewport,
+      deviceScaleFactor: DEFAULT_ENVIRONMENT.deviceScaleFactor,
+      locale: "en-US",
+      timezoneId: "UTC",
+      reducedMotion: "reduce",
+    });
+    try {
+      const page = await context.newPage();
+      // A data: URL needs no server and cannot be affected by the project
+      // under test. Deliberately NOT stabilizePage(): that helper asserts a
+      // mounted #storybook-root, which the probe page does not have.
+      await page.goto(
+        `data:text/html;charset=utf-8,${encodeURIComponent(RENDER_PROBE_HTML)}`,
+      );
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => resolve()),
+        );
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => resolve()),
+        );
+      });
+      const image = await page.screenshot({ type: "png" });
+      return sha256(image);
+    } finally {
+      await context.close().catch(() => undefined);
+    }
   }
 }
 

@@ -38,10 +38,11 @@ Both options are optional. Storybook passes addon options through without
 validating them, so the preset validates them itself when the development
 server starts.
 
-| Option           | Type       | Default | Constraint                                        |
-| ---------------- | ---------- | ------- | ------------------------------------------------- |
-| `storyRoots`     | `string[]` | `["."]` | Non-empty array of non-empty strings              |
-| `maxConcurrency` | `number`   | `2`     | Integer greater than `0`; there is no upper bound |
+| Option              | Type                            | Default | Constraint                                          |
+| ------------------- | ------------------------------- | ------- | --------------------------------------------------- |
+| `storyRoots`        | `string[]`                      | `["."]` | Non-empty array of non-empty strings                |
+| `maxConcurrency`    | `number`                        | `2`     | Integer greater than `0`; there is no upper bound   |
+| `capture.container` | `boolean \| { image?: string }` | `false` | `true` derives the image; `image` must be non-empty |
 
 `storyRoots` entries resolve from the Storybook process working directory. A
 story that resolves outside every root is refused rather than given artifacts
@@ -50,6 +51,50 @@ outside the configured tree.
 `maxConcurrency` bounds how many stories are captured at once. The default of
 `2` is deliberate and conservative; no evidence yet supports a specific maximum,
 so none is enforced.
+
+### Container capture (`capture.container`)
+
+By default storyproof captures with a browser on your machine, and the
+baseline's environment key records your platform (for example
+`linux-chromium-1280x720@1x`). Two machines are not the same rendering
+environment even when they look identical — fonts, hinting, and antialiasing
+differ below anything version numbers can express — so a team on mixed
+machines either lets each platform keep its own baselines, or opts into
+capturing inside one shared container:
+
+```ts
+{
+  name: "storyproof/preset",
+  options: {
+    storyRoots: ["src"],
+    capture: { container: true },
+  },
+}
+```
+
+With `container: true` the image is derived from the installed Playwright
+version (`mcr.microsoft.com/playwright:v<version>-noble`); pass
+`{ image: "…" }` to override. Every machine then renders under the same
+`linux-chromium-…` key and produces identical pixels — measured, not assumed;
+see [the environment-identity design](../../../docs/2026-07-27-environment-identity-design.md).
+
+Requirements and behavior:
+
+- The Docker CLI must be on `PATH`. Missing docker, a container that exits
+  early, and a readiness timeout each fail the run with a named error.
+- First use pulls the image (~2 GB). Pre-pull with
+  `docker pull mcr.microsoft.com/playwright:v<version>-noble` to skip the wait.
+- The container is started once per Storybook dev-server process and reused
+  across runs; it is stopped on exit (best-effort — leftovers are visible via
+  `docker ps --filter label=storyproof` and remove themselves once stopped).
+- Only the browser moves into the container. Approval still writes repository
+  files from the Storybook process on your machine, through the same path
+  guards — the trust boundary is unchanged. The browser server's WebSocket
+  port is published to `127.0.0.1` only.
+- Your Storybook preview still renders with _your_ fonts; captures use the
+  container's. The panel labels where pixels came from
+  (`linux · chromium … · container`), and a baseline captured in a different
+  environment reports as a named incompatibility instead of a pixel diff.
 
 ### Validation and errors
 

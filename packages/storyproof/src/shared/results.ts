@@ -26,10 +26,27 @@ export interface VisualResult {
   artifacts?: VisualArtifactIds;
 }
 
+/**
+ * The rendering environment the current runner captures in, published with
+ * run state so the panel can say where its pixels come from. `platform` is
+ * where the browser renders — inside a container that differs from where the
+ * Storybook server runs.
+ */
+export interface VisualEnvironment {
+  key: string;
+  platform: string;
+  browserName: string;
+  browserVersion?: string;
+  playwrightVersion?: string;
+  containerImage?: string;
+  renderFingerprint?: string;
+}
+
 export interface VisualRunState {
   runId?: string;
   running: boolean;
   results: VisualResult[];
+  environment?: VisualEnvironment;
 }
 
 /**
@@ -43,7 +60,12 @@ export interface BaselinePreview {
 }
 
 export interface BaselineMetadata {
-  schemaVersion: 1;
+  /**
+   * Schema 2 (2026-07-27) added `renderFingerprint` and made `platform` part
+   * of compatibility. Schema-1 baselines fail closed with a migration
+   * message rather than producing a false pixel diff.
+   */
+  schemaVersion: 2;
   baselineSha256: string;
   browser: {
     name: string;
@@ -51,6 +73,13 @@ export interface BaselineMetadata {
     playwrightVersion: string;
   };
   platform: string;
+  /**
+   * SHA-256 of a fixed probe page rendered by the capturing browser. Catches
+   * environment differences no enumerable attribute can — two hosts with
+   * identical platform, browser build, and font metrics have been measured
+   * rasterizing differently (experiments/render-determinism, 2026-07-27).
+   */
+  renderFingerprint: string;
   viewport: {
     width: number;
     height: number;

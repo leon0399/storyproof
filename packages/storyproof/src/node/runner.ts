@@ -2,8 +2,11 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { DEFAULT_ENVIRONMENT } from "../constants.js";
-import type { BaselinePreview, VisualResult } from "../shared/results.js";
+import type {
+  BaselinePreview,
+  VisualEnvironment,
+  VisualResult,
+} from "../shared/results.js";
 import {
   approveCandidate as approveCandidateDefault,
   type ApprovalRequest,
@@ -19,6 +22,7 @@ import {
   type CaptureResult,
   type ChromiumCaptureSession,
 } from "./capture.js";
+import { resolveEnvironment, type ResolvedEnvironment } from "./environment.js";
 import {
   isMissingPathError,
   resolveArtifactPaths as resolveArtifactPathsDefault,
@@ -41,6 +45,7 @@ interface InternalVisualRunState {
   runId?: string;
   running: boolean;
   results: InternalVisualResult[];
+  environment?: VisualEnvironment;
 }
 
 interface ArtifactRegistrar {
@@ -52,6 +57,8 @@ export interface VisualTestRunnerOptions {
   cwd: string;
   storyRoots: string[];
   storyIndexGenerator: StoryIndexGenerator;
+  /** Resolved capture environment; defaults to local capture on this host. */
+  environment?: ResolvedEnvironment;
   maxConcurrency?: number;
   onState?: (state: InternalVisualRunState) => void;
   artifactRegistry?: ArtifactRegistrar;
@@ -70,6 +77,9 @@ interface ActiveRun {
   // The results this run actually captures. `state.results` also carries
   // preserved entries from earlier runs, which this run must not re-execute.
   targets: InternalVisualResult[];
+  // Captured once per session before the pool starts; every candidate's
+  // metadata records it.
+  renderFingerprint?: string;
   completion?: Promise<void>;
 }
 
@@ -78,6 +88,7 @@ export class VisualTestRunner {
   private activeRun: ActiveRun | undefined;
   private runGeneration = 0;
   private onState: ((state: InternalVisualRunState) => void) | undefined;
+  private readonly environment: ResolvedEnvironment;
   private readonly completed = new Map<string, CompletedVisualResult>();
   private readonly createCaptureSession: () => Promise<ChromiumCaptureSession>;
   private readonly resolveArtifactPaths: VisualTestRunnerOptions["resolveArtifactPaths"];
@@ -86,6 +97,7 @@ export class VisualTestRunner {
 
   constructor(private readonly options: VisualTestRunnerOptions) {
     this.onState = options.onState;
+    this.environment = options.environment ?? resolveEnvironment();
     this.createCaptureSession =
       options.createCaptureSession ?? createChromiumCaptureSession;
     this.resolveArtifactPaths =
@@ -110,7 +122,7 @@ export class VisualTestRunner {
   async loadBaseline(storyId: string): Promise<BaselinePreview> {
     const preview: BaselinePreview = {
       storyId,
-      environmentKey: DEFAULT_ENVIRONMENT.key,
+      environmentKey: this.environment.key,
     };
     let importPath: string;
     try {
@@ -128,7 +140,7 @@ export class VisualTestRunner {
         storyRoots: this.options.storyRoots,
         importPath,
         storyId,
-        environmentKey: DEFAULT_ENVIRONMENT.key,
+        environmentKey: this.environment.key,
       });
       const baseline = await readFileIfPresent(paths.baselinePath);
       if (!baseline || !this.options.artifactRegistry) return preview;
@@ -165,7 +177,7 @@ export class VisualTestRunner {
       storyId: story.id,
       title: `${story.title} / ${story.name}`,
       importPath: story.importPath,
-      environmentKey: DEFAULT_ENVIRONMENT.key,
+      environmentKey: this.environment.key,
       status: "queued",
     }));
 
@@ -218,23 +230,49 @@ export class VisualTestRunner {
     try {
       session = await this.createCaptureSession();
     } catch (error) {
-      const detail = errorMessage(error);
-      for (const result of run.targets) {
-        result.status = "capture-error";
-        result.message = `Chromium could not start: ${detail}`;
-      }
-      run.state.running = false;
-      this.publish(run);
+      this.failRun(run, `Chromium could not start: ${errorMessage(error)}`);
       return;
     }
 
     try {
+      // One probe per session: the fingerprint every candidate's metadata
+      // records. A failed probe means a broken browser — fail closed rather
+      // than writing baselines with an unverifiable environment identity.
+      try {
+        run.renderFingerprint = await session.fingerprint();
+      } catch (error) {
+        this.failRun(
+          run,
+          `Render environment probe failed: ${errorMessage(error)}`,
+        );
+        return;
+      }
+      const info = session.info();
+      run.state.environment = {
+        key: this.environment.key,
+        platform: this.environment.platform,
+        browserName: this.environment.browserName,
+        browserVersion: info.browserVersion,
+        playwrightVersion: info.playwrightVersion,
+        ...(info.containerImage ? { containerImage: info.containerImage } : {}),
+        renderFingerprint: run.renderFingerprint,
+      };
+      this.publish(run);
       await this.runPool(run, session);
     } finally {
       await session.close().catch(() => undefined);
       run.state.running = false;
       this.publish(run);
     }
+  }
+
+  private failRun(run: ActiveRun, message: string): void {
+    for (const result of run.targets) {
+      result.status = "capture-error";
+      result.message = message;
+    }
+    run.state.running = false;
+    this.publish(run);
   }
 
   private cancelActiveRun(): void {
@@ -371,18 +409,24 @@ export class VisualTestRunner {
     }
     if (!paths) throw new Error("Captured image has no artifact path");
 
+    if (!run.renderFingerprint) {
+      throw new Error("Capture finished without a render fingerprint");
+    }
     const candidateSha256 = sha256(capture.image);
     const candidateMetadata = {
-      schemaVersion: 1 as const,
+      schemaVersion: 2 as const,
       baselineSha256: candidateSha256,
       browser: {
-        name: DEFAULT_ENVIRONMENT.browserName,
+        name: this.environment.browserName,
         version: capture.browserVersion,
         playwrightVersion: capture.playwrightVersion ?? "unknown",
       },
-      platform: process.platform,
-      viewport: DEFAULT_ENVIRONMENT.viewport,
-      deviceScaleFactor: DEFAULT_ENVIRONMENT.deviceScaleFactor,
+      // Where the BROWSER rendered — in container mode that is the
+      // container's platform, not this process's.
+      platform: this.environment.platform,
+      renderFingerprint: run.renderFingerprint,
+      viewport: this.environment.viewport,
+      deviceScaleFactor: this.environment.deviceScaleFactor,
       comparator: COMPARATOR_POLICY,
     };
     const [baseline, baselineMetadata] = await Promise.all([

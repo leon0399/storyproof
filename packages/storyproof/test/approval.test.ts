@@ -39,7 +39,7 @@ function sha256(value: Buffer): string {
 
 function metadata(value: Buffer): BaselineMetadata {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     baselineSha256: sha256(value),
     browser: {
       name: "chromium",
@@ -47,6 +47,7 @@ function metadata(value: Buffer): BaselineMetadata {
       playwrightVersion: "1.53.2",
     },
     platform: "linux",
+    renderFingerprint: "c".repeat(64),
     viewport: { width: 1, height: 1 },
     deviceScaleFactor: 1,
     comparator: { name: "pixelmatch", threshold: 0.1, includeAA: false },

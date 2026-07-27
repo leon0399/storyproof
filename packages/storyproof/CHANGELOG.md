@@ -12,6 +12,46 @@ monorepo until 2026-07-26; the day-by-day pre-extraction record lives in
 
 ### Added
 
+- Environment identity for baselines. The environment key now leads with the
+  platform the browser renders on (`linux-chromium-1280x720@1x`), so
+  different platforms keep coexisting baselines instead of silently fighting
+  over one path; architecture is deliberately excluded (measured
+  byte-identical across amd64/arm64). Every capture session also renders a
+  fixed probe page and records its image hash in `baseline.json` as the
+  **render fingerprint** — the catch-all for environment differences no
+  version number can name (two hosts with identical platform, browser build,
+  and font metrics were measured rasterizing differently). Baseline metadata
+  moves to schema 2; a baseline from a different environment now reports a
+  message naming the specific mismatch (platform, browser version, Playwright
+  version, or fingerprint) instead of a false pixel diff, and schema-1
+  baselines report a migration message asking for one re-approval. See
+  `docs/2026-07-27-environment-identity-design.md` at the repository root.
+- Container capture (`capture.container` preset option, opt-in). storyproof
+  starts the Playwright container image matching the installed Playwright
+  version, connects over a loopback-only WebSocket, and captures stories
+  there, so every machine — macOS, WSL2, native Linux — produces identical
+  pixels under one shared `linux-chromium-…` key (measured: two Linux hosts
+  that disagree when capturing bare produce byte-identical output in the
+  container). The addon's Node side stays on the host, so approval and the
+  path guards are unchanged. Requires the Docker CLI; failures (no docker,
+  container died, readiness timeout) are named, fail-closed errors. The
+  container is started once per dev-server process and reused across runs.
+- The panel names the capture environment (`linux · chromium 140.0.… ·
+container` / `· local`) under the story id, with the environment key,
+  image, and fingerprint in its tooltip — so a preview that renders with
+  different fonts than a container-captured baseline is a labelled fact.
+
+### Changed
+
+- **Breaking (pre-release):** baseline artifact paths gained the platform
+  prefix and `baseline.json` moved to schema 2, so existing baselines report
+  as incompatible until re-approved once. Deliberate while the published
+  package has no working consumers.
+- A platform mismatch between baseline and candidate is now an
+  incompatibility. This reverses the earlier "platform is provenance only"
+  decision, on evidence: bare macOS and bare Linux render measurably
+  different pixels, so cross-platform comparison produced false diffs.
+
 - Tarball inventory gate: `test/pack-inventory.test.ts` packs the package
   itself (`pnpm pack`, which always reruns `build` via `prepack` first, so a
   stale build can never be packed) and asserts the resulting file list is

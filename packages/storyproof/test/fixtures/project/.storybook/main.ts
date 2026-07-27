@@ -12,7 +12,14 @@ const config: StorybookConfig = {
   addons: [
     {
       name: sourcePreset,
-      options: { storyRoots: ["test/.tmp/project/src"] },
+      options: {
+        storyRoots: ["test/.tmp/project/src"],
+        // CI's container-capture job flips this; everything else captures
+        // with the host browser exactly as before.
+        ...(process.env.STORYPROOF_CONTAINER === "1"
+          ? { capture: { container: true } }
+          : {}),
+      },
     },
   ],
   viteFinal: (config) => {

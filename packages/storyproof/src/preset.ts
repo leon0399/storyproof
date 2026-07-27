@@ -5,6 +5,11 @@ import type { Channel } from "storybook/internal/channels";
 import type { Options, ServerApp } from "storybook/internal/types";
 
 import { ADDON_ID } from "./constants.js";
+import {
+  createChromiumCaptureSession,
+  playwrightVersion,
+} from "./node/capture.js";
+import { resolveEnvironment } from "./node/environment.js";
 import { VisualTestRunner } from "./node/runner.js";
 import type { StoryIndexGenerator } from "./node/story-index.js";
 import {
@@ -23,6 +28,15 @@ const DEFAULT_MAX_CONCURRENCY = 2;
 export interface VisualTestsPresetOptions {
   storyRoots?: string[];
   maxConcurrency?: number;
+  capture?: {
+    /**
+     * Capture in the version-matched Playwright container instead of a
+     * host browser, so every machine produces identical pixels. `true`
+     * derives the image from the installed Playwright version; pass
+     * `{ image }` to override. Requires the Docker CLI.
+     */
+    container?: boolean | { image?: string };
+  };
 }
 
 export async function managerEntries(
@@ -48,13 +62,19 @@ export async function experimental_serverChannel(
   options: Options & VisualTestsPresetOptions,
 ): Promise<Channel> {
   // Storybook merges addon options into this object without validating them,
-  // so treat both as untrusted and fail the dev server before any capture work.
+  // so treat all of these as untrusted and fail the dev server before any
+  // capture work.
   const storyRoots = resolveStoryRoots(options.storyRoots);
   const maxConcurrency = resolveMaxConcurrency(options.maxConcurrency);
+  const capture = resolveCaptureOptions(options.capture);
 
   const storyIndexGenerator = resolveStoryIndexGenerator(
     await options.presets.apply("storyIndexGenerator"),
   );
+  const environment = resolveEnvironment({
+    container: capture.container,
+    playwrightVersion,
+  });
   const runner = new VisualTestRunner({
     baseUrl: `http://127.0.0.1:${String(options.port)}`,
     cwd: process.cwd(),
@@ -62,6 +82,18 @@ export async function experimental_serverChannel(
     maxConcurrency,
     storyIndexGenerator,
     artifactRegistry: artifacts,
+    environment,
+    createCaptureSession: () =>
+      createChromiumCaptureSession(
+        environment.container
+          ? {
+              container: {
+                image: environment.container.image,
+                playwrightVersion,
+              },
+            }
+          : {},
+      ),
   });
   installCommandHandlers(channel, runner);
   return channel;
@@ -101,6 +133,56 @@ function resolveStoryRoots(value: unknown): string[] {
     roots.push(entry);
   }
   return roots;
+}
+
+const CAPTURE_HINT =
+  'Set "capture" to an object like { container: true } or { container: { image: "mcr.microsoft.com/playwright:v1.55.1-noble" } }, or omit it to capture with the host browser.';
+
+// Exported for direct unit coverage; not part of the package's public API
+// (only ./index, ./manager, ./preset, ./preview are exported subpaths).
+export function resolveCaptureOptions(value: unknown): {
+  container?: { image?: string };
+} {
+  if (value === undefined) return {};
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw optionError(
+      `Invalid "capture" preset option: expected an object, received ${format(value)}. ${CAPTURE_HINT}`,
+    );
+  }
+  const keys = Object.keys(value);
+  const unknown = keys.filter((key) => key !== "container");
+  if (unknown.length > 0) {
+    throw optionError(
+      `Invalid "capture" preset option: unknown key ${JSON.stringify(unknown[0])}. ${CAPTURE_HINT}`,
+    );
+  }
+  const container = (value as { container?: unknown }).container;
+  if (container === undefined || container === false) return {};
+  if (container === true) return { container: {} };
+  if (
+    typeof container !== "object" ||
+    container === null ||
+    Array.isArray(container)
+  ) {
+    throw optionError(
+      `Invalid "capture.container" preset option: expected true, false, or an object, received ${format(container)}. ${CAPTURE_HINT}`,
+    );
+  }
+  const containerKeys = Object.keys(container);
+  const unknownContainer = containerKeys.filter((key) => key !== "image");
+  if (unknownContainer.length > 0) {
+    throw optionError(
+      `Invalid "capture.container" preset option: unknown key ${JSON.stringify(unknownContainer[0])}. ${CAPTURE_HINT}`,
+    );
+  }
+  const image = (container as { image?: unknown }).image;
+  if (image === undefined) return { container: {} };
+  if (typeof image !== "string" || image.trim() === "") {
+    throw optionError(
+      `Invalid "capture.container.image" preset option: expected a non-empty string, received ${format(image)}. ${CAPTURE_HINT}`,
+    );
+  }
+  return { container: { image } };
 }
 
 function resolveMaxConcurrency(value: unknown): number {

@@ -22,7 +22,7 @@ function sha256(value: Buffer): string {
 
 function metadata(baseline: Buffer, overrides: Partial<BaselineMetadata> = {}) {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     baselineSha256: sha256(baseline),
     browser: {
       name: "chromium",
@@ -30,6 +30,7 @@ function metadata(baseline: Buffer, overrides: Partial<BaselineMetadata> = {}) {
       playwrightVersion: "1.53.2",
     },
     platform: "linux",
+    renderFingerprint: "c".repeat(64),
     viewport: { width: 2, height: 1 },
     deviceScaleFactor: 1,
     comparator: { name: "pixelmatch", threshold: 0.1, includeAA: false },
@@ -68,7 +69,11 @@ describe("comparePngs", () => {
     expect(result.diff).toBeUndefined();
   });
 
-  test("treats host platform as provenance for a shared environment key", () => {
+  // Reversal of the original "platform is provenance only" decision, with
+  // evidence: bare macOS and bare Linux render measurably different pixels
+  // (experiments/render-determinism, 2026-07-27), so a cross-platform
+  // comparison must surface as a named incompatibility, not a pixel diff.
+  test("names a platform mismatch instead of diffing across platforms", () => {
     const result = comparePngs({
       baseline: black,
       baselineMetadata: metadata(black, { platform: "darwin" }),
@@ -76,12 +81,50 @@ describe("comparePngs", () => {
       candidateMetadata: metadata(black, { platform: "linux" }),
     });
 
-    expect(result).toMatchObject({
-      status: "passed",
-      diffPixels: 0,
-      diffRatio: 0,
-    });
+    expect(result).toMatchObject({ status: "changed", diffPixels: 0 });
+    expect(result.message).toMatch(/captured on "darwin"/);
+    expect(result.message).toMatch(/renders on "linux"/);
     expect(result.diff).toBeUndefined();
+  });
+
+  test("names a render-fingerprint mismatch when everything enumerable matches", () => {
+    const result = comparePngs({
+      baseline: black,
+      baselineMetadata: metadata(black, { renderFingerprint: "d".repeat(64) }),
+      candidate: black,
+      candidateMetadata: metadata(black),
+    });
+
+    expect(result).toMatchObject({ status: "changed", diffPixels: 0 });
+    expect(result.message).toMatch(/different rendering environment/);
+    expect(result.diff).toBeUndefined();
+  });
+
+  test("recognizes a schema-1 baseline and asks for re-approval", () => {
+    const legacy = {
+      schemaVersion: 1,
+      baselineSha256: sha256(black),
+      browser: {
+        name: "chromium",
+        version: "136.0.0",
+        playwrightVersion: "1.53.2",
+      },
+      platform: "linux",
+      viewport: { width: 2, height: 1 },
+      deviceScaleFactor: 1,
+      comparator: { name: "pixelmatch", threshold: 0.1, includeAA: false },
+    };
+
+    const result = comparePngs({
+      baseline: black,
+      baselineMetadata: legacy,
+      candidate: black,
+      candidateMetadata: metadata(black),
+    });
+
+    expect(result).toMatchObject({ status: "changed", diffPixels: 0 });
+    expect(result.message).toMatch(/schema 1/);
+    expect(result.message).toMatch(/[Rr]e-approve/);
   });
 
   test("returns a diff when any pixel changes", () => {
