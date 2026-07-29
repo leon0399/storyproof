@@ -7,7 +7,7 @@
   },
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo watch dev",
+    "dev": "turbo watch dev dev:app",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "turbo run lint",

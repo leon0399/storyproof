@@ -91,8 +91,11 @@ the addon requires, so it fails closed there by design):
    **frozen-addon mode**: no turbo, so no rebuild and no restart. Use it to look
    at an example, never to develop the addon.
 
-   **Ports are assigned explicitly from a 6106+ block, and a new example must
-   claim the next free one** (6106 react-vite, 6107 nextjs-vite, 6108 next).
+   **Ports are assigned explicitly, and a new example must claim the next
+   free index in both blocks**: Storybooks at 6106+ (6106 react-vite, 6107
+   nextjs-vite, 6108 next) and the examples' real app servers at 6206+ (6206
+   react-vite's Vite app, 6207 nextjs-vite's Next app, 6208 next). `pnpm dev`
+   launches both blocks (`turbo watch dev dev:app`).
 
    Two reasons they are pinned rather than left to Storybook: concurrent starts
    race for an auto-selected port, and auto-restart would move the URL out from

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import "./ledgerline.css";
-import { Header } from "./Header.js";
+import { Header } from "./Header";
 
 // Derived from Storybook's official scaffold Page: header plus content, with
 // the same login-state mechanics — restyled as the Ledgerline dashboard.

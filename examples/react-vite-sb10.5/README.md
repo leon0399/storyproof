@@ -14,6 +14,7 @@ the actual packed npm tarball separately, outside this workspace — see
 ```bash
 pnpm install     # from the repository root
 pnpm dev         # runs every example; this one is http://localhost:6106
+                 # ...and its real Vite app at http://localhost:6206
 ```
 
 `pnpm dev` is `turbo watch dev`: editing addon source rebuilds it and restarts

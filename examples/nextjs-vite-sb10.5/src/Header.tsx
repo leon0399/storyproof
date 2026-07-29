@@ -1,5 +1,5 @@
 import "./ledgerline.css";
-import { Button } from "./Button.js";
+import { Button } from "./Button";
 
 // Derived from Storybook's official scaffold Header: same user/onLogin/
 // onLogout/onCreateAccount contract, restyled as the Ledgerline top bar.

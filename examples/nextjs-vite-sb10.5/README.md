@@ -14,6 +14,7 @@ the actual packed npm tarball separately, outside this workspace — see
 ```bash
 pnpm install     # from the repository root
 pnpm dev         # runs every example; this one is http://localhost:6107
+                 # ...and its real Next.js app at http://localhost:6207
 ```
 
 `pnpm dev` is `turbo watch dev`: editing addon source rebuilds it and restarts

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { fn } from "storybook/test";
 
-import { Button } from "./Button.js";
+import { Button } from "./Button";
 
 // Basics: a plain component with no storyproof-specific behavior — open the
 // Visual tests panel here first to see the run/review/approve loop before

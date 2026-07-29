@@ -54,6 +54,14 @@
       "inputs": [".storybook/**"],
       // Same strict-env-mode passthrough for `STORYPROOF_CONTAINER=1 pnpm dev`.
       "env": ["STORYPROOF_CONTAINER", "STORYPROOF_BROWSER"]
+    },
+    // The examples' real app servers (Vite / Next), launched alongside the
+    // Storybooks by the root `pnpm dev`. NOT interruptible: the apps have
+    // genuine HMR for their own sources, and addon rebuilds don't concern
+    // them — only Storybook needs restarting when the addon changes.
+    "dev:app": {
+      "cache": false,
+      "persistent": true
     }
   }
 }

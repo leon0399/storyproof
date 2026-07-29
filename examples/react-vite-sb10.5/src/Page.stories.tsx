@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
 
-import { Page } from "./Page.js";
+import { Page } from "./Page";
 
 // A full page, fullscreen: capture uses the complete 1280x720 viewport
 // (see the capture contract's framing rules) rather than content-clipping.
