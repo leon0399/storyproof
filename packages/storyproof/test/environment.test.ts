@@ -130,6 +130,10 @@ describe("container plumbing", () => {
     // Firefox refuses to launch when $HOME isn't owned by the current user;
     // pinned so an image override or env-injecting wrapper can't break it.
     expect(args.join(" ")).toContain("-e HOME=/root");
+    // The npm cache persists across containers so the exact-version npx
+    // install pays its network cost once per machine, not per cold start.
+    expect(args.join(" ")).toContain("-v storyproof-npm-cache:/root/.npm");
+    expect(args.join(" ")).toContain("npm_config_prefer_offline=true");
   });
 
   test("recognizes the server's readiness line", () => {

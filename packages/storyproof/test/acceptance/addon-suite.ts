@@ -20,6 +20,14 @@ const ENVIRONMENT_KEY = `${
   process.env.STORYPROOF_CONTAINER === "1" ? "container" : process.platform
 }-${process.env.STORYPROOF_BROWSER ?? "chromium"}-1280x720@1x`;
 
+// Budget for a visual run to complete. Container mode's FIRST run carries
+// the whole cold start (docker create, exact-version npx install, connect,
+// probe); a slow registry moment pushed that past 30s in CI, so container
+// runs get a startup-inclusive budget. The npm-cache volume makes later
+// cold starts fast, but the very first on a machine still pays in full.
+const RUN_TIMEOUT_MS =
+  process.env.STORYPROOF_CONTAINER === "1" ? 120_000 : 30_000;
+
 type AddonAcceptanceSuiteOptions = {
   expect: typeof PlaywrightExpect;
   projectRoot: string;
@@ -59,7 +67,7 @@ export function registerAddonAcceptanceSuite({
 
     await runCurrent(panel);
     await expect(panel.getByText("Changed", { exact: true })).toBeVisible({
-      timeout: 30_000,
+      timeout: RUN_TIMEOUT_MS,
     });
     await expect(panel.getByText(/\d[\d,]* px/)).toBeVisible();
 
@@ -124,7 +132,7 @@ export function registerAddonAcceptanceSuite({
 
     await runCurrent(panel);
     await expect(panel.getByText("Passed", { exact: true })).toBeVisible({
-      timeout: 30_000,
+      timeout: RUN_TIMEOUT_MS,
     });
     await expect(
       panel.getByText("Visual tests disabled for this story", { exact: true }),
@@ -150,7 +158,7 @@ export function registerAddonAcceptanceSuite({
 
     await runCurrent(panel);
     await expect(panel.getByText("New", { exact: true })).toBeVisible({
-      timeout: 30_000,
+      timeout: RUN_TIMEOUT_MS,
     });
     await panel.getByRole("button", { name: "Latest", exact: true }).click();
     const preview = panel.getByAltText(
@@ -197,7 +205,7 @@ export function registerAddonAcceptanceSuite({
     await runCurrent(panel);
     await expect(
       panel.getByText("Capture failed", { exact: true }),
-    ).toBeVisible({ timeout: 30_000 });
+    ).toBeVisible({ timeout: RUN_TIMEOUT_MS });
     await expect(
       panel.getByRole("alert").filter({
         hasText: "Story resolves outside the configured story roots",
@@ -233,7 +241,7 @@ export function registerAddonAcceptanceSuite({
 
     await runCurrent(panel);
     await expect(panel.getByText("New", { exact: true })).toBeVisible({
-      timeout: 30_000,
+      timeout: RUN_TIMEOUT_MS,
     });
     await panel.getByRole("button", { name: "Latest", exact: true }).click();
     const preview = panel.getByAltText("candidate for Visual Fixture / Stale");
@@ -289,7 +297,7 @@ export function registerAddonAcceptanceSuite({
 
     await runCurrent(panel);
     await expect(panel.getByText("Changed", { exact: true })).toBeVisible({
-      timeout: 30_000,
+      timeout: RUN_TIMEOUT_MS,
     });
     await expect(
       panel.getByText("Baseline metadata is missing or malformed", {
@@ -372,7 +380,7 @@ export function registerAddonAcceptanceSuite({
       storyId: "visual-fixture--changed",
     });
     await expect(completedPanel.getByText("New", { exact: true })).toBeVisible({
-      timeout: 30_000,
+      timeout: RUN_TIMEOUT_MS,
     });
     await expect(
       completedPanel.getByRole("button", { name: "Accept" }),
@@ -431,7 +439,7 @@ export function registerAddonAcceptanceSuite({
     await runCurrent(panel);
     await expect(
       panel.getByText("Capture failed", { exact: true }),
-    ).toBeVisible({ timeout: 30_000 });
+    ).toBeVisible({ timeout: RUN_TIMEOUT_MS });
     const alert = panel.getByRole("alert");
     await expect(alert).toContainText(new URL(unavailableUrl).origin);
     await expect(alert).not.toContainText("/unavailable");
@@ -499,7 +507,7 @@ export function registerAddonAcceptanceSuite({
     ).toBeDisabled();
 
     await expect(provider.getByText("1 failed", { exact: true })).toBeVisible({
-      timeout: 30_000,
+      timeout: RUN_TIMEOUT_MS,
     });
     await expect(
       testingWidget.getByRole("button", { name: "Run tests", exact: true }),
@@ -567,7 +575,7 @@ export function registerAddonAcceptanceSuite({
       .last()
       .click();
     await expect(page.getByText("New", { exact: true })).toBeVisible({
-      timeout: 30_000,
+      timeout: RUN_TIMEOUT_MS,
     });
     await page.getByRole("button", { name: "Latest", exact: true }).click();
     await expect(
@@ -599,7 +607,7 @@ export function registerAddonAcceptanceSuite({
 
     await visualPanel.getByRole("button", { name: "Run visual tests" }).click();
     await expect(page.getByText("Passed", { exact: true })).toBeVisible({
-      timeout: 30_000,
+      timeout: RUN_TIMEOUT_MS,
     });
   });
 }
@@ -684,7 +692,7 @@ async function showVisualPanel({
       },
       {
         message: `Storybook index did not include ${storyId}`,
-        timeout: 30_000,
+        timeout: RUN_TIMEOUT_MS,
       },
     )
     .toBe(true);
@@ -705,7 +713,7 @@ async function createApprovedBaseline(
 ): Promise<void> {
   await runCurrent(panel);
   await expect(panel.getByText("New", { exact: true })).toBeVisible({
-    timeout: 30_000,
+    timeout: RUN_TIMEOUT_MS,
   });
   await panel.getByRole("button", { name: "Accept" }).click();
   await expect(panel.getByText("Passed", { exact: true })).toBeVisible({

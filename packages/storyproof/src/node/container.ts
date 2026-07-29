@@ -96,6 +96,18 @@ export function containerRunArguments(options: {
     // confusing error, so make it true by construction rather than by luck.
     "-e",
     "HOME=/root",
+    // Persist npm's cache across containers: the exact-version `npx` install
+    // below then downloads from the registry once per machine instead of on
+    // every container start (measured biting: a slow registry moment pushed
+    // first-capture past the acceptance suite's UI timeout in CI). The cache
+    // is content-addressed (cacache), so concurrent containers sharing it
+    // are safe; remove any time with `docker volume rm storyproof-npm-cache`.
+    "-v",
+    "storyproof-npm-cache:/root/.npm",
+    // With a warm cache, let npm skip registry round-trips it can answer
+    // locally; a cold cache still fetches normally.
+    "-e",
+    "npm_config_prefer_offline=true",
     // Host side stays loopback-only: the browser server is a local tool, not
     // a network service.
     "-p",
