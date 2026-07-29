@@ -1,0 +1,355 @@
+/*
+ * Ledgerline — the demo design system for storyproof's examples.
+ *
+ * Paper-ledger editorial: warm cream paper, near-black ink, deep
+ * ledger-green primary, vermillion for overdue states; serif display
+ * headings, tabular monospace figures, hairline rules, hard offset shadows.
+ *
+ * Deterministic by construction, because these components exist to be
+ * screenshot: system font stacks only (no webfont loading race, no network),
+ * no animation in any captured state (transitions are hover-only), fixed
+ * data, hand-drawn SVG sparklines. Identical in both examples.
+ */
+
+:root {
+  --ll-paper: #f7f2e9;
+  --ll-card: #fffdf8;
+  --ll-ink: #201b16;
+  --ll-ink-soft: #6d6355;
+  --ll-rule: #d9cfc0;
+  --ll-green: #1d5b45;
+  --ll-green-deep: #14402f;
+  --ll-green-tint: #e2ede7;
+  --ll-red: #bc3d2b;
+  --ll-red-tint: #f6e3df;
+  --ll-amber-tint: #f3e8cf;
+  --ll-amber-ink: #7a5b12;
+
+  --ll-serif: georgia, "times new roman", times, serif;
+  --ll-sans:
+    -apple-system, "segoe ui", system-ui, "helvetica neue", arial, sans-serif;
+  --ll-mono: ui-monospace, "cascadia mono", menlo, consolas, monospace;
+
+  --ll-shadow: 0.1875rem 0.1875rem 0 var(--ll-ink);
+}
+
+/* ---------------------------------------------------------------- button */
+
+.ll-button {
+  appearance: none;
+  border: 2px solid var(--ll-ink);
+  border-radius: 2px;
+  cursor: pointer;
+  display: inline-block;
+  font-family: var(--ll-sans);
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  text-transform: uppercase;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.ll-button--md {
+  font-size: 0.8125rem;
+  padding: 0.6875rem 1.25rem;
+}
+
+.ll-button--sm {
+  font-size: 0.6875rem;
+  padding: 0.5rem 0.875rem;
+}
+
+.ll-button--lg {
+  font-size: 0.9375rem;
+  padding: 0.9375rem 1.75rem;
+}
+
+.ll-button--primary {
+  background: var(--ll-green);
+  box-shadow: var(--ll-shadow);
+  color: var(--ll-paper);
+}
+
+.ll-button--primary:hover:not(:disabled) {
+  background: var(--ll-green-deep);
+  box-shadow: 0.25rem 0.25rem 0 var(--ll-ink);
+  transform: translate(-1px, -1px);
+}
+
+.ll-button--secondary {
+  background: transparent;
+  color: var(--ll-ink);
+}
+
+.ll-button--secondary:hover:not(:disabled) {
+  background: var(--ll-ink);
+  color: var(--ll-paper);
+}
+
+.ll-button--danger {
+  background: var(--ll-red);
+  box-shadow: var(--ll-shadow);
+  color: var(--ll-paper);
+}
+
+.ll-button--danger:hover:not(:disabled) {
+  filter: brightness(0.9);
+}
+
+.ll-button:disabled {
+  border-color: var(--ll-rule);
+  box-shadow: none;
+  color: var(--ll-ink-soft);
+  background: transparent;
+  cursor: not-allowed;
+}
+
+.ll-button:focus-visible {
+  outline: 2px solid var(--ll-green);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------- header */
+
+.ll-header {
+  align-items: center;
+  background: var(--ll-paper);
+  border-bottom: 2px solid var(--ll-ink);
+  box-shadow:
+    0 3px 0 var(--ll-paper),
+    0 4px 0 var(--ll-ink);
+  display: flex;
+  font-family: var(--ll-sans);
+  gap: 2rem;
+  padding: 1rem 2rem;
+}
+
+.ll-header__wordmark {
+  color: var(--ll-ink);
+  font-family: var(--ll-serif);
+  font-size: 1.375rem;
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.ll-header__wordmark::after {
+  color: var(--ll-green);
+  content: ".";
+  font-style: normal;
+}
+
+.ll-header__nav {
+  display: flex;
+  flex: 1;
+  gap: 1.5rem;
+}
+
+.ll-header__link {
+  color: var(--ll-ink-soft);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.ll-header__link:hover {
+  color: var(--ll-ink);
+}
+
+.ll-header__link--active {
+  box-shadow: inset 0 -3px 0 var(--ll-green);
+  color: var(--ll-ink);
+  padding-bottom: 0.25rem;
+}
+
+.ll-header__auth {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.ll-header__welcome {
+  color: var(--ll-ink-soft);
+  font-size: 0.875rem;
+}
+
+.ll-header__welcome strong {
+  color: var(--ll-ink);
+}
+
+/* ------------------------------------------------------------------ page */
+
+.ll-page {
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 2.4375rem,
+      rgb(32 27 22 / 4%) 2.4375rem,
+      rgb(32 27 22 / 4%) 2.5rem
+    ),
+    var(--ll-paper);
+  color: var(--ll-ink);
+  font-family: var(--ll-sans);
+  min-height: 100vh;
+}
+
+.ll-page__main {
+  margin: 0 auto;
+  max-width: 66rem;
+  padding: 3rem 2rem 4rem;
+}
+
+.ll-page__headline {
+  font-family: var(--ll-serif);
+  font-size: 2.625rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+  margin: 0 0 0.5rem;
+}
+
+.ll-page__subline {
+  color: var(--ll-ink-soft);
+  font-size: 1rem;
+  margin: 0 0 2.5rem;
+}
+
+.ll-page__section-title {
+  border-bottom: 1px solid var(--ll-rule);
+  color: var(--ll-ink-soft);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  margin: 2.75rem 0 1rem;
+  padding-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+
+/* ----------------------------------------------------------- stat cards */
+
+.ll-stats {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ll-stat {
+  background: var(--ll-card);
+  border: 2px solid var(--ll-ink);
+  border-radius: 2px;
+  box-shadow: var(--ll-shadow);
+  padding: 1.125rem 1.25rem 1rem;
+}
+
+.ll-stat__label {
+  color: var(--ll-ink-soft);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  margin: 0 0 0.625rem;
+  text-transform: uppercase;
+}
+
+.ll-stat__row {
+  align-items: baseline;
+  display: flex;
+  gap: 0.625rem;
+}
+
+.ll-stat__value {
+  font-family: var(--ll-mono);
+  font-size: 1.75rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.ll-stat__spark {
+  color: var(--ll-green);
+  display: block;
+  margin-top: 0.75rem;
+}
+
+.ll-stat__spark--down {
+  color: var(--ll-red);
+}
+
+/* ---------------------------------------------------------------- badges */
+
+.ll-badge {
+  border-radius: 999px;
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.1875rem 0.5625rem;
+  text-transform: uppercase;
+}
+
+.ll-badge--up {
+  background: var(--ll-green-tint);
+  color: var(--ll-green-deep);
+}
+
+.ll-badge--down {
+  background: var(--ll-red-tint);
+  color: var(--ll-red);
+}
+
+.ll-badge--paid {
+  background: var(--ll-green-tint);
+  color: var(--ll-green-deep);
+}
+
+.ll-badge--sent {
+  background: var(--ll-amber-tint);
+  color: var(--ll-amber-ink);
+}
+
+.ll-badge--overdue {
+  background: var(--ll-red-tint);
+  color: var(--ll-red);
+}
+
+/* ---------------------------------------------------------------- table */
+
+.ll-table {
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  width: 100%;
+}
+
+.ll-table th {
+  color: var(--ll-ink-soft);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 0 0.75rem 0.5rem 0;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.ll-table td {
+  border-top: 1px solid var(--ll-rule);
+  padding: 0.6875rem 0.75rem 0.6875rem 0;
+}
+
+.ll-table__amount {
+  font-family: var(--ll-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.ll-table th.ll-table__amount {
+  text-align: right;
+}
+
+.ll-table__invoice {
+  color: var(--ll-ink-soft);
+  font-family: var(--ll-mono);
+  font-size: 0.8125rem;
+}
