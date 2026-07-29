@@ -120,6 +120,12 @@ Requirements and behavior:
 
 - The Docker CLI must be on `PATH`. Missing docker, a container that exits
   early, and a readiness timeout each fail the run with a named error.
+  **Podman is untested**: its `podman-docker` shim makes the commands run,
+  but the container topology storyproof depends on (the containerized
+  browser reaching a host-loopback Storybook through the `host-gateway`
+  alias) is only verified for Docker and Docker Desktop, and rootless
+  podman's network stack restricts container-to-host-loopback access by
+  default. If the shim works for you, it works by luck, not by contract.
 - First use pulls the image (~2 GB). Pre-pull with
   `docker pull mcr.microsoft.com/playwright:v<version>-noble` to skip the wait.
 - The container is started once per Storybook dev-server process and reused
