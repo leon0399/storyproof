@@ -6,6 +6,7 @@ import { styled } from "storybook/theming";
 
 import { COMMAND_EVENT } from "../constants.js";
 import type { VisualRunState } from "../shared/results.js";
+import { VisuallyHidden } from "./VisuallyHidden.js";
 import { subscribeToVisualState } from "./channel.js";
 
 const EMPTY_STATE: VisualRunState = { running: false, results: [] };
@@ -67,6 +68,9 @@ export function TestProviderRow() {
         }
       >
         {state.running ? <StopAltIcon /> : <PlayHollowIcon />}
+        <VisuallyHidden>
+          {state.running ? "Stop visual tests" : "Run visual tests"}
+        </VisuallyHidden>
       </Button>
     </Container>
   );

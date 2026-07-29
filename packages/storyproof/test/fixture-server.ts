@@ -6,7 +6,24 @@ import path from "node:path";
 const packageRoot = process.cwd();
 const fixtureSource = path.join(packageRoot, "test/fixtures/project");
 const fixtureCopy = path.join(packageRoot, "test/.tmp/project");
-const staticOutput = path.join(packageRoot, "test/.tmp/storybook-static");
+// VISUAL_TEST_PROJECT_DIR points the whole fixture flow at a real installed
+// project instead of the workspace-source fixture: no copy step runs here,
+// and Storybook/its CLI resolve from that project's own node_modules (an
+// installed `storyproof`, not workspace source) because spawned children's
+// cwd becomes that directory. CI's `consumer` job sets this to a `mktemp -d`
+// copy of an examples/** project, created *outside* this repository and with
+// the packed tarball overlaid via `pnpm pkg set` -- being outside the repo
+// (and thus outside the pnpm workspace) is what proves the packed artifact
+// rather than the workspace-linked `storyproof: workspace:*` the examples
+// otherwise use for local development. See
+// the root AGENTS.md's Examples section for the isolation mechanics.
+const consumerDir = process.env.VISUAL_TEST_PROJECT_DIR
+  ? path.resolve(packageRoot, process.env.VISUAL_TEST_PROJECT_DIR)
+  : undefined;
+const spawnCwd = consumerDir ?? packageRoot;
+const staticOutput = consumerDir
+  ? path.join(consumerDir, "storybook-static")
+  : path.join(packageRoot, "test/.tmp/storybook-static");
 const devPort = process.env.VISUAL_TEST_DEV_PORT ?? "6010";
 const staticPort = process.env.VISUAL_TEST_STATIC_PORT ?? "6011";
 const gracefulShutdownTimeout = 5_000;
@@ -30,7 +47,7 @@ let staticServer: Server | undefined;
 function spawnChild(args: string[]): TrackedChild {
   const useProcessGroup = process.platform !== "win32";
   const child = spawn("pnpm", args, {
-    cwd: packageRoot,
+    cwd: spawnCwd,
     detached: useProcessGroup,
     stdio: "inherit",
   });
@@ -283,17 +300,20 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
 async function main(): Promise<void> {
   await cleanup();
   if (shutdownPromise) return;
-  await mkdir(path.dirname(fixtureCopy), { recursive: true });
-  if (shutdownPromise) return;
-  await cp(fixtureSource, fixtureCopy, { recursive: true });
-  if (shutdownPromise) return;
+  if (!consumerDir) {
+    await mkdir(path.dirname(fixtureCopy), { recursive: true });
+    if (shutdownPromise) return;
+    await cp(fixtureSource, fixtureCopy, { recursive: true });
+    if (shutdownPromise) return;
+  }
+  const configDir = path.join(consumerDir ?? fixtureCopy, ".storybook");
 
   const build = spawnChild([
     "exec",
     "storybook",
     "build",
     "--config-dir",
-    path.join(fixtureCopy, ".storybook"),
+    configDir,
     "--output-dir",
     staticOutput,
     "--quiet",
@@ -314,7 +334,7 @@ async function main(): Promise<void> {
     "storybook",
     "dev",
     "--config-dir",
-    path.join(fixtureCopy, ".storybook"),
+    configDir,
     "--port",
     devPort,
     "--no-open",

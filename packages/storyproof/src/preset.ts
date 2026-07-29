@@ -5,6 +5,12 @@ import type { Channel } from "storybook/internal/channels";
 import type { Options, ServerApp } from "storybook/internal/types";
 
 import { ADDON_ID } from "./constants.js";
+import { createCaptureSession, playwrightVersion } from "./node/capture.js";
+import {
+  CAPTURE_BROWSERS,
+  resolveEnvironment,
+  type CaptureBrowserName,
+} from "./node/environment.js";
 import { VisualTestRunner } from "./node/runner.js";
 import type { StoryIndexGenerator } from "./node/story-index.js";
 import {
@@ -23,6 +29,22 @@ const DEFAULT_MAX_CONCURRENCY = 2;
 export interface VisualTestsPresetOptions {
   storyRoots?: string[];
   maxConcurrency?: number;
+  capture?: {
+    /**
+     * Engine to capture with. Baselines are keyed per engine
+     * (`linux-firefox-…`), so switching engines never overwrites another
+     * engine's baselines. Default `"chromium"`. Note: Playwright's WebKit
+     * on Linux is the engine, not Safari — see the configuration docs.
+     */
+    browser?: "chromium" | "firefox" | "webkit";
+    /**
+     * Capture in the version-matched Playwright container instead of a
+     * host browser, so every machine produces identical pixels. `true`
+     * derives the image from the installed Playwright version; pass
+     * `{ image }` to override. Requires the Docker CLI.
+     */
+    container?: boolean | { image?: string };
+  };
 }
 
 export async function managerEntries(
@@ -48,13 +70,20 @@ export async function experimental_serverChannel(
   options: Options & VisualTestsPresetOptions,
 ): Promise<Channel> {
   // Storybook merges addon options into this object without validating them,
-  // so treat both as untrusted and fail the dev server before any capture work.
+  // so treat all of these as untrusted and fail the dev server before any
+  // capture work.
   const storyRoots = resolveStoryRoots(options.storyRoots);
   const maxConcurrency = resolveMaxConcurrency(options.maxConcurrency);
+  const capture = resolveCaptureOptions(options.capture);
 
-  const storyIndexGenerator = (await options.presets.apply(
-    "storyIndexGenerator",
-  )) as StoryIndexGenerator;
+  const storyIndexGenerator = resolveStoryIndexGenerator(
+    await options.presets.apply("storyIndexGenerator"),
+  );
+  const environment = resolveEnvironment({
+    browser: capture.browser,
+    container: capture.container,
+    playwrightVersion,
+  });
   const runner = new VisualTestRunner({
     baseUrl: `http://127.0.0.1:${String(options.port)}`,
     cwd: process.cwd(),
@@ -62,6 +91,19 @@ export async function experimental_serverChannel(
     maxConcurrency,
     storyIndexGenerator,
     artifactRegistry: artifacts,
+    environment,
+    createCaptureSession: () =>
+      createCaptureSession(
+        environment.container
+          ? {
+              container: {
+                image: environment.container.image,
+                playwrightVersion,
+                browser: capture.browser,
+              },
+            }
+          : { browser: capture.browser },
+      ),
   });
   installCommandHandlers(channel, runner);
   return channel;
@@ -103,6 +145,75 @@ function resolveStoryRoots(value: unknown): string[] {
   return roots;
 }
 
+const CAPTURE_HINT =
+  'Set "capture" to an object like { browser: "firefox" }, { container: true }, or { container: { image: "mcr.microsoft.com/playwright:v1.55.1-noble" } }; omit it to capture with host chromium.';
+
+// Exported for direct unit coverage; not part of the package's public API
+// (only ./index, ./manager, ./preset, ./preview are exported subpaths).
+export function resolveCaptureOptions(value: unknown): {
+  browser?: CaptureBrowserName;
+  container?: { image?: string };
+} {
+  if (value === undefined) return {};
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw optionError(
+      `Invalid "capture" preset option: expected an object, received ${format(value)}. ${CAPTURE_HINT}`,
+    );
+  }
+  const keys = Object.keys(value);
+  const unknown = keys.filter(
+    (key) => key !== "container" && key !== "browser",
+  );
+  if (unknown.length > 0) {
+    throw optionError(
+      `Invalid "capture" preset option: unknown key ${JSON.stringify(unknown[0])}. ${CAPTURE_HINT}`,
+    );
+  }
+
+  const browserValue = (value as { browser?: unknown }).browser;
+  let browser: CaptureBrowserName | undefined;
+  if (browserValue !== undefined) {
+    if (
+      typeof browserValue !== "string" ||
+      !(CAPTURE_BROWSERS as readonly string[]).includes(browserValue)
+    ) {
+      throw optionError(
+        `Invalid "capture.browser" preset option: expected one of ${CAPTURE_BROWSERS.map((name) => JSON.stringify(name)).join(", ")}, received ${format(browserValue)}. ${CAPTURE_HINT}`,
+      );
+    }
+    browser = browserValue as CaptureBrowserName;
+  }
+  const withBrowser = browser ? { browser } : {};
+
+  const container = (value as { container?: unknown }).container;
+  if (container === undefined || container === false) return withBrowser;
+  if (container === true) return { ...withBrowser, container: {} };
+  if (
+    typeof container !== "object" ||
+    container === null ||
+    Array.isArray(container)
+  ) {
+    throw optionError(
+      `Invalid "capture.container" preset option: expected true, false, or an object, received ${format(container)}. ${CAPTURE_HINT}`,
+    );
+  }
+  const containerKeys = Object.keys(container);
+  const unknownContainer = containerKeys.filter((key) => key !== "image");
+  if (unknownContainer.length > 0) {
+    throw optionError(
+      `Invalid "capture.container" preset option: unknown key ${JSON.stringify(unknownContainer[0])}. ${CAPTURE_HINT}`,
+    );
+  }
+  const image = (container as { image?: unknown }).image;
+  if (image === undefined) return { ...withBrowser, container: {} };
+  if (typeof image !== "string" || image.trim() === "") {
+    throw optionError(
+      `Invalid "capture.container.image" preset option: expected a non-empty string, received ${format(image)}. ${CAPTURE_HINT}`,
+    );
+  }
+  return { ...withBrowser, container: { image } };
+}
+
 function resolveMaxConcurrency(value: unknown): number {
   if (value === undefined) return DEFAULT_MAX_CONCURRENCY;
   // Number.isInteger already rejects NaN and both infinities.
@@ -112,6 +223,28 @@ function resolveMaxConcurrency(value: unknown): number {
     );
   }
   return value;
+}
+
+const STORY_INDEX_GENERATOR_HINT =
+  'Storybook does not expose this capability via `presets.apply("storyIndexGenerator")` on every minor -- confirmed absent from Storybook 10.0.x\'s common preset and present from 10.5.x onward. Upgrade to Storybook ^10.5.0 or later.';
+
+// Storybook, not the addon consumer, supplies this value, so a mismatch here
+// means an incompatible Storybook version rather than user misconfiguration.
+// Without this check, a missing/renamed capability silently becomes
+// `undefined`, which explodes deep inside the runner the first time a run
+// enumerates stories (`Cannot read properties of undefined (reading
+// 'getIndex')`) instead of failing the dev server at startup with a reason.
+function resolveStoryIndexGenerator(value: unknown): StoryIndexGenerator {
+  if (
+    value !== null &&
+    typeof value === "object" &&
+    typeof (value as { getIndex?: unknown }).getIndex === "function"
+  ) {
+    return value as StoryIndexGenerator;
+  }
+  throw optionError(
+    `Missing required "storyIndexGenerator" preset capability: expected an object with a "getIndex" method, received ${format(value)}. ${STORY_INDEX_GENERATOR_HINT}`,
+  );
 }
 
 function optionError(message: string): Error {

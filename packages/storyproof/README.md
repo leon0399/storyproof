@@ -9,13 +9,12 @@ single story from its panel, then approve the exact captured candidate.
 
 Storyproof will be published to npm as
 [`storyproof`](https://www.npmjs.com/package/storyproof) once the
-[release plan](docs/2026-07-24-public-preview-release-plan.md) completes; today
+release pipeline completes; today
 it is developed and used inside this repository.
 
 - Website: [storyproof.dev](https://storyproof.dev)
 - [Configuration](docs/configuration.md)
 - [Capture contract](docs/capture-contract.md)
-- [Roadmap](ROADMAP.md)
 
 ## Preview support target
 
@@ -23,58 +22,69 @@ The first public preview is a narrow tool, not a general visual-testing
 platform. The table below is the **target** the release must prove. Nothing in
 it is verified support yet: every row stays a target until the packed-consumer
 CI matrix in the
-[release plan](docs/2026-07-24-public-preview-release-plan.md) passes against
+release pipeline passes against
 the packed release artifact. "Exercised" means the combination runs today inside this
 repository — it is local evidence, not a support claim.
 
-| Dimension             | Preview target (not yet verified)                                                                                                                  | Evidence today (not a support claim)                                                                                                                     |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Node.js               | `>=22.12` (22 LTS and 24 LTS in the release matrix)                                                                                                | Exercised on 22.x (repository `.node-version` is `22.12.0`)                                                                                              |
-| Storybook             | `^10.0.0` (10.0 and 10.5 boundaries in the release matrix)                                                                                         | Exercised on 10.5.0; every 10.x publishes the four experimental APIs the addon uses (registry-verified); 9.x is a tracked investigation with a 9.1 floor |
-| React                 | not a runtime dependency — the panel consumes Storybook's bundled manager React and the preview bridge is renderer-agnostic; fixtures use React 19 | Fixtures exercised on 19.2.7                                                                                                                             |
-| Framework integration | `@storybook/react-vite` and `@storybook/nextjs-vite` (the preset uses only builder-agnostic core hooks)                                            | react-vite exercised on 10.5.0; nextjs-vite exercised daily by this repository's own Storybook                                                           |
-| Browser               | bundled Playwright Chromium (`playwright` 1.55.1)                                                                                                  | Exercised                                                                                                                                                |
-| Operating system      | Ubuntu 24.04 x64                                                                                                                                   | Exercised on GitHub-hosted Ubuntu x64                                                                                                                    |
-| Storybook mode        | local development server                                                                                                                           | Exercised; static builds report visual testing unavailable                                                                                               |
-| Capture topology      | direct loopback HTTP in the same network namespace                                                                                                 | Exercised                                                                                                                                                |
+| Dimension             | Preview target (not yet verified)                                                                                                                                                     | Evidence today (not a support claim)                                                                                                                                                                                                                                                                                                                                                                                                           |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Node.js               | `>=22.12` (22 LTS and 24 LTS in the release matrix)                                                                                                                                   | Exercised on 22.x (repository `.node-version` is `22.12.0`)                                                                                                                                                                                                                                                                                                                                                                                    |
+| Storybook             | `^10.5.0`                                                                                                                                                                             | Exercised on 10.5.0; `~10.0.0` was tried and abandoned as a floor — the packed-consumer matrix showed the addon's own manager UI working correctly there, but every visual-test run submitted through it never completed. Root cause (2026-07-27): Storybook 10.0.x never registers a `storyIndexGenerator` preset, so the addon now fails closed at startup with a named error there instead; 9.x is a tracked investigation with a 9.1 floor |
+| React                 | not a runtime dependency — the panel consumes Storybook's bundled manager React and the preview bridge is renderer-agnostic; fixtures use React 19                                    | Fixtures exercised on 19.2.7                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Framework integration | `@storybook/react-vite` and `@storybook/nextjs-vite` (the preset uses only builder-agnostic core hooks)                                                                               | react-vite exercised on 10.5.0; nextjs-vite exercised daily by this repository's own Storybook                                                                                                                                                                                                                                                                                                                                                 |
+| Browser               | bundled Playwright Chromium by default (`playwright` 1.55.1); `capture.browser` selects Firefox or WebKit, each keeping its own baselines — WebKit on Linux is the engine, not Safari | Chromium exercised throughout; Firefox and WebKit exercised by the acceptance suite in CI                                                                                                                                                                                                                                                                                                                                                      |
+| Operating system      | Ubuntu 24.04 x64                                                                                                                                                                      | Exercised on GitHub-hosted Ubuntu x64                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Storybook mode        | local development server                                                                                                                                                              | Exercised; static builds report visual testing unavailable                                                                                                                                                                                                                                                                                                                                                                                     |
+| Capture topology      | direct loopback HTTP in the same network namespace                                                                                                                                    | Exercised                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 
 Peer and engine ranges in `package.json` are provisional. The current Node
 engine is only a minimum-install floor, not a support claim. These ranges are
 finalized — and the wording here changes from target to verified — only after
 the release CI matrix supplies evidence.
 
-### Additional operating systems require baseline portability
+### Baselines carry an environment identity
 
-The initial preview claims Ubuntu 24.04 x64 only. Adding another operating
-system or Linux distribution requires two separate proofs:
+A baseline is only valid for the environment that rendered it — measured, not
+assumed: bare macOS and bare Linux render different pixels, and even two
+Linux machines with identical platform, browser build, and font metrics have
+been measured rasterizing differently (see
+the [capture contract](docs/capture-contract.md)).
+storyproof therefore records identity in two layers:
 
-1. **Startup** — the addon launches, captures, and compares on an operating
-   system.
-2. **Baseline portability** — exact baseline files approved on Ubuntu 24.04
-   pass the fixed comparator on the new host without reapproval.
+- **The environment key** (`linux-chromium-1280x720@1x`) leads with the
+  platform the browser renders on, so different platforms keep coexisting
+  baselines instead of overwriting each other. Architecture is deliberately
+  omitted — amd64 and arm64 render byte-identically.
+- **The render fingerprint** in `baseline.json`: the hash of a fixed probe
+  page rendered by the capturing browser. A baseline captured in a different
+  environment reports a message naming the mismatch — never a false pixel
+  diff.
 
-The environment key `chromium-1280x720@1x` deliberately omits the platform, and
-baseline compatibility ignores the recorded `platform` field, so portability is
-_assumed by the current design and unproven_. It is not an Ubuntu-only preview
-release gate. Before claiming another host platform, transfer the exact approved
-baseline files to it and rerun without approval. Candidate bytes need not be
-identical if the fixed comparator passes. Per-platform environment identities
-change baseline paths and review semantics and need their own design.
+For one developer on one machine, none of this needs configuring. A team on
+mixed machines chooses between per-platform baselines (the default) and one
+shared baseline set captured
+[inside the version-matched Playwright container](docs/configuration.md#container-capture-capturecontainer)
+(`capture: { container: true }`, requires Docker) — every machine then
+captures under the shared `container-…` key and produces identical pixels,
+which was likewise measured rather than assumed.
 
 ### Not in the preview
 
 Two different kinds of exclusion, and the difference matters — one is a
 statement about the implementation, the other only about scope:
 
-- **Out of reach today.** HTTPS capture origins, reverse-proxy path prefixes,
-  and capture split across containers or hosts. These are not merely untested:
-  the capture origin is not configurable, so the implementation cannot reach a
-  Storybook it does not share a loopback interface with. The
+- **Out of reach today.** HTTPS capture origins and reverse-proxy path
+  prefixes. These are not merely untested: the capture origin is not
+  configurable, so the implementation cannot reach a Storybook it does not
+  share a loopback interface with — the one exception being the built-in
+  [container capture mode](docs/configuration.md#container-capture-capturecontainer),
+  whose topology the addon itself owns. The
   [capture contract](docs/capture-contract.md) holds the itemized list and the
   reason for each.
-- **Deliberately deferred, not precluded.** Remote approval, browsers other than
-  Chromium, viewport matrices, theme matrices, masking, and a CI runner. Each is
-  an ordinary scope decision tracked in the [roadmap](ROADMAP.md), and each
+- **Deliberately deferred, not precluded.** Remote approval, reviewing one
+  story across several engines in a single run, viewport matrices, theme
+  matrices, masking, and a CI runner. Each is
+  an ordinary scope decision, and each
   needs its own design because it expands baseline identity, review semantics,
   or execution topology.
 

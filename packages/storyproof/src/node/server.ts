@@ -133,5 +133,6 @@ function publicState(
     results: state.results.map(
       ({ importPath: _privatePath, ...result }) => result,
     ),
+    ...(state.environment ? { environment: state.environment } : {}),
   };
 }

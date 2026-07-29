@@ -11,8 +11,13 @@ import { Button, EmptyTabContent } from "storybook/internal/components";
 import { styled, type Theme } from "storybook/theming";
 
 import { ARTIFACT_ROUTE } from "../constants.js";
+import { VisuallyHidden } from "./VisuallyHidden.js";
 import type { VisualCommand } from "../shared/protocol.js";
-import type { VisualResult, VisualRunState } from "../shared/results.js";
+import type {
+  VisualEnvironment,
+  VisualResult,
+  VisualRunState,
+} from "../shared/results.js";
 
 type ImageKind = "baseline" | "candidate" | "diff";
 type DisplayStatus = VisualResult["status"] | "not-run";
@@ -69,6 +74,7 @@ export function PanelView({
           result={result}
           storyId={currentStoryId}
           storyTitle={currentStoryTitle}
+          environment={state.environment}
           ready={ready}
           running={state.running}
           onRun={runCurrent}
@@ -106,6 +112,7 @@ function Summary({
   result,
   storyId,
   storyTitle,
+  environment,
   ready,
   running,
   onRun,
@@ -115,6 +122,7 @@ function Summary({
   result: VisualResult | undefined;
   storyId: string;
   storyTitle: string | undefined;
+  environment: VisualEnvironment | undefined;
   ready: boolean;
   running: boolean;
   onRun: () => void;
@@ -149,6 +157,11 @@ function Summary({
         </Headline>
         <SubTitle title={title ?? storyId}>{title ?? storyId}</SubTitle>
         <SubId title={storyId}>{storyId}</SubId>
+        {environment ? (
+          <SubId title={environmentDetail(environment)}>
+            {environmentLabel(environment)}
+          </SubId>
+        ) : null}
       </SummaryInfo>
 
       <Actions>
@@ -161,6 +174,7 @@ function Summary({
             onClick={onCancel}
           >
             <StopAltIcon />
+            <VisuallyHidden>Stop visual tests</VisuallyHidden>
           </Button>
         ) : (
           <>
@@ -192,6 +206,7 @@ function Summary({
               onClick={onRun}
             >
               {result ? <SyncIcon /> : <PlayHollowIcon />}
+              <VisuallyHidden>Run visual tests</VisuallyHidden>
             </Button>
           </>
         )}
@@ -309,6 +324,35 @@ function Tab({
       {label}
     </TabButton>
   );
+}
+
+/**
+ * "Where did these pixels come from" in one glance, so a preview that looks
+ * different from a container-captured baseline is a labelled fact rather
+ * than a support question.
+ */
+function environmentLabel(environment: VisualEnvironment): string {
+  const browser = environment.browserVersion
+    ? `${environment.browserName} ${environment.browserVersion}`
+    : environment.browserName;
+  const where = environment.containerImage ? "container" : "local";
+  // Container environments key their platform as "container", which would
+  // duplicate the provenance suffix.
+  return environment.platform === where
+    ? `${environment.platform} · ${browser}`
+    : `${environment.platform} · ${browser} · ${where}`;
+}
+
+function environmentDetail(environment: VisualEnvironment): string {
+  return [
+    environment.key,
+    environment.containerImage,
+    environment.renderFingerprint
+      ? `render fingerprint ${environment.renderFingerprint.slice(0, 16)}…`
+      : undefined,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function statusLabel(status: DisplayStatus): string {

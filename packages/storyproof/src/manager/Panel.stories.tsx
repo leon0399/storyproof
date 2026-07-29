@@ -24,12 +24,22 @@ const meta = {
     state: {
       runId: "run-1",
       running: false,
+      environment: {
+        key: "container-chromium-1280x720@1x",
+        platform: "container",
+        browserName: "chromium",
+        browserVersion: "140.0.7339.186",
+        playwrightVersion: "1.55.1",
+        containerImage: "mcr.microsoft.com/playwright:v1.55.1-noble",
+        renderFingerprint:
+          "3c1577058f4c3822e0776597ed776fc17f1e1fad8ba956d43ad6dfe666530d85",
+      },
       results: [
         {
           runId: "run-1",
           storyId: "button--primary",
           title: "Button / Primary",
-          environmentKey: "chromium-1280x720@1x",
+          environmentKey: "linux-chromium-1280x720@1x",
           status: "changed",
           candidateSha256: "a".repeat(64),
           artifacts: {
@@ -42,7 +52,7 @@ const meta = {
           runId: "run-1",
           storyId: "button--secondary",
           title: "Button / Secondary",
-          environmentKey: "chromium-1280x720@1x",
+          environmentKey: "linux-chromium-1280x720@1x",
           status: "passed",
         },
       ],
@@ -111,7 +121,7 @@ export const CaptureError: Story = {
           runId: "run-error",
           storyId: "button--primary",
           title: "Button / Primary",
-          environmentKey: "chromium-1280x720@1x",
+          environmentKey: "linux-chromium-1280x720@1x",
           status: "capture-error",
           message:
             "Visual capture failed: Story root does not exist: packages/ui/src",
@@ -164,7 +174,7 @@ export const Passed: Story = {
           runId: "run-passed",
           storyId: "button--primary",
           title: "Button / Primary",
-          environmentKey: "chromium-1280x720@1x",
+          environmentKey: "linux-chromium-1280x720@1x",
           status: "passed",
           artifacts: { baseline: "baseline", candidate: "candidate" },
         },
@@ -206,7 +216,7 @@ export const MetadataOnlyChange: Story = {
           runId: "run-metadata",
           storyId: "button--primary",
           title: "Button / Primary",
-          environmentKey: "chromium-1280x720@1x",
+          environmentKey: "linux-chromium-1280x720@1x",
           status: "changed",
           message:
             "Baseline environment metadata is incompatible with the candidate",

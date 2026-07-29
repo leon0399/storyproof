@@ -1,0 +1,59 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "globalEnv": ["CI", "NODE_ENV"],
+  "globalDependencies": [".node-version"],
+  "ui": "tui",
+  // Makes `turbo watch` re-run tasks whose declared `inputs` match the changed
+  // files, instead of re-running every task in a changed package. Without it,
+  // editing a story file would restart that example's Storybook and destroy
+  // Vite's HMR.
+  "futureFlags": {
+    "watchUsingTaskInputs": true
+  },
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "lint": {},
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "dependsOn": ["^build"]
+    },
+    // Never cached: this drives a real Chromium against a real Storybook, and
+    // the things that can break it (installed browser, system libs, the
+    // external project VISUAL_TEST_PROJECT_DIR points at) are not part of
+    // turbo's input hash. Replaying a cached pass would report green without
+    // having run the browser at all.
+    // STORYPROOF_CONTAINER must be declared: turbo 2's strict env mode strips
+    // undeclared variables from task processes, which would silently turn the
+    // container-capture CI job back into a host-capture run.
+    "test:visual": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "env": [
+        "STORYPROOF_CONTAINER",
+        "STORYPROOF_BROWSER",
+        "VISUAL_TEST_PROJECT_DIR"
+      ]
+    },
+    // Storybook compiles its manager bundle once at startup and never rebuilds
+    // it (see Storybook's own `// TODO: this doesn't watch` in
+    // core/src/builder-manager/index.ts), so no part of storyproof hot-reloads
+    // into a running Storybook. `interruptible` lets `turbo watch` restart the
+    // example when the addon rebuilds, which is the only way a change lands.
+    // `inputs` is deliberately narrow so that story edits stay on Vite HMR and
+    // only .storybook config changes restart the process directly.
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "interruptible": true,
+      "dependsOn": ["^build"],
+      "inputs": [".storybook/**"],
+      // Same strict-env-mode passthrough for `STORYPROOF_CONTAINER=1 pnpm dev`.
+      "env": ["STORYPROOF_CONTAINER", "STORYPROOF_BROWSER"]
+    }
+  }
+}

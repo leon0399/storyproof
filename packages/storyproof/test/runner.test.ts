@@ -13,8 +13,18 @@ import {
   sha256,
   type ComparisonResult,
 } from "../src/node/compare.js";
+import { resolveEnvironment } from "../src/node/environment.js";
 import { VisualTestRunner } from "../src/node/runner.js";
 import { ArtifactRegistry } from "../src/node/server.js";
+
+// These tests capture with fakes on this host, so the expected key is the
+// local one (platform included since environment identity landed).
+const ENVIRONMENT_KEY = resolveEnvironment().key;
+const FAKE_FINGERPRINT = "f".repeat(64);
+const fakeSessionExtras = () => ({
+  fingerprint: async () => FAKE_FINGERPRINT,
+  info: () => ({ browserVersion: "136.0", playwrightVersion: "1.53.2" }),
+});
 
 describe("VisualTestRunner", () => {
   test("discovers exact live story entries and runs at most two captures concurrently", async () => {
@@ -32,6 +42,7 @@ describe("VisualTestRunner", () => {
         stateStatuses.push(state.results.map((result) => result.status)),
       resolveArtifactPaths: async ({ storyId }) => pathsFor(root, storyId),
       createCaptureSession: async () => ({
+        ...fakeSessionExtras(),
         close: vi.fn(async () => undefined),
         capture: vi.fn(async ({ storyId, signal }) => {
           active += 1;
@@ -231,7 +242,7 @@ describe("VisualTestRunner", () => {
     await runner.approve({
       runId: alpha.runId,
       storyId: "alpha--one",
-      environmentKey: DEFAULT_ENVIRONMENT.key,
+      environmentKey: ENVIRONMENT_KEY,
       candidateSha256: "a".repeat(64),
     });
     expect(approveCandidate).toHaveBeenCalledTimes(1);
@@ -362,7 +373,7 @@ describe("VisualTestRunner", () => {
     await runner.approve({
       runId,
       storyId: "alpha--one",
-      environmentKey: DEFAULT_ENVIRONMENT.key,
+      environmentKey: ENVIRONMENT_KEY,
       candidateSha256: "a".repeat(64),
     });
 
@@ -377,7 +388,7 @@ describe("VisualTestRunner", () => {
       runner.approve({
         runId,
         storyId: "alpha--one",
-        environmentKey: DEFAULT_ENVIRONMENT.key,
+        environmentKey: ENVIRONMENT_KEY,
         candidateSha256: "b".repeat(64),
       }),
     ).rejects.toThrow("Stale visual approval");
@@ -595,7 +606,7 @@ describe("VisualTestRunner", () => {
       await runner.approve({
         runId: state.runId!,
         storyId: "alpha--one",
-        environmentKey: DEFAULT_ENVIRONMENT.key,
+        environmentKey: ENVIRONMENT_KEY,
         candidateSha256: "a".repeat(64),
       });
       expect(approveCandidate).toHaveBeenCalledTimes(1);
@@ -619,7 +630,7 @@ describe("VisualTestRunner", () => {
       {
         status: "changed",
         message:
-          "Baseline environment metadata is incompatible with the candidate",
+          "Baseline was captured with chromium 999.0; this run uses 136.0. Review and re-approve after the browser upgrade.",
       },
     ],
   ])(
@@ -703,7 +714,7 @@ describe("VisualTestRunner", () => {
 
       await expect(runner.loadBaseline("alpha--one")).resolves.toEqual({
         storyId: "alpha--one",
-        environmentKey: DEFAULT_ENVIRONMENT.key,
+        environmentKey: ENVIRONMENT_KEY,
         artifactId: "opaque-baseline",
       });
       expect(registered).toEqual([paths.baselinePath]);
@@ -711,13 +722,13 @@ describe("VisualTestRunner", () => {
       // Known story with no baseline on disk: no artifact id.
       await expect(runner.loadBaseline("beta--two")).resolves.toEqual({
         storyId: "beta--two",
-        environmentKey: DEFAULT_ENVIRONMENT.key,
+        environmentKey: ENVIRONMENT_KEY,
       });
 
       // Unknown story id: resolution fails softly, never throws.
       await expect(runner.loadBaseline("made-up--id")).resolves.toEqual({
         storyId: "made-up--id",
-        environmentKey: DEFAULT_ENVIRONMENT.key,
+        environmentKey: ENVIRONMENT_KEY,
       });
     } finally {
       await rm(dir, { recursive: true, force: true });
@@ -827,6 +838,7 @@ function minimalRunner(options: {
       options.resolveArtifactPaths ??
       (async ({ storyId }) => pathsFor(root, storyId)),
     createCaptureSession: async () => ({
+      ...fakeSessionExtras(),
       close: vi.fn(async () => undefined),
       capture:
         options.capture ??
@@ -869,7 +881,7 @@ function baselineMetadataFor(
   options: { browserVersion: string },
 ) {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     baselineSha256: sha256(image),
     browser: {
       name: DEFAULT_ENVIRONMENT.browserName,
@@ -877,6 +889,7 @@ function baselineMetadataFor(
       playwrightVersion: "1.53.2",
     },
     platform: process.platform,
+    renderFingerprint: FAKE_FINGERPRINT,
     viewport: DEFAULT_ENVIRONMENT.viewport,
     deviceScaleFactor: DEFAULT_ENVIRONMENT.deviceScaleFactor,
     comparator: COMPARATOR_POLICY,

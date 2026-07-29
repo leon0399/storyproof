@@ -12,7 +12,27 @@ const config: StorybookConfig = {
   addons: [
     {
       name: sourcePreset,
-      options: { storyRoots: ["test/.tmp/project/src"] },
+      options: {
+        storyRoots: ["test/.tmp/project/src"],
+        // CI's container/engine jobs flip these; everything else captures
+        // with host chromium exactly as before.
+        ...(process.env.STORYPROOF_CONTAINER === "1" ||
+        process.env.STORYPROOF_BROWSER
+          ? {
+              capture: {
+                ...(process.env.STORYPROOF_CONTAINER === "1"
+                  ? { container: true }
+                  : {}),
+                ...(process.env.STORYPROOF_BROWSER
+                  ? {
+                      browser: process.env.STORYPROOF_BROWSER as
+                        "chromium" | "firefox" | "webkit",
+                    }
+                  : {}),
+              },
+            }
+          : {}),
+      },
     },
   ],
   viteFinal: (config) => {

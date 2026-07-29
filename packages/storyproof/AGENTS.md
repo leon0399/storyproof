@@ -22,7 +22,20 @@ pnpm --filter storyproof lint        # oxlint --deny-warnings
 ```
 
 Normal visual runs start from the Storybook **Visual tests** panel/widget, not a
-CLI. `test:visual` is the isolated addon smoke test.
+CLI. `test:visual` is the isolated addon smoke test. It runs
+`test/acceptance/addon-suite.ts` (the reusable acceptance specification,
+shared with the packed-consumer harness) against `test/fixtures/project`
+copied to `test/.tmp/project` by `test/fixture-server.ts`. Setting
+`VISUAL_TEST_PROJECT_DIR=<absolute-or-relative-path>` points the same
+command at a real installed project instead — no copy, and the child
+Storybook process's `cwd` becomes that directory so `storyproof/preset`
+resolves from its real `node_modules`, not workspace source. CI's `consumer`
+job sets this to a temporary copy of an `examples/**` project, made outside
+this workspace with the packed tarball installed into it (root `AGENTS.md`'s
+Examples section). The two
+fault-injection scenarios in `addon-suite.ts` (simulated hang, forced
+connection failure) skip automatically when the target has no
+`control/state.json` — only `test/fixtures/project` carries that fixture.
 
 `pnpm pack` (and therefore `pnpm --filter storyproof pack`) always reruns
 `build` via the `prepack` lifecycle script first, so a stale `dist` can never
@@ -36,9 +49,13 @@ Split by execution environment — the boundary is load-bearing:
 
 - `src/node/` — runs on the Storybook server side (Node). `runner.ts`
   (`VisualTestRunner`: run/cancel/approve state machine), `capture.ts` (Chromium
-  session + content-clip), `compare.ts` (pixelmatch policy), `paths.ts`
-  (artifact-path resolution + security guards), `approval.ts`, `story-index.ts`,
-  `server.ts` (artifact HTTP route + command endpoint).
+  session + content-clip + render-fingerprint probe), `environment.ts`
+  (environment key, platform resolution, probe page), `container.ts`
+  (containerized capture: version-matched Playwright image, loopback-only ws,
+  gateway-IP rewrite; the measured rationale is in its comments), `compare.ts` (pixelmatch policy + environment
+  compatibility, baseline metadata schema 2), `paths.ts` (artifact-path
+  resolution + security guards), `approval.ts`, `story-index.ts`, `server.ts`
+  (artifact HTTP route + command endpoint).
 - `src/manager/` — runs in the browser (Storybook manager UI). `PanelView.tsx`
   (pure view), `Panel.tsx`/`TestProviderRow.tsx` (wiring), `state.ts`.
 - `src/shared/` — types crossing the boundary: `protocol.ts` (commands),

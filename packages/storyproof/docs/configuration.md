@@ -38,10 +38,12 @@ Both options are optional. Storybook passes addon options through without
 validating them, so the preset validates them itself when the development
 server starts.
 
-| Option           | Type       | Default | Constraint                                        |
-| ---------------- | ---------- | ------- | ------------------------------------------------- |
-| `storyRoots`     | `string[]` | `["."]` | Non-empty array of non-empty strings              |
-| `maxConcurrency` | `number`   | `2`     | Integer greater than `0`; there is no upper bound |
+| Option              | Type                                  | Default      | Constraint                                          |
+| ------------------- | ------------------------------------- | ------------ | --------------------------------------------------- |
+| `storyRoots`        | `string[]`                            | `["."]`      | Non-empty array of non-empty strings                |
+| `maxConcurrency`    | `number`                              | `2`          | Integer greater than `0`; there is no upper bound   |
+| `capture.browser`   | `"chromium" \| "firefox" \| "webkit"` | `"chromium"` | Exactly one of the three engine names               |
+| `capture.container` | `boolean \| { image?: string }`       | `false`      | `true` derives the image; `image` must be non-empty |
 
 `storyRoots` entries resolve from the Storybook process working directory. A
 story that resolves outside every root is refused rather than given artifacts
@@ -50,6 +52,93 @@ outside the configured tree.
 `maxConcurrency` bounds how many stories are captured at once. The default of
 `2` is deliberate and conservative; no evidence yet supports a specific maximum,
 so none is enforced.
+
+### Capture engine (`capture.browser`)
+
+One engine per Storybook dev server. Baselines are keyed per engine
+(`linux-firefox-1280x720@1x`), so switching engines starts a separate baseline
+set rather than overwriting another engine's — and switching back loses
+nothing. Capturing one story across several engines in a single run is
+deliberately out of scope: it multiplies review (N candidates per story) and
+waits on a multi-candidate review UI design.
+
+```ts
+options: {
+  capture: { browser: "firefox" },
+}
+```
+
+Firefox and WebKit need their browsers installed
+(`npx playwright install firefox webkit`) for host capture; the capture
+container ships all three engines.
+
+**Read this before selling WebKit results as Safari coverage:** Playwright's
+WebKit on Linux is the WebKit _engine_ built against a Linux graphics and
+font stack — it is not Safari, and container capture makes that gap wider,
+not narrower. It catches engine-level layout and rendering differences; it
+does not tell you what your UI looks like on a Mac. The same caveat applies
+to a lesser degree to any containerized engine: captures are regression
+evidence, not fidelity claims about real user rendering.
+
+Engine determinism is measured separately per engine — the Chromium results
+(arch-independence in the container, host-dependence when bare) were
+re-measured for Firefox and WebKit rather than assumed, with the same
+result: identical in the container across architectures, divergent on bare
+hosts.
+
+### Container capture (`capture.container`)
+
+By default storyproof captures with a browser on your machine, and the
+baseline's environment key records your platform (for example
+`linux-chromium-1280x720@1x`). Two machines are not the same rendering
+environment even when they look identical — fonts, hinting, and antialiasing
+differ below anything version numbers can express — so a team on mixed
+machines either lets each platform keep its own baselines, or opts into
+capturing inside one shared container:
+
+```ts
+{
+  name: "storyproof/preset",
+  options: {
+    storyRoots: ["src"],
+    capture: { container: true },
+  },
+}
+```
+
+With `container: true` the image is derived from the installed Playwright
+version (`mcr.microsoft.com/playwright:v<version>-noble`); pass
+`{ image: "…" }` to override. Every machine then renders under the same
+`container-chromium-…` key (a distinct identity from bare-Linux capture,
+which renders differently even on the same machine) and produces identical
+pixels — measured, not
+assumed: hosts that render differently when capturing bare (including two
+Linux machines with identical font metrics) produce byte-identical output
+inside the same image, across amd64 and arm64, for all three engines.
+
+Requirements and behavior:
+
+- The Docker CLI must be on `PATH`. Missing docker, a container that exits
+  early, and a readiness timeout each fail the run with a named error.
+  **Podman is untested**: its `podman-docker` shim makes the commands run,
+  but the container topology storyproof depends on (the containerized
+  browser reaching a host-loopback Storybook through the `host-gateway`
+  alias) is only verified for Docker and Docker Desktop, and rootless
+  podman's network stack restricts container-to-host-loopback access by
+  default. If the shim works for you, it works by luck, not by contract.
+- First use pulls the image (~2 GB). Pre-pull with
+  `docker pull mcr.microsoft.com/playwright:v<version>-noble` to skip the wait.
+- The container is started once per Storybook dev-server process and reused
+  across runs; it is stopped on exit (best-effort — leftovers are visible via
+  `docker ps --filter label=storyproof` and remove themselves once stopped).
+- Only the browser moves into the container. Approval still writes repository
+  files from the Storybook process on your machine, through the same path
+  guards — the trust boundary is unchanged. The browser server's WebSocket
+  port is published to `127.0.0.1` only.
+- Your Storybook preview still renders with _your_ fonts; captures use the
+  container's. The panel labels where pixels came from
+  (`linux · chromium … · container`), and a baseline captured in a different
+  environment reports as a named incompatibility instead of a pixel diff.
 
 ### Validation and errors
 

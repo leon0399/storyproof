@@ -23,4 +23,13 @@ export default defineConfig({
     profile: "esm-only",
     level: "error",
   },
+  // Derives package.json's "exports" map from the entry list above instead
+  // of hand-syncing both. Bare-string subpaths (no explicit "types"
+  // condition) are correct for this pure-ESM package: TS resolves the
+  // sibling dist/*.d.ts implicitly, and attw's esm-only profile (above)
+  // verifies that resolution holds. The added "./package.json" export is
+  // additive and commonly recommended. The generated manifest is committed
+  // and byte-stable across rebuilds, so CI's `git diff --exit-code` after
+  // packing doubles as a drift gate.
+  exports: true,
 });

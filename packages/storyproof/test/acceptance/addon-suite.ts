@@ -11,7 +11,22 @@ import type {
 } from "@playwright/test";
 import { PNG } from "pngjs";
 
-const ENVIRONMENT_KEY = "chromium-1280x720@1x";
+// The key leads with the platform the BROWSER renders on (this host's
+// platform locally, the distinct "container" token in the capture
+// container) and the engine
+// (STORYPROOF_BROWSER). Both env vars are the same switches the fixture's
+// main.ts reads, so the suite and the addon agree by construction.
+const ENVIRONMENT_KEY = `${
+  process.env.STORYPROOF_CONTAINER === "1" ? "container" : process.platform
+}-${process.env.STORYPROOF_BROWSER ?? "chromium"}-1280x720@1x`;
+
+// Budget for a visual run to complete. Container mode's FIRST run carries
+// the whole cold start (docker create, exact-version npx install, connect,
+// probe); a slow registry moment pushed that past 30s in CI, so container
+// runs get a startup-inclusive budget. The npm-cache volume makes later
+// cold starts fast, but the very first on a machine still pays in full.
+const RUN_TIMEOUT_MS =
+  process.env.STORYPROOF_CONTAINER === "1" ? 120_000 : 30_000;
 
 type AddonAcceptanceSuiteOptions = {
   expect: typeof PlaywrightExpect;
@@ -52,7 +67,7 @@ export function registerAddonAcceptanceSuite({
 
     await runCurrent(panel);
     await expect(panel.getByText("Changed", { exact: true })).toBeVisible({
-      timeout: 30_000,
+      timeout: RUN_TIMEOUT_MS,
     });
     await expect(panel.getByText(/\d[\d,]* px/)).toBeVisible();
 
@@ -117,7 +132,7 @@ export function registerAddonAcceptanceSuite({
 
     await runCurrent(panel);
     await expect(panel.getByText("Passed", { exact: true })).toBeVisible({
-      timeout: 30_000,
+      timeout: RUN_TIMEOUT_MS,
     });
     await expect(
       panel.getByText("Visual tests disabled for this story", { exact: true }),
@@ -143,7 +158,7 @@ export function registerAddonAcceptanceSuite({
 
     await runCurrent(panel);
     await expect(panel.getByText("New", { exact: true })).toBeVisible({
-      timeout: 30_000,
+      timeout: RUN_TIMEOUT_MS,
     });
     await panel.getByRole("button", { name: "Latest", exact: true }).click();
     const preview = panel.getByAltText(
@@ -190,7 +205,7 @@ export function registerAddonAcceptanceSuite({
     await runCurrent(panel);
     await expect(
       panel.getByText("Capture failed", { exact: true }),
-    ).toBeVisible({ timeout: 30_000 });
+    ).toBeVisible({ timeout: RUN_TIMEOUT_MS });
     await expect(
       panel.getByRole("alert").filter({
         hasText: "Story resolves outside the configured story roots",
@@ -226,7 +241,7 @@ export function registerAddonAcceptanceSuite({
 
     await runCurrent(panel);
     await expect(panel.getByText("New", { exact: true })).toBeVisible({
-      timeout: 30_000,
+      timeout: RUN_TIMEOUT_MS,
     });
     await panel.getByRole("button", { name: "Latest", exact: true }).click();
     const preview = panel.getByAltText("candidate for Visual Fixture / Stale");
@@ -282,7 +297,7 @@ export function registerAddonAcceptanceSuite({
 
     await runCurrent(panel);
     await expect(panel.getByText("Changed", { exact: true })).toBeVisible({
-      timeout: 30_000,
+      timeout: RUN_TIMEOUT_MS,
     });
     await expect(
       panel.getByText("Baseline metadata is missing or malformed", {
@@ -322,14 +337,27 @@ export function registerAddonAcceptanceSuite({
     await expect(panel.getByText("Passed", { exact: true })).toBeVisible({
       timeout: 15_000,
     });
-    expect(JSON.parse(await readFile(metadataPath, "utf8"))).toMatchObject({
-      schemaVersion: 1,
-    });
+    const repaired = JSON.parse(await readFile(metadataPath, "utf8")) as {
+      schemaVersion: number;
+      platform: string;
+      renderFingerprint: string;
+    };
+    expect(repaired).toMatchObject({ schemaVersion: 2 });
+    // Environment identity landed with schema 2: re-approval must record
+    // where and how these pixels were actually rendered.
+    expect(repaired.platform).toBe(
+      process.env.STORYPROOF_CONTAINER === "1" ? "container" : process.platform,
+    );
+    expect(repaired.renderFingerprint).toMatch(/^[a-f0-9]{64}$/);
   });
 
   test("cancels completed partial results before they can be approved", async ({
     page,
   }) => {
+    test.skip(
+      !(await hasControlFixture(projectRoot)),
+      "requires the fault-injection control fixture (control/state.json + the Controlled story), which only test/fixtures/project carries",
+    );
     await openVisualPanel({
       expect,
       page,
@@ -352,7 +380,7 @@ export function registerAddonAcceptanceSuite({
       storyId: "visual-fixture--changed",
     });
     await expect(completedPanel.getByText("New", { exact: true })).toBeVisible({
-      timeout: 30_000,
+      timeout: RUN_TIMEOUT_MS,
     });
     await expect(
       completedPanel.getByRole("button", { name: "Accept" }),
@@ -389,6 +417,10 @@ export function registerAddonAcceptanceSuite({
   test("reports a browser connection failure with actionable text", async ({
     page,
   }) => {
+    test.skip(
+      !(await hasControlFixture(projectRoot)),
+      "requires the fault-injection control fixture (control/state.json + the Controlled story), which only test/fixtures/project carries",
+    );
     const panel = await openVisualPanel({
       expect,
       page,
@@ -407,11 +439,15 @@ export function registerAddonAcceptanceSuite({
     await runCurrent(panel);
     await expect(
       panel.getByText("Capture failed", { exact: true }),
-    ).toBeVisible({ timeout: 30_000 });
+    ).toBeVisible({ timeout: RUN_TIMEOUT_MS });
     const alert = panel.getByRole("alert");
     await expect(alert).toContainText(new URL(unavailableUrl).origin);
     await expect(alert).not.toContainText("/unavailable");
-    await expect(alert).toContainText("ERR_CONNECTION_REFUSED");
+    // Engine-agnostic: chromium says net::ERR_CONNECTION_REFUSED, firefox
+    // NS_ERROR_CONNECTION_REFUSED, webkit "Connection refused" — the
+    // contract is that the alert names the refused connection, not which
+    // engine's spelling it uses.
+    await expect(alert).toContainText(/connection[ _]refused/i);
     await expect(panel.getByRole("button", { name: "Accept" })).toHaveCount(0);
     expect(
       await pathExists(path.join(artifactDirectory, "candidate.png")),
@@ -471,7 +507,7 @@ export function registerAddonAcceptanceSuite({
     ).toBeDisabled();
 
     await expect(provider.getByText("1 failed", { exact: true })).toBeVisible({
-      timeout: 30_000,
+      timeout: RUN_TIMEOUT_MS,
     });
     await expect(
       testingWidget.getByRole("button", { name: "Run tests", exact: true }),
@@ -539,7 +575,7 @@ export function registerAddonAcceptanceSuite({
       .last()
       .click();
     await expect(page.getByText("New", { exact: true })).toBeVisible({
-      timeout: 30_000,
+      timeout: RUN_TIMEOUT_MS,
     });
     await page.getByRole("button", { name: "Latest", exact: true }).click();
     await expect(
@@ -548,7 +584,8 @@ export function registerAddonAcceptanceSuite({
 
     const artifactDirectory = path.join(
       projectRoot,
-      "src/__screenshots__/visual-fixture.stories.tsx.visual/visual-fixture--portal/chromium-1280x720@1x",
+      "src/__screenshots__/visual-fixture.stories.tsx.visual/visual-fixture--portal",
+      ENVIRONMENT_KEY,
     );
     const candidate = await readFile(
       path.join(artifactDirectory, "candidate.png"),
@@ -570,13 +607,13 @@ export function registerAddonAcceptanceSuite({
 
     await visualPanel.getByRole("button", { name: "Run visual tests" }).click();
     await expect(page.getByText("Passed", { exact: true })).toBeVisible({
-      timeout: 30_000,
+      timeout: RUN_TIMEOUT_MS,
     });
   });
 }
 
 async function resetFixtureState(projectRoot: string): Promise<void> {
-  await Promise.all([
+  const tasks = [
     rm(path.join(projectRoot, "src/__screenshots__"), {
       recursive: true,
       force: true,
@@ -585,11 +622,25 @@ async function resetFixtureState(projectRoot: string): Promise<void> {
       recursive: true,
       force: true,
     }),
-    writeFile(
-      path.join(projectRoot, "control/state.json"),
-      `${JSON.stringify({ mode: "ready" }, null, 2)}\n`,
-    ),
-  ]);
+  ];
+  // The control-file-driven hang/connection-failure fixture (see
+  // hasControlFixture) is fault-injection plumbing that only
+  // test/fixtures/project carries -- a real installed consumer (the
+  // examples exercised by the CI `consumer` job) has no control/ directory
+  // at all, so this write is skipped there rather than failing closed.
+  if (await hasControlFixture(projectRoot)) {
+    tasks.push(
+      writeFile(
+        path.join(projectRoot, "control/state.json"),
+        `${JSON.stringify({ mode: "ready" }, null, 2)}\n`,
+      ),
+    );
+  }
+  await Promise.all(tasks);
+}
+
+async function hasControlFixture(projectRoot: string): Promise<boolean> {
+  return pathExists(path.join(projectRoot, "control/state.json"));
 }
 
 async function openVisualPanel({
@@ -641,7 +692,7 @@ async function showVisualPanel({
       },
       {
         message: `Storybook index did not include ${storyId}`,
-        timeout: 30_000,
+        timeout: RUN_TIMEOUT_MS,
       },
     )
     .toBe(true);
@@ -662,7 +713,7 @@ async function createApprovedBaseline(
 ): Promise<void> {
   await runCurrent(panel);
   await expect(panel.getByText("New", { exact: true })).toBeVisible({
-    timeout: 30_000,
+    timeout: RUN_TIMEOUT_MS,
   });
   await panel.getByRole("button", { name: "Accept" }).click();
   await expect(panel.getByText("Passed", { exact: true })).toBeVisible({
