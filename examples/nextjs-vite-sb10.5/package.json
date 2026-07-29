@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "storybook dev -p 6107 --no-open",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "next": "^15.5.22",

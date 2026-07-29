@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "storybook dev -p 6106 --no-open",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "react": "^19.2.8",
