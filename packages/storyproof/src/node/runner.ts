@@ -239,10 +239,24 @@ export class VisualTestRunner {
 
     try {
       // One probe per session: the fingerprint every candidate's metadata
-      // records. A failed probe means a broken browser — fail closed rather
-      // than writing baselines with an unverifiable environment identity.
+      // records. A failed probe — or a browser handle that dies right after
+      // it, making session.info()'s version() throw — means a broken
+      // browser: fail closed with a message rather than leaving every
+      // result permanently queued.
       try {
         run.renderFingerprint = await session.fingerprint();
+        const info = session.info();
+        run.state.environment = {
+          key: this.environment.key,
+          platform: this.environment.platform,
+          browserName: this.environment.browserName,
+          browserVersion: info.browserVersion,
+          playwrightVersion: info.playwrightVersion,
+          ...(info.containerImage
+            ? { containerImage: info.containerImage }
+            : {}),
+          renderFingerprint: run.renderFingerprint,
+        };
       } catch (error) {
         this.failRun(
           run,
@@ -250,16 +264,6 @@ export class VisualTestRunner {
         );
         return;
       }
-      const info = session.info();
-      run.state.environment = {
-        key: this.environment.key,
-        platform: this.environment.platform,
-        browserName: this.environment.browserName,
-        browserVersion: info.browserVersion,
-        playwrightVersion: info.playwrightVersion,
-        ...(info.containerImage ? { containerImage: info.containerImage } : {}),
-        renderFingerprint: run.renderFingerprint,
-      };
       this.publish(run);
       await this.runPool(run, session);
     } finally {

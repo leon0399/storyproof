@@ -22,16 +22,38 @@ describe("resolveEnvironment", () => {
     expect(environment.container).toBeUndefined();
   });
 
-  test("container capture keys on linux regardless of the host", () => {
+  test("container capture gets its own identity token regardless of the host", () => {
     const environment = resolveEnvironment({
       container: {},
       playwrightVersion: "1.55.1",
     });
-    expect(environment.platform).toBe("linux");
-    expect(environment.key).toBe("linux-chromium-1280x720@1x");
+    // "container", not "linux": bare Linux and the container render
+    // differently on the same machine, so sharing the "linux" token would
+    // make them clobber one baseline directory instead of coexisting.
+    expect(environment.platform).toBe("container");
+    expect(environment.key).toBe("container-chromium-1280x720@1x");
     expect(environment.container?.image).toBe(
       "mcr.microsoft.com/playwright:v1.55.1-noble",
     );
+  });
+
+  test("an official image pinned to a different Playwright version fails closed", () => {
+    expect(() =>
+      resolveEnvironment({
+        container: { image: "mcr.microsoft.com/playwright:v1.54.0-noble" },
+        playwrightVersion: "1.55.1",
+      }),
+    ).toThrow(
+      /version-locked.*v1\.54\.0.*1\.55\.1|v1\.54\.0.*1\.55\.1.*version-locked/s,
+    );
+    // Non-official images cannot be version-checked from their name and
+    // stay the user's responsibility.
+    expect(() =>
+      resolveEnvironment({
+        container: { image: "example.com/custom:tag" },
+        playwrightVersion: "1.55.1",
+      }),
+    ).not.toThrow();
   });
 
   test("an explicit image wins over the derived default", () => {
@@ -74,7 +96,7 @@ describe("resolveEnvironment", () => {
         container: {},
         playwrightVersion: "1.55.1",
       }).key,
-    ).toBe("linux-webkit-1280x720@1x");
+    ).toBe("container-webkit-1280x720@1x");
   });
 });
 
@@ -129,6 +151,11 @@ describe("container plumbing", () => {
   test("rebases the printed endpoint onto the published loopback port", () => {
     expect(publishedWsEndpoint("ws://0.0.0.0:4444/token-path", "49321")).toBe(
       "ws://127.0.0.1:49321/token-path",
+    );
+    // The scheme survives: downgrading a wss:// endpoint to ws:// would
+    // connect plaintext to a TLS port and time out opaquely.
+    expect(publishedWsEndpoint("wss://0.0.0.0:4444/t", "49321")).toBe(
+      "wss://127.0.0.1:49321/t",
     );
   });
 

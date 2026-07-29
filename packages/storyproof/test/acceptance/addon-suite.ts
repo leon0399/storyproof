@@ -12,11 +12,12 @@ import type {
 import { PNG } from "pngjs";
 
 // The key leads with the platform the BROWSER renders on (this host's
-// platform locally, always linux in the capture container) and the engine
+// platform locally, the distinct "container" token in the capture
+// container) and the engine
 // (STORYPROOF_BROWSER). Both env vars are the same switches the fixture's
 // main.ts reads, so the suite and the addon agree by construction.
 const ENVIRONMENT_KEY = `${
-  process.env.STORYPROOF_CONTAINER === "1" ? "linux" : process.platform
+  process.env.STORYPROOF_CONTAINER === "1" ? "container" : process.platform
 }-${process.env.STORYPROOF_BROWSER ?? "chromium"}-1280x720@1x`;
 
 type AddonAcceptanceSuiteOptions = {
@@ -337,7 +338,7 @@ export function registerAddonAcceptanceSuite({
     // Environment identity landed with schema 2: re-approval must record
     // where and how these pixels were actually rendered.
     expect(repaired.platform).toBe(
-      process.env.STORYPROOF_CONTAINER === "1" ? "linux" : process.platform,
+      process.env.STORYPROOF_CONTAINER === "1" ? "container" : process.platform,
     );
     expect(repaired.renderFingerprint).toMatch(/^[a-f0-9]{64}$/);
   });

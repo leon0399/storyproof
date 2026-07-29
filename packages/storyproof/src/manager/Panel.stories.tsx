@@ -25,8 +25,8 @@ const meta = {
       runId: "run-1",
       running: false,
       environment: {
-        key: "linux-chromium-1280x720@1x",
-        platform: "linux",
+        key: "container-chromium-1280x720@1x",
+        platform: "container",
         browserName: "chromium",
         browserVersion: "140.0.7339.186",
         playwrightVersion: "1.55.1",

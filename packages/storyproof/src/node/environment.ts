@@ -65,11 +65,36 @@ export function resolveEnvironment(
         "Container capture needs either an explicit image or the installed Playwright version to derive one",
       );
     }
+    // The Playwright wire protocol is version-locked and the container runs
+    // `npx playwright@<installed version> run-server` against the image's
+    // bundled browsers — so an official image whose tag disagrees with the
+    // installed playwright package can only produce an opaque connect
+    // timeout later. Fail at dev-server startup with the actual cause
+    // instead. Non-official images can't be version-checked from their name;
+    // they remain the user's responsibility.
+    const tagged = /^mcr\.microsoft\.com\/playwright:v(\d+\.\d+\.\d+)-/.exec(
+      image,
+    );
+    if (
+      tagged?.[1] &&
+      options.playwrightVersion &&
+      tagged[1] !== options.playwrightVersion
+    ) {
+      throw new Error(
+        `capture.container.image is pinned to Playwright v${tagged[1]}, but the installed playwright package is ${options.playwrightVersion}. The Playwright wire protocol is version-locked, so these must match: update the image tag, or install playwright@${tagged[1]}, or omit the image to derive it automatically.`,
+      );
+    }
     container = { image };
   }
 
-  // The Playwright container images are Linux regardless of the host.
-  const platform = container ? "linux" : process.platform;
+  // "container" rather than "linux": the container is its own rendering
+  // environment, distinct from bare Linux on the SAME machine (measured:
+  // bare and containerized capture on one Linux host produce different
+  // pixels). Sharing the "linux" token would give bare-Linux and container
+  // capture the identical key — and therefore the identical baseline
+  // directory, each re-approval clobbering the other's baseline — defeating
+  // the coexistence this key exists to provide.
+  const platform = container ? "container" : process.platform;
   const environment = {
     platform,
     // Engines are distinct rendering environments with their own hashes

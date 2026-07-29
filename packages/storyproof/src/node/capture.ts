@@ -8,6 +8,7 @@ import { sha256 } from "./compare.js";
 import {
   acquireContainerBrowser,
   type ContainerBrowserRequest,
+  type FingerprintCache,
 } from "./container.js";
 import { RENDER_PROBE_HTML, type CaptureBrowserName } from "./environment.js";
 
@@ -121,6 +122,9 @@ export async function createCaptureSession(
       {
         mapBaseUrl: remote.mapBaseUrl,
         containerImage: remote.image,
+        // The shared browser's rendering environment cannot change while it
+        // lives, so the probe cost is paid once per container, not per run.
+        fingerprintCache: remote.fingerprintCache,
         // The container browser is shared across runs; closing a session
         // must not tear it down.
         close: remote.release,
@@ -140,11 +144,12 @@ export const createChromiumCaptureSession = createCaptureSession;
 interface SessionExtras {
   mapBaseUrl?: (url: string) => string;
   containerImage?: string;
+  fingerprintCache?: FingerprintCache;
   close?: () => Promise<void>;
 }
 
 class PlaywrightCaptureSession implements ChromiumCaptureSession {
-  private fingerprintPromise: Promise<string> | undefined;
+  private readonly ownFingerprintCache: FingerprintCache = {};
 
   constructor(
     private readonly browser: CaptureBrowser,
@@ -239,8 +244,17 @@ class PlaywrightCaptureSession implements ChromiumCaptureSession {
   }
 
   fingerprint(): Promise<string> {
-    this.fingerprintPromise ??= this.captureFingerprint();
-    return this.fingerprintPromise;
+    const cache = this.extras.fingerprintCache ?? this.ownFingerprintCache;
+    if (!cache.promise) {
+      const probe = this.captureFingerprint();
+      cache.promise = probe;
+      // A failed probe must not poison a long-lived shared cache: the next
+      // run retries instead of replaying the rejection forever.
+      probe.catch(() => {
+        if (cache.promise === probe) cache.promise = undefined;
+      });
+    }
+    return cache.promise;
   }
 
   info(): CaptureSessionInfo {

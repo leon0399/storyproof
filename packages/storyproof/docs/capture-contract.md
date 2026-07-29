@@ -31,12 +31,15 @@ Each story runs in a fresh context from one bundled Playwright Chromium process:
 - timezone: UTC;
 - reduced motion: enabled.
 
-The environment key is `<platform>-chromium-1280x720@1x`, where the platform
+The environment key is `<platform>-<engine>-1280x720@1x`, where the platform
 component describes where the **browser** renders: this host's platform for
-local capture (`linux`, `darwin`, `win32`), and always `linux` for
-[container capture](configuration.md#container-capture-capturecontainer)
-regardless of the host. Different platforms therefore keep coexisting
-baselines instead of overwriting one another. Architecture is deliberately
+local capture (`linux`, `darwin`, `win32`), and the distinct token
+`container` for
+[container capture](configuration.md#container-capture-capturecontainer) —
+deliberately not `linux`, because bare Linux and the container render
+different pixels on the same machine and each mode must keep its own
+baselines. Different environments therefore coexist instead of overwriting
+one another. Architecture is deliberately
 absent from the key: amd64 and arm64 were measured rendering the identical
 probe image byte-for-byte in the capture container, for all three engines.
 Screenshot framing changes which pixels inside that environment become the

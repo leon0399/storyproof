@@ -11,6 +11,7 @@ import { Button, EmptyTabContent } from "storybook/internal/components";
 import { styled, type Theme } from "storybook/theming";
 
 import { ARTIFACT_ROUTE } from "../constants.js";
+import { VisuallyHidden } from "./VisuallyHidden.js";
 import type { VisualCommand } from "../shared/protocol.js";
 import type {
   VisualEnvironment,
@@ -335,7 +336,11 @@ function environmentLabel(environment: VisualEnvironment): string {
     ? `${environment.browserName} ${environment.browserVersion}`
     : environment.browserName;
   const where = environment.containerImage ? "container" : "local";
-  return `${environment.platform} · ${browser} · ${where}`;
+  // Container environments key their platform as "container", which would
+  // duplicate the provenance suffix.
+  return environment.platform === where
+    ? `${environment.platform} · ${browser}`
+    : `${environment.platform} · ${browser} · ${where}`;
 }
 
 function environmentDetail(environment: VisualEnvironment): string {
@@ -558,22 +563,3 @@ const Placeholder = styled.p(({ theme }) => ({
   maxWidth: 260,
   textAlign: "center",
 }));
-
-// The standard visually-hidden clip pattern: gives an icon-only button a real
-// accessible name from its own text content, so it works regardless of
-// whether the host `Button`'s `ariaLabel` prop is recognized -- storyproof's
-// minimum supported Storybook (10.0.8) predates that prop's introduction, so
-// `ariaLabel` alone silently produces an unnamed button there. Keep the
-// `ariaLabel` prop too: it satisfies newer Storybook's own deprecation
-// warning and costs nothing.
-const VisuallyHidden = styled.span({
-  border: 0,
-  clip: "rect(0, 0, 0, 0)",
-  height: 1,
-  margin: -1,
-  overflow: "hidden",
-  padding: 0,
-  position: "absolute",
-  whiteSpace: "nowrap",
-  width: 1,
-});

@@ -59,8 +59,8 @@ One engine per Storybook dev server. Baselines are keyed per engine
 (`linux-firefox-1280x720@1x`), so switching engines starts a separate baseline
 set rather than overwriting another engine's — and switching back loses
 nothing. Capturing one story across several engines in a single run is
-deliberately out of scope for now: it multiplies review (N candidates per
-story) and needs its own UI design, tracked in the roadmap.
+deliberately out of scope: it multiplies review (N candidates per story) and
+waits on a multi-candidate review UI design.
 
 ```ts
 options: {
@@ -109,7 +109,9 @@ capturing inside one shared container:
 With `container: true` the image is derived from the installed Playwright
 version (`mcr.microsoft.com/playwright:v<version>-noble`); pass
 `{ image: "…" }` to override. Every machine then renders under the same
-`linux-chromium-…` key and produces identical pixels — measured, not
+`container-chromium-…` key (a distinct identity from bare-Linux capture,
+which renders differently even on the same machine) and produces identical
+pixels — measured, not
 assumed: hosts that render differently when capturing bare (including two
 Linux machines with identical font metrics) produce byte-identical output
 inside the same image, across amd64 and arm64, for all three engines.

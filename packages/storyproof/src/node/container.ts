@@ -64,6 +64,8 @@ export interface ContainerBrowser {
   browser: ConnectedBrowser;
   image: string;
   mapBaseUrl(url: string): string;
+  /** Shared across runs; lets sessions reuse one probe per container. */
+  fingerprintCache: FingerprintCache;
   /** Per-session close: keeps the shared browser and container alive. */
   release(): Promise<void>;
 }
@@ -126,13 +128,16 @@ export function parseGatewayAddress(chunk: string): string | undefined {
 }
 
 /** Rebase the endpoint the server printed (container-side host/port) onto the
- * host-published loopback port, keeping any path/token. */
+ * host-published loopback port, keeping the scheme (parseListeningEndpoint
+ * accepts wss:// too — silently downgrading it would connect plaintext to a
+ * TLS port and time out opaquely) and any path/token. */
 export function publishedWsEndpoint(
   printedEndpoint: string,
   hostPort: string,
 ): string {
   const url = new URL(printedEndpoint);
-  return `ws://127.0.0.1:${hostPort}${url.pathname}${url.search}`;
+  const scheme = url.protocol === "wss:" ? "wss" : "ws";
+  return `${scheme}://127.0.0.1:${hostPort}${url.pathname}${url.search}`;
 }
 
 /**
@@ -158,11 +163,20 @@ export function rewriteToContainerHost(
   return parsed.toString();
 }
 
+export interface FingerprintCache {
+  promise?: Promise<string>;
+}
+
 interface SharedContainer {
   browser: ConnectedBrowser;
   name: string;
   image: string;
   gatewayAddress?: string;
+  // Owned by the shared entry so the render-probe cost is paid once per
+  // container lifetime, not once per run — the shared browser's rendering
+  // environment cannot change while it lives. A replaced (crashed) container
+  // gets a fresh entry and therefore a fresh cache.
+  fingerprintCache: FingerprintCache;
 }
 
 const shared = new Map<string, Promise<SharedContainer>>();
@@ -195,6 +209,7 @@ export async function acquireContainerBrowser(
     browser: container.browser,
     image: container.image,
     mapBaseUrl: (url) => rewriteToContainerHost(url, container.gatewayAddress),
+    fingerprintCache: container.fingerprintCache,
     release: async () => {
       // Shared across runs; the process-exit hook owns real teardown.
     },
@@ -231,6 +246,7 @@ async function startContainer(
       browser,
       name,
       image: request.image,
+      fingerprintCache: {},
       ...(ready.gatewayAddress ? { gatewayAddress: ready.gatewayAddress } : {}),
     };
   } catch (error) {
@@ -290,7 +306,12 @@ function waitForEndpoint(
 }
 
 async function resolvePublishedPort(name: string): Promise<string> {
-  // `docker port` can lag the server's own readiness line by a beat.
+  // `docker port` can lag the server's own readiness line by a beat, so
+  // transient failures retry — but the LAST error is kept and surfaced,
+  // because a persistent cause (a daemon-socket permission problem, say)
+  // must not hide behind a generic port message for 5 seconds and then
+  // point nowhere near the real fix.
+  let lastError: string | undefined;
   for (let attempt = 0; attempt < 20; attempt += 1) {
     try {
       const { stdout } = await execFileAsync("docker", [
@@ -300,13 +321,14 @@ async function resolvePublishedPort(name: string): Promise<string> {
       ]);
       const match = /:(\d+)\s*$/m.exec(stdout);
       if (match?.[1]) return match[1];
-    } catch {
-      // fall through to retry
+      lastError = `docker port printed no host port: ${stdout.trim() || "(empty output)"}`;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
     }
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   throw new Error(
-    `Could not resolve the published WebSocket port for container "${name}".`,
+    `Could not resolve the published WebSocket port for container "${name}".${lastError ? ` Last docker error: ${lastError.trim()}` : ""}`,
   );
 }
 
