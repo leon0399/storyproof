@@ -58,6 +58,31 @@ captures as regression evidence, not fidelity claims.)
 The panel labels which environment produced the images, and a baseline
 captured elsewhere reports a named incompatibility instead of a false diff.
 
+## Committed baselines — the panel states you'll see
+
+This example ships container-captured baselines
+(`src/__screenshots__/**/container-chromium-1280x720@1x/`), staged so the
+Visual tests panel demonstrates every state on a fresh clone:
+
+| Stories                                           | State       | Why                                                                                                                                                                      |
+| ------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Button (all but Large), Header LoggedOut/LoggedIn | **Passed**  | The live render matches the committed baseline.                                                                                                                          |
+| Page LoggedOut/LoggedIn                           | **Changed** | The baseline was approved before a deliberate source edit (Cartwright Co. settled INV-1042) — open the panel to review the baseline, candidate, and diff.                |
+| Button Large                                      | **New**     | Left unapproved on purpose: click **Accept** and watch the baseline PNG appear in your checkout. Approval writes repository files; Git review is the authorization path. |
+
+Seeing these states requires container capture
+(`STORYPROOF_CONTAINER=1 pnpm dev`, needs Docker): the committed baselines are
+keyed `container-chromium-…` because only the container renders identical
+pixels on every machine. A bare capture on your host uses your platform's own
+key, so these stories report **New** there — nothing is wrong; your machine
+simply keeps its own baseline set.
+
+Maintainers: after intentionally changing demo components, re-approve with
+`packages/storyproof/scripts/example-states.mjs` (its header comment holds the
+procedure) for **both** examples, keeping the staged Page difference. CI runs
+the same script in verify mode, so drift between demo sources and committed
+baselines fails the build.
+
 ## Stories
 
 Open the **Visual tests** panel or the testing widget on any story and click
