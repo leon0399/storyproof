@@ -134,8 +134,14 @@ for (const result of [...state.results].sort((a, b) =>
 }
 
 if (values.mode === "approve") {
+  let approved = 0;
   for (const storyId of APPROVE) {
     const result = state.results.find((entry) => entry.storyId === storyId);
+    // Already matching its baseline: nothing to approve, and emitting an
+    // approve command anyway would throw stale-approval (the runner only
+    // holds approval candidates for new/changed results) — skipping keeps
+    // re-runs of this mode idempotent.
+    if (result?.status === "passed") continue;
     if (!result?.candidateSha256) {
       console.error(
         `no candidate for ${storyId} (status ${result?.status ?? "missing"})`,
@@ -143,6 +149,7 @@ if (values.mode === "approve") {
       process.exitCode = 1;
       continue;
     }
+    approved += 1;
     await page.evaluate(
       (command) => {
         globalThis.__STORYBOOK_ADDONS_CHANNEL__.emit(
@@ -174,7 +181,9 @@ if (values.mode === "approve") {
     APPROVE,
     { timeout: 60_000, polling: 500 },
   );
-  console.log(`approved: ${APPROVE.length} stories now passed`);
+  console.log(
+    `approved: ${approved} newly, ${APPROVE.length - approved} already passed`,
+  );
 } else {
   let failed = false;
   for (const [storyId, expected] of EXPECTED) {
