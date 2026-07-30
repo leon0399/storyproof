@@ -304,6 +304,50 @@ export const BaselineElsewhere: Story = {
   },
 };
 
+/**
+ * The same cross-environment situation after a bare run completed: the run
+ * reports "New" (no baseline in this environment), and the hint must keep
+ * saying "No baseline for …" — a truthy result must not flip the copy to a
+ * false "also exist".
+ *
+ * @summary for the cross-environment hint after a run reports New
+ */
+export const BaselineElsewhereAfterRun: Story = {
+  tags: ["ai-generated"],
+  args: {
+    currentStoryId: "button--primary",
+    baseline: {
+      storyId: "button--primary",
+      environmentKey: "linux-chromium-1280x720@1x",
+      availableEnvironmentKeys: ["container-chromium-1280x720@1x"],
+    },
+    state: {
+      runId: "run-new",
+      running: false,
+      results: [
+        {
+          runId: "run-new",
+          storyId: "button--primary",
+          title: "Button / Primary",
+          environmentKey: "linux-chromium-1280x720@1x",
+          status: "new",
+          candidateSha256: "a".repeat(64),
+          artifacts: { candidate: "candidate" },
+        },
+      ],
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("New")).toBeInTheDocument();
+    await expect(
+      canvas.getByText(
+        /No baseline for linux-chromium-1280x720@1x — baselines exist for: container-chromium-1280x720@1x/,
+      ),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByText(/also exist/)).not.toBeInTheDocument();
+  },
+};
+
 export const StaticUnavailable: Story = {
   tags: ["ai-generated"],
   args: { available: false },

@@ -297,11 +297,14 @@ function Review({
           Committed baseline for this environment — run to compare.
         </Message>
       ) : null}
-      {otherBaselineKeys.length > 0 ? (
+      {baseline && otherBaselineKeys.length > 0 ? (
         <Message>
-          {baseline?.artifactId || result
+          {/* A "new" result means the current environment has no baseline,
+              so the copy is keyed off artifactId alone — a truthy result
+              must not turn the message into a false "also exist". */}
+          {baseline.artifactId
             ? "Baselines also exist for other environments: "
-            : `No baseline for ${baseline?.environmentKey ?? "this environment"} — baselines exist for: `}
+            : `No baseline for ${baseline.environmentKey} — baselines exist for: `}
           {otherBaselineKeys.join(", ")}
         </Message>
       ) : null}

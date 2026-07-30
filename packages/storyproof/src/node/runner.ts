@@ -1,5 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  mkdir,
+  readdir,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import path from "node:path";
 
 import type {
@@ -146,9 +153,19 @@ export class VisualTestRunner {
       // one), so also report every key that has one — the panel uses this
       // to explain a "New" that is really "baselined under a different
       // environment" (e.g. committed container baselines seen from a bare
-      // host).
+      // host). Each candidate key resolves through resolveArtifactPaths so
+      // paths.ts stays the sole authority on the artifact layout and its
+      // segment guards vet the directory name.
       const availableEnvironmentKeys = await listBaselineEnvironmentKeys(
         path.dirname(paths.directory),
+        (environmentKey) =>
+          this.resolveArtifactPaths!({
+            cwd: this.options.cwd,
+            storyRoots: this.options.storyRoots,
+            importPath,
+            storyId,
+            environmentKey,
+          }),
       );
       if (availableEnvironmentKeys.length > 0) {
         preview.availableEnvironmentKeys = availableEnvironmentKeys;
@@ -556,11 +573,15 @@ function cancelledState(state: InternalVisualRunState): InternalVisualRunState {
 
 /**
  * Environment keys (directory names) under a story's artifact directory that
- * hold a committed baseline. Reads directory listings only — the names are
- * reported for display, never joined back into write paths.
+ * hold a committed baseline, resolved through the caller's paths authority.
+ * The names are reported for display, never joined back into write paths.
+ * Never throws: this is best-effort context for the panel, and an unreadable
+ * or malformed sibling directory must not cost the current environment its
+ * own perfectly-readable baseline preview.
  */
 async function listBaselineEnvironmentKeys(
   storyArtifactDirectory: string,
+  resolveBaselinePaths: (environmentKey: string) => Promise<ArtifactPaths>,
 ): Promise<string[]> {
   try {
     const entries = await readdir(storyArtifactDirectory, {
@@ -569,18 +590,22 @@ async function listBaselineEnvironmentKeys(
     const keys = await Promise.all(
       entries
         .filter((entry) => entry.isDirectory())
-        .map(async (entry) =>
-          (await readFileIfPresent(
-            path.join(storyArtifactDirectory, entry.name, "baseline.png"),
-          ))
-            ? entry.name
-            : undefined,
-        ),
+        .map(async (entry) => {
+          try {
+            const paths = await resolveBaselinePaths(entry.name);
+            // Existence check only — never read the image here; the panel
+            // fetches whichever baseline it displays through the artifact
+            // route, and this runs on every story navigation.
+            await access(paths.baselinePath);
+            return entry.name;
+          } catch {
+            return undefined;
+          }
+        }),
     );
     return keys.filter((key) => key !== undefined).sort();
-  } catch (error) {
-    if (isMissingPathError(error)) return [];
-    throw error;
+  } catch {
+    return [];
   }
 }
 
