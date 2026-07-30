@@ -91,8 +91,11 @@ the addon requires, so it fails closed there by design):
    **frozen-addon mode**: no turbo, so no rebuild and no restart. Use it to look
    at an example, never to develop the addon.
 
-   **Ports are assigned explicitly from a 6106+ block, and a new example must
-   claim the next free one** (6106 react-vite, 6107 nextjs-vite, 6108 next).
+   **Ports are assigned explicitly, and a new example must claim the next
+   free index in both blocks**: Storybooks at 6106+ (6106 react-vite, 6107
+   nextjs-vite, 6108 next) and the examples' real app servers at 6206+ (6206
+   react-vite's Vite app, 6207 nextjs-vite's Next app, 6208 next). `pnpm dev`
+   launches both blocks (`turbo watch dev dev:app`).
 
    Two reasons they are pinned rather than left to Storybook: concurrent starts
    race for an auto-selected port, and auto-restart would move the URL out from
@@ -118,13 +121,19 @@ the addon requires, so it fails closed there by design):
 
 **Examples are documentation-by-example — that's the acceptance bar for what
 goes in one.** They exist to teach the addon by showing it; being CI's
-acceptance fixture is a consequence of that, not the purpose. Each carries a
-plain demo component/story pair (`Button`, `NavLink`) _and_ the same
+acceptance fixture is a consequence of that, not the purpose. Each carries
+the **Ledgerline** demo (Button/Header/Page, derived from Storybook's
+official scaffold, styled as a small invoicing dashboard) _and_ the same
 `visual-fixture`/`outside-fixture` scenario stories as
 `packages/storyproof/test/fixtures/project` (minus fault injection — see
 below), each with a short code comment describing what it demonstrates and
 what storyproof should do; `.storybook/preview.ts`'s `storySort` orders the
-sidebar so the plain demo reads first. The bar for adding a new example or
+sidebar so the demo reads first. **The two examples' demo sources are one
+design maintained as verbatim copies** (a shared workspace package would
+break the consumer job's out-of-workspace copy); the only sanctioned
+divergence is the framework type-import in `*.stories.tsx`, and CI's lint
+job diffs the trees to enforce it. Demo content must stay deterministic:
+system font stacks, no animation in captured states, fixed data. The bar for adding a new example or
 scenario story: **it earns its place by teaching something a real user would
 encounter** — changed pixels, a disabled story, viewport-vs-content framing,
 portal capture, a story outside `storyRoots`, stale-approval rejection,

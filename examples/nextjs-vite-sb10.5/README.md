@@ -14,6 +14,7 @@ the actual packed npm tarball separately, outside this workspace — see
 ```bash
 pnpm install     # from the repository root
 pnpm dev         # runs every example; this one is http://localhost:6107
+                 # ...and its real Next.js app at http://localhost:6207
 ```
 
 `pnpm dev` is `turbo watch dev`: editing addon source rebuilds it and restarts
@@ -64,9 +65,14 @@ Open the **Visual tests** panel or the testing widget on any story and click
 Approved baselines are written next to the story as
 `src/__screenshots__/<story file>.visual/**`.
 
-- **NavLink** — a component using `next/link`, so this example actually
-  exercises the Next.js framework integration rather than plain React. Start
-  here.
+- **Ledgerline** — a small invoicing dashboard derived from Storybook's
+  official scaffold (Button, Header, full Page), identical in both examples
+  so the two framework integrations render one design. Start with
+  **Button** (the simplest run/review/approve loop), then **Header** (the
+  two auth states differ only in one corner — a tight, readable diff), then
+  **Page** (a fullscreen story captured at the full 1280x720 viewport, whose
+  LoggedIn variant signs in through a `play` function — storyproof captures
+  only after `play` finishes).
 - **Visual Fixture** / **Outside Fixture** — each story demonstrates one real
   reviewer behavior (changed pixels, a disabled story, exact viewport
   framing, portal capture, a story outside the configured `storyRoots`,

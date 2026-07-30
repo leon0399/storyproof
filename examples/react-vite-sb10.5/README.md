@@ -14,6 +14,7 @@ the actual packed npm tarball separately, outside this workspace — see
 ```bash
 pnpm install     # from the repository root
 pnpm dev         # runs every example; this one is http://localhost:6106
+                 # ...and its real Vite app at http://localhost:6206
 ```
 
 `pnpm dev` is `turbo watch dev`: editing addon source rebuilds it and restarts
@@ -64,8 +65,14 @@ Open the **Visual tests** panel or the testing widget on any story and click
 Approved baselines are written next to the story as
 `src/__screenshots__/<story file>.visual/**`.
 
-- **Button** — a plain component with no storyproof-specific behavior. Start
-  here.
+- **Ledgerline** — a small invoicing dashboard derived from Storybook's
+  official scaffold (Button, Header, full Page), identical in both examples
+  so the two framework integrations render one design. Start with
+  **Button** (the simplest run/review/approve loop), then **Header** (the
+  two auth states differ only in one corner — a tight, readable diff), then
+  **Page** (a fullscreen story captured at the full 1280x720 viewport, whose
+  LoggedIn variant signs in through a `play` function — storyproof captures
+  only after `play` finishes).
 - **Visual Fixture** / **Outside Fixture** — each story demonstrates one real
   reviewer behavior (changed pixels, a disabled story, exact viewport
   framing, portal capture, a story outside the configured `storyRoots`,
@@ -78,5 +85,5 @@ Approved baselines are written next to the story as
 
 - `.storybook/main.ts` — registers `storyproof/preset` the same way any
   consumer would, per [the configuration docs](https://github.com/leon0399/storyproof/blob/main/packages/storyproof/docs/configuration.md).
-- `.storybook/preview.ts` — orders the sidebar so Button reads before the
-  scenario stories.
+- `.storybook/preview.ts` — orders the sidebar so the Ledgerline demo reads
+  before the scenario stories.

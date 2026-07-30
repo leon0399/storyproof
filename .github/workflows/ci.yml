@@ -42,6 +42,20 @@ jobs:
             turbo-${{ runner.os }}-
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec turbo run lint
+      # The two examples' demo sources are one design, maintained as
+      # verbatim copies (a shared workspace package would break the consumer
+      # job's out-of-workspace copy). The only sanctioned divergence is the
+      # framework type-import in *.stories.tsx; screenshots are excluded
+      # because committed baselines are per-environment by design.
+      - name: Examples stay identical
+        run: |
+          diff -r \
+            -I '@storybook/[a-z-]*-vite' \
+            --exclude=__screenshots__ \
+            examples/react-vite-sb10.5/src examples/nextjs-vite-sb10.5/src
+          diff -r \
+            -I '@storybook/[a-z-]*-vite' \
+            examples/react-vite-sb10.5/outside examples/nextjs-vite-sb10.5/outside
 
   typecheck:
     name: typecheck

@@ -11,3 +11,5 @@ debug-storybook.log
 **/__screenshots__/**/diff.png
 **/__screenshots__/**/*.tmp
 packages/storyproof/test/.tmp/
+# Next.js dev/build output for the nextjs example's app server.
+.next/

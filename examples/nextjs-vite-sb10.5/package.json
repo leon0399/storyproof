@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "storybook dev -p 6107 --no-open",
     "build-storybook": "storybook build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "dev:app": "next dev -p 6207"
   },
   "dependencies": {
     "next": "^15.5.22",
