@@ -108,7 +108,28 @@ capturing inside one shared container:
 
 With `container: true` the image is derived from the installed Playwright
 version (`mcr.microsoft.com/playwright:v<version>-noble`); pass
-`{ image: "…" }` to override. Every machine then renders under the same
+`{ image: "…" }` to override — e.g. a corporate registry mirror:
+
+```ts
+capture: {
+  container: {
+    image: "artifactory.corp.example/mcr-remote/playwright:v1.55.1-noble",
+  },
+},
+```
+
+The image's Playwright version tag must match the installed `playwright`
+package (the wire protocol is version-locked); a mismatched tag fails at
+dev-server startup with a named error, whatever the registry prefix, as
+long as the image is named `playwright` with a `v<semver>-` tag. A faithful
+mirror renders the same pixels as the official image, so its baselines carry
+the same render fingerprint and interoperate with ones captured from
+`mcr.microsoft.com` directly. Note the container still runs
+`npx playwright@<version> run-server` against the public npm registry — on a
+network that blocks npmjs.org, container capture currently fails there even
+with a mirrored image.
+
+Every machine then renders under the same
 `container-chromium-…` key (a distinct identity from bare-Linux capture,
 which renders differently even on the same machine) and produces identical
 pixels — measured, not
