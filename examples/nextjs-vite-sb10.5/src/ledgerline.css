@@ -33,6 +33,14 @@
   --ll-shadow: 0.1875rem 0.1875rem 0 var(--ll-ink);
 }
 
+/* The demo page is full-bleed, and both example app shells rely on the
+ * design system for this reset rather than carrying framework-specific
+ * ones. (Storybook's preview normalizes its own iframe, so stories are
+ * unaffected either way.) */
+body {
+  margin: 0;
+}
+
 /* ---------------------------------------------------------------- button */
 
 .ll-button {
