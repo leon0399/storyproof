@@ -57,6 +57,13 @@ export interface BaselinePreview {
   storyId: string;
   environmentKey: string;
   artifactId?: string;
+  /**
+   * Every environment key with a committed baseline on disk for this story,
+   * current one included. Lets the panel say "baselines exist for
+   * container-chromium-…" instead of a bare "New" when the current
+   * environment simply isn't the one the repository was baselined under.
+   */
+  availableEnvironmentKeys?: string[];
 }
 
 export interface BaselineMetadata {

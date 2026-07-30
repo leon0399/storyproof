@@ -14,6 +14,7 @@ import { ARTIFACT_ROUTE } from "../constants.js";
 import { VisuallyHidden } from "./VisuallyHidden.js";
 import type { VisualCommand } from "../shared/protocol.js";
 import type {
+  BaselinePreview,
   VisualEnvironment,
   VisualResult,
   VisualRunState,
@@ -27,8 +28,8 @@ export interface PanelViewProps {
   currentStoryId?: string;
   /** Human title of the current story (e.g. "components/button / With Icon"). */
   currentStoryTitle?: string;
-  /** Opaque id of the current story's committed baseline, if one exists on disk. */
-  baselineArtifactId?: string;
+  /** The current story's committed-baseline lookup, if it has resolved. */
+  baseline?: BaselinePreview;
   commandError?: string;
   available?: boolean;
   ready?: boolean;
@@ -39,7 +40,7 @@ export function PanelView({
   state,
   currentStoryId,
   currentStoryTitle,
-  baselineArtifactId,
+  baseline,
   commandError,
   available = true,
   ready = true,
@@ -92,7 +93,7 @@ export function PanelView({
           <Review
             key={currentStoryId}
             result={result}
-            baselineArtifactId={baselineArtifactId}
+            baseline={baseline}
             running={state.running}
           />
         ) : (
@@ -217,18 +218,28 @@ function Summary({
 
 function Review({
   result,
-  baselineArtifactId,
+  baseline,
   running,
 }: {
   result: VisualResult | undefined;
-  baselineArtifactId?: string;
+  baseline?: BaselinePreview;
   running: boolean;
 }) {
   // With no local run, fall back to the committed baseline so it stays
   // reviewable; a run supplies the full baseline/candidate/diff set.
   const artifacts =
     result?.artifacts ??
-    (baselineArtifactId ? { baseline: baselineArtifactId } : undefined);
+    (baseline?.artifactId ? { baseline: baseline.artifactId } : undefined);
+  // A committed baseline under a DIFFERENT environment key is invisible to
+  // this session's runs; without this line a bare-host user staring at
+  // committed container baselines sees an unexplained "New". Shown until a
+  // run produces a same-environment comparison.
+  const otherBaselineKeys =
+    baseline && (!result || result.status === "new")
+      ? (baseline.availableEnvironmentKeys ?? []).filter(
+          (key) => key !== baseline.environmentKey,
+        )
+      : [];
   const availableImages = (["baseline", "candidate", "diff"] as const).filter(
     (kind) => artifacts?.[kind],
   );
@@ -278,6 +289,20 @@ function Review({
       {result?.message ? (
         <Message role={isError ? "alert" : undefined} $error={isError}>
           {result.message}
+        </Message>
+      ) : null}
+
+      {!result && baseline?.artifactId ? (
+        <Message>
+          Committed baseline for this environment — run to compare.
+        </Message>
+      ) : null}
+      {otherBaselineKeys.length > 0 ? (
+        <Message>
+          {baseline?.artifactId || result
+            ? "Baselines also exist for other environments: "
+            : `No baseline for ${baseline?.environmentKey ?? "this environment"} — baselines exist for: `}
+          {otherBaselineKeys.join(", ")}
         </Message>
       ) : null}
 

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import type {
@@ -142,6 +142,17 @@ export class VisualTestRunner {
         storyId,
         environmentKey: this.environment.key,
       });
+      // Baselines are keyed per environment (sibling directories of this
+      // one), so also report every key that has one — the panel uses this
+      // to explain a "New" that is really "baselined under a different
+      // environment" (e.g. committed container baselines seen from a bare
+      // host).
+      const availableEnvironmentKeys = await listBaselineEnvironmentKeys(
+        path.dirname(paths.directory),
+      );
+      if (availableEnvironmentKeys.length > 0) {
+        preview.availableEnvironmentKeys = availableEnvironmentKeys;
+      }
       const baseline = await readFileIfPresent(paths.baselinePath);
       if (!baseline || !this.options.artifactRegistry) return preview;
       return {
@@ -541,6 +552,36 @@ function cancelledState(state: InternalVisualRunState): InternalVisualRunState {
         : result,
     ),
   };
+}
+
+/**
+ * Environment keys (directory names) under a story's artifact directory that
+ * hold a committed baseline. Reads directory listings only — the names are
+ * reported for display, never joined back into write paths.
+ */
+async function listBaselineEnvironmentKeys(
+  storyArtifactDirectory: string,
+): Promise<string[]> {
+  try {
+    const entries = await readdir(storyArtifactDirectory, {
+      withFileTypes: true,
+    });
+    const keys = await Promise.all(
+      entries
+        .filter((entry) => entry.isDirectory())
+        .map(async (entry) =>
+          (await readFileIfPresent(
+            path.join(storyArtifactDirectory, entry.name, "baseline.png"),
+          ))
+            ? entry.name
+            : undefined,
+        ),
+    );
+    return keys.filter((key) => key !== undefined).sort();
+  } catch (error) {
+    if (isMissingPathError(error)) return [];
+    throw error;
+  }
 }
 
 async function readFileIfPresent(

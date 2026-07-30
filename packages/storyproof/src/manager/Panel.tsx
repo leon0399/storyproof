@@ -74,9 +74,7 @@ export function Panel() {
       state={state}
       currentStoryId={storyId}
       currentStoryTitle={currentStoryTitle}
-      baselineArtifactId={
-        baseline?.storyId === storyId ? baseline.artifactId : undefined
-      }
+      baseline={baseline?.storyId === storyId ? baseline : undefined}
       commandError={commandError}
       available={available}
       ready={ready}

@@ -12,6 +12,16 @@ monorepo until 2026-07-26; the day-by-day pre-extraction record lives in
 
 ### Added
 
+- The panel now says what is on disk before (and after) a run. A story whose
+  committed baselines live under a _different_ environment key — the normal
+  state of a repo with container baselines viewed from a bare host — no
+  longer shows an unexplained "Not run"/"New": the panel lists the
+  environments that do have baselines ("No baseline for
+  `linux-chromium-1280x720@1x` — baselines exist for:
+  `container-chromium-1280x720@1x`"), and a story whose current-environment
+  baseline is committed gets "Committed baseline for this environment — run
+  to compare" alongside the already-viewable Baseline tab.
+
 - Environment identity for baselines. The environment key now leads with the
   platform the browser renders on (`linux-chromium-1280x720@1x`), so
   different platforms keep coexisting baselines instead of silently fighting
