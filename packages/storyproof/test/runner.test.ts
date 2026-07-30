@@ -703,7 +703,14 @@ describe("VisualTestRunner", () => {
         cwd: process.cwd(),
         storyRoots: ["packages/ui/src"],
         storyIndexGenerator: fakeStoryIndex(),
-        resolveArtifactPaths: async ({ storyId }) => pathsFor(dir, storyId),
+        resolveArtifactPaths: async ({ storyId, environmentKey }) => {
+          // Mirror paths.ts's segment guard: enumeration must survive a
+          // sibling directory the resolver rejects (or cannot read).
+          if (environmentKey === "not a valid key") {
+            throw new Error("invalid environment key");
+          }
+          return pathsFor(dir, storyId, environmentKey);
+        },
         artifactRegistry: {
           register: (filePath) => {
             registered.push(filePath);
@@ -716,6 +723,7 @@ describe("VisualTestRunner", () => {
         storyId: "alpha--one",
         environmentKey: ENVIRONMENT_KEY,
         artifactId: "opaque-baseline",
+        availableEnvironmentKeys: [ENVIRONMENT_KEY],
       });
       expect(registered).toEqual([paths.baselinePath]);
 
@@ -723,6 +731,39 @@ describe("VisualTestRunner", () => {
       await expect(runner.loadBaseline("beta--two")).resolves.toEqual({
         storyId: "beta--two",
         environmentKey: ENVIRONMENT_KEY,
+      });
+
+      // Baseline committed only under a different environment key (e.g. a
+      // container baseline seen from a bare host): no artifact id for this
+      // environment, but the other key is reported so the panel can explain
+      // the mismatch instead of showing a bare "New".
+      const foreignKey = "container-chromium-1280x720@1x";
+      const foreignDirectory = path.join(dir, "beta--two", foreignKey);
+      await mkdir(foreignDirectory, { recursive: true });
+      await writeFile(
+        path.join(foreignDirectory, "baseline.png"),
+        Buffer.from("container-baseline-png"),
+      );
+      await expect(runner.loadBaseline("beta--two")).resolves.toEqual({
+        storyId: "beta--two",
+        environmentKey: ENVIRONMENT_KEY,
+        availableEnvironmentKeys: [foreignKey],
+      });
+
+      // A sibling directory the paths resolver rejects (invalid segment, or
+      // unreadable on disk) is skipped without costing the story its own
+      // baseline preview or the other keys.
+      const rejectedDirectory = path.join(dir, "alpha--one", "not a valid key");
+      await mkdir(rejectedDirectory, { recursive: true });
+      await writeFile(
+        path.join(rejectedDirectory, "baseline.png"),
+        Buffer.from("unreachable-baseline-png"),
+      );
+      await expect(runner.loadBaseline("alpha--one")).resolves.toEqual({
+        storyId: "alpha--one",
+        environmentKey: ENVIRONMENT_KEY,
+        artifactId: "opaque-baseline",
+        availableEnvironmentKeys: [ENVIRONMENT_KEY],
       });
 
       // Unknown story id: resolution fails softly, never throws.
@@ -926,8 +967,11 @@ function registerByBasename(registered: string[]) {
   };
 }
 
-function pathsFor(root: string, storyId: string) {
-  const directory = path.join(root, storyId);
+function pathsFor(root: string, storyId: string, environmentKey?: string) {
+  // Mirror the real layout's trailing environment-key segment: loadBaseline
+  // enumerates sibling environment directories, so the fake must keep the
+  // story level and the environment level distinct.
+  const directory = path.join(root, storyId, environmentKey ?? ENVIRONMENT_KEY);
   return {
     artifactRoot: root,
     storyPath: path.join(root, `${storyId}.stories.tsx`),
