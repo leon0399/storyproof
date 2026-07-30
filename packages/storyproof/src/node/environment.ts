@@ -67,14 +67,16 @@ export function resolveEnvironment(
     }
     // The Playwright wire protocol is version-locked and the container runs
     // `npx playwright@<installed version> run-server` against the image's
-    // bundled browsers — so an official image whose tag disagrees with the
-    // installed playwright package can only produce an opaque connect
-    // timeout later. Fail at dev-server startup with the actual cause
-    // instead. Non-official images can't be version-checked from their name;
-    // they remain the user's responsibility.
-    const tagged = /^mcr\.microsoft\.com\/playwright:v(\d+\.\d+\.\d+)-/.exec(
-      image,
-    );
+    // bundled browsers — so an image whose tag disagrees with the installed
+    // playwright package can only produce an opaque connect timeout later.
+    // Fail at dev-server startup with the actual cause instead. The check
+    // is registry-agnostic on purpose: corporate mirrors (an Artifactory
+    // proxy of mcr.microsoft.com) keep the image name and version tag and
+    // change only the registry prefix, and they carry the exact same drift
+    // risk. Images not named `playwright`, or without a `v<semver>-` tag,
+    // can't be version-checked from their name and remain the user's
+    // responsibility.
+    const tagged = /(?:^|\/)playwright:v(\d+\.\d+\.\d+)-/.exec(image);
     if (
       tagged?.[1] &&
       options.playwrightVersion &&

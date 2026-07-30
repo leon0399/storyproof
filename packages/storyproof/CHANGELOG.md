@@ -62,6 +62,13 @@ container` / `· local`) under the story id, with the environment key,
 
 ### Changed
 
+- The `capture.container.image` version guard is now registry-agnostic: any
+  image named `playwright` with a `v<semver>-` tag is checked against the
+  installed Playwright version, so a corporate registry mirror (e.g. an
+  Artifactory proxy, which keeps the image name and tag and changes only
+  the prefix) fails at startup on version drift instead of dying later as
+  an opaque connect timeout. Previously only `mcr.microsoft.com/playwright`
+  images were checked; custom-named images remain unchecked as before.
 - **Breaking (pre-release):** baseline artifact paths gained the platform
   prefix and `baseline.json` moved to schema 2, so existing baselines report
   as incompatible until re-approved once. Deliberate while the published

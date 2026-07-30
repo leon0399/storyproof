@@ -46,11 +46,38 @@ describe("resolveEnvironment", () => {
     ).toThrow(
       /version-locked.*v1\.54\.0.*1\.55\.1|v1\.54\.0.*1\.55\.1.*version-locked/s,
     );
-    // Non-official images cannot be version-checked from their name and
-    // stay the user's responsibility.
+    // A registry mirror (e.g. an Artifactory proxy) keeps the image name
+    // and version tag and changes only the prefix — same drift risk, same
+    // fail-closed check.
+    expect(() =>
+      resolveEnvironment({
+        container: {
+          image: "artifactory.corp.example/mcr-remote/playwright:v1.54.0-noble",
+        },
+        playwrightVersion: "1.55.1",
+      }),
+    ).toThrow(/version-locked/);
+    expect(() =>
+      resolveEnvironment({
+        container: {
+          image: "artifactory.corp.example/mcr-remote/playwright:v1.55.1-noble",
+        },
+        playwrightVersion: "1.55.1",
+      }),
+    ).not.toThrow();
+    // Images not named `playwright` cannot be version-checked from their
+    // name and stay the user's responsibility.
     expect(() =>
       resolveEnvironment({
         container: { image: "example.com/custom:tag" },
+        playwrightVersion: "1.55.1",
+      }),
+    ).not.toThrow();
+    // ...including names that merely end with the word without being the
+    // image name's final segment.
+    expect(() =>
+      resolveEnvironment({
+        container: { image: "example.com/notplaywright:v1.54.0-x" },
         playwrightVersion: "1.55.1",
       }),
     ).not.toThrow();
