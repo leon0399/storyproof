@@ -20,9 +20,9 @@ const packageRoot = fileURLToPath(new URL("../", import.meta.url));
  */
 const MAX_PACKED_ARCHIVE_SIZE_BYTES = 150 * 1024;
 
-interface PnpmPackResult {
+interface PackedArtifact {
   filename: string;
-  files: { path: string }[];
+  files: string[];
 }
 
 /**
@@ -35,8 +35,8 @@ interface PnpmPackResult {
  */
 const providedTarball = process.env.STORYPROOF_PACK_TARBALL;
 
-/** `tar -tzf` listing as `pnpm pack --json`'s `files` shape. */
-function listTarballEntries(tarball: string): { path: string }[] {
+/** Packed paths inside a tarball, without the leading `package/`. */
+function listTarballEntries(tarball: string): string[] {
   const listing = spawnSync("tar", ["-tzf", tarball], { encoding: "utf8" });
   if (listing.status !== 0) {
     throw new Error(`Cannot list ${tarball}: ${listing.stderr}`);
@@ -44,7 +44,7 @@ function listTarballEntries(tarball: string): { path: string }[] {
   return listing.stdout
     .split("\n")
     .filter((line) => line.length > 0 && !line.endsWith("/"))
-    .map((line) => ({ path: line.replace(/^package\//, "") }));
+    .map((line) => line.replace(/^package\//, ""));
 }
 
 /**
@@ -53,14 +53,18 @@ function listTarballEntries(tarball: string): { path: string }[] {
  * same stream -- so this takes the last top-level (column-0) `{` rather than
  * parsing stdout as a single document.
  */
-function parseTrailingJson(stdout: string): PnpmPackResult {
+function parseTrailingJson(stdout: string): PackedArtifact {
   const jsonStart = stdout.lastIndexOf("\n{");
-  return JSON.parse(stdout.slice(jsonStart + 1)) as PnpmPackResult;
+  const packed = JSON.parse(stdout.slice(jsonStart + 1)) as {
+    filename: string;
+    files: { path: string }[];
+  };
+  return { filename: packed.filename, files: packed.files.map((f) => f.path) };
 }
 
 describe("packed artifact", () => {
   let destination: string;
-  let result: PnpmPackResult;
+  let result: PackedArtifact;
 
   // One pack for the whole file, shared by the tests below: `pnpm pack`
   // always reruns `build` via `prepack` first, so this is also what leaves
@@ -88,7 +92,7 @@ describe("packed artifact", () => {
   });
 
   test("ships exactly dist/**, LICENSE, README.md, and package.json within the size budget", async () => {
-    const paths = result.files.map((file) => file.path).sort();
+    const paths = [...result.files].sort();
 
     const disallowed = paths.filter(
       (entryPath) =>
