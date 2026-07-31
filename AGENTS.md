@@ -177,51 +177,7 @@ existed at the commits that removed them). Do not reintroduce the pattern.
 
 ## Releasing
 
-Changesets decides the version; two workflows do the rest. **Nothing
-publishes from a developer machine, and no npm token exists in this
-repository** — the publish job authenticates with npm trusted publishing
-(OIDC).
-
-The loop:
-
-1. A PR that changes the published package adds a changeset
-   (`pnpm changeset`). It records the bump only — the prose lives in
-   `packages/storyproof/CHANGELOG.md`, which is why `changelog` is `false`
-   in `.changeset/config.json`.
-2. Merging to `main` runs `release.yml`, which opens (or refreshes) a
-   **"chore: version packages"** PR: bumped manifest, changesets consumed.
-   Roll `## [Unreleased]` into a version heading in the CHANGELOG on that
-   PR — Changesets does not write it.
-3. Merging the version PR runs `release.yml` again. With no changesets left
-   and the manifest version absent from the registry, it creates the tag
-   `storyproof@<version>`. That tag is the only way a release starts, which
-   is what keeps npm and the GitHub releases from drifting apart.
-4. The tag triggers `publish.yml`: pack once, verify that exact tarball
-   (`test/pack-inventory.test.ts` run against it, plus the full acceptance
-   suite in both examples), then — after approval on the `release`
-   environment — publish those same bytes and attach them to a GitHub
-   release. Why it is built this way is in the workflow's header comment.
-
-Prereleases use Changesets' pre mode; the dist-tag follows the version, so a
-prerelease can never land on `latest`:
-
-```bash
-pnpm exec changeset pre enter next   # commit .changeset/pre.json
-pnpm changeset                       # ...then the loop above
-pnpm exec changeset pre exit         # when the line goes stable
-```
-
-Note that pre mode continues the _existing_ prerelease counter rather than
-restarting at `.0` — measured with `@changesets/cli` 2.31.1, where a minor
-bump from `0.0.1-alpha.1` resolves to `0.1.0-next.2`. Edit the version in the
-version PR if an exact number matters.
-
-Owner setup, once, before the first release:
-
-- npmjs.com → `storyproof` → Settings → **Trusted publisher**: this
-  repository, workflow `.github/workflows/publish.yml`, allowed action
-  `npm publish`.
-- A GitHub environment named **`release`** with a required reviewer, so the
-  publish job pauses for human approval.
-- After the first stable release, repoint the default tag explicitly:
-  `npm dist-tag add storyproof@<version> latest`.
+Maintainer process, including the prerelease flow and one-time npm setup:
+[RELEASING.md](RELEASING.md). What matters while writing code: a PR that
+changes the published package carries a changeset (`pnpm changeset`), and
+nothing publishes from a developer machine.
