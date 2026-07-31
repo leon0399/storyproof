@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
 
 import {
-  createChromiumCaptureSession,
+  createCaptureSession,
   type BrowserLauncher,
 } from "../src/node/capture.js";
 
@@ -49,7 +49,7 @@ describe("Chromium capture", () => {
       launch: vi.fn(async () => browser),
     };
 
-    const session = await createChromiumCaptureSession({ launcher });
+    const session = await createCaptureSession({ launcher });
     const result = await session.capture({
       baseUrl: "http://127.0.0.1:6006/",
       storyId: "button--portal",
@@ -97,7 +97,7 @@ describe("Chromium capture", () => {
   ] as const)("does not write a candidate for %s", async (_name, readiness) => {
     const screenshot = vi.fn(async () => Buffer.from("must-not-write"));
     const launcher = fakeLauncher({ readiness, screenshot });
-    const session = await createChromiumCaptureSession({ launcher });
+    const session = await createCaptureSession({ launcher });
 
     const result = await session.capture({
       baseUrl: "http://127.0.0.1:6006",
@@ -138,7 +138,7 @@ describe("Chromium capture", () => {
         })),
       })),
     };
-    const session = await createChromiumCaptureSession({ launcher });
+    const session = await createCaptureSession({ launcher });
 
     const result = await session.capture({
       baseUrl: "http://127.0.0.1:6006",
@@ -194,7 +194,7 @@ describe("Chromium capture", () => {
         })),
       })),
     };
-    const session = await createChromiumCaptureSession({ launcher });
+    const session = await createCaptureSession({ launcher });
 
     const result = await session.capture({
       baseUrl: "http://127.0.0.1:6006",
@@ -236,7 +236,7 @@ describe("Chromium capture", () => {
       screenshot,
       onGoto: () => controller.abort(),
     });
-    const session = await createChromiumCaptureSession({ launcher });
+    const session = await createCaptureSession({ launcher });
 
     const result = await session.capture({
       baseUrl: "http://127.0.0.1:6006",
@@ -287,7 +287,7 @@ describe("Chromium capture", () => {
         })),
       })),
     };
-    const session = await createChromiumCaptureSession({ launcher });
+    const session = await createCaptureSession({ launcher });
 
     const result = await session.capture({
       baseUrl: "http://127.0.0.1:6006",
@@ -328,7 +328,7 @@ describe("Chromium capture", () => {
         })),
       })),
     };
-    const session = await createChromiumCaptureSession({ launcher });
+    const session = await createCaptureSession({ launcher });
 
     const result = await session.capture({
       baseUrl: "http://127.0.0.1:6006",

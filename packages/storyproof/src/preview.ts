@@ -5,7 +5,7 @@ import {
 } from "storybook/internal/core-events";
 import { addons } from "storybook/preview-api";
 
-import type { VisualCaptureMode } from "./shared/capture.js";
+import type { VisualCaptureMode } from "./shared/results.js";
 
 export interface VisualPreviewReport {
   storyId: string;

@@ -1,3 +1,7 @@
+// The default React import is load-bearing: tsconfig.build.json compiles
+// the shipped manager with the classic JSX transform on purpose (its
+// comment has the crash it prevents), so every manager-side JSX call
+// resolves `React` from this import. Do not "clean up" as unused.
 import React from "react";
 import {
   addons,
@@ -14,11 +18,11 @@ import {
   TEST_PROVIDER_ID,
 } from "./constants.js";
 import { Panel } from "./manager/Panel.js";
+import { statusValueFor } from "./manager/state.js";
 import {
   createRetryingProjection,
   subscribeToVisualState,
 } from "./manager/channel.js";
-import { statusValueFor } from "./manager/state.js";
 import { TestProviderRow } from "./manager/TestProviderRow.js";
 import type { VisualRunState } from "./shared/results.js";
 

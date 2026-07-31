@@ -1,3 +1,6 @@
+/** How a story is framed when captured; see docs/capture-contract.md. */
+export type VisualCaptureMode = "content" | "viewport";
+
 export type VisualResultStatus =
   | "queued"
   | "running"
