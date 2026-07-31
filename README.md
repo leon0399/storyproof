@@ -18,6 +18,11 @@ in your repository.
 Extracted with history from [llame](https://github.com/leon0399/llame), where
 it was built and is dogfooded against a 226-story Storybook.
 
+## Contributing
+
+[CONTRIBUTING.md](CONTRIBUTING.md) — setup, checks, and conventions.
+Maintainers: [RELEASING.md](RELEASING.md).
+
 ## License
 
 [MIT](packages/storyproof/LICENSE)

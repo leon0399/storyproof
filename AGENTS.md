@@ -5,6 +5,15 @@ screenshots, review baseline/candidate/diff images inside Storybook itself, and
 approve baselines as PNG files committed next to the story source. No cloud
 service. `CLAUDE.md` and `GEMINI.md` are symlinks to this file.
 
+**Setup, the checks to run, commit conventions, and the AI-assistance policy
+live in [CONTRIBUTING.md](CONTRIBUTING.md)** — one contract for humans and
+agents, not two that drift. It is imported here so it loads with this file:
+
+@CONTRIBUTING.md
+
+What follows is the engineering map: why the repository is shaped the way it
+is, and the decisions that are expensive to rediscover.
+
 Extracted from the llame monorepo on 2026-07-26 with history
 (`github.com/leon0399/llame`, `packages/storybook-addon-visual-tests`); llame's
 CHANGELOG holds the pre-extraction shipped record.
@@ -23,18 +32,10 @@ so `turbo watch` is what rebuilds and restarts it.
 | `apps/website`        | storyproof.dev docs/marketing site (placeholder, private, framework not yet chosen) |
 | `examples/*`          | Storybook examples/quickstarts (workspace members); see below.                      |
 
-## Commands (from repo root)
+## Toolchain decisions
 
-```bash
-pnpm install                           # also builds the addon, via the root `prepare` hook
-pnpm dev                               # turbo watch dev — every example at once (see Examples)
-pnpm build                             # tsdown (ESM + declarations; publint + attw gates)
-pnpm test                              # vitest unit tests, incl. the pack-inventory snapshot
-pnpm typecheck                         # tsc --noEmit (TypeScript 7)
-pnpm lint                              # oxlint --deny-warnings
-pnpm format / pnpm format:check        # prettier, repo-wide (not a turbo task)
-pnpm --filter storyproof test:visual   # playwright integration smoke (needs Chromium + system libs)
-```
+The command list is in [CONTRIBUTING.md](CONTRIBUTING.md#the-loop); these are
+the parts of it that look wrong until you know why.
 
 `turbo` is pinned to an exact version rather than a caret range: a
 `minimumReleaseAge` policy in the maintainer's pnpm config rejects
@@ -159,16 +160,16 @@ existed at the commits that removed them). Do not reintroduce the pattern.
   and [packages/storyproof/docs/capture-contract.md](packages/storyproof/docs/capture-contract.md)
   — the user-facing options reference and capture semantics
 
-## Conventions
+## Invariants
 
-- Conventional commits (`feat:`, `fix:`, `build:`, `docs:`; no monorepo scope
-  needed — the addon is the default subject, use `website:` scope for the site).
-- Update the package CHANGELOG in the same PR that ships the work:
-  user-visible package changes go under `## [Unreleased]` in the Keep a
-  Changelog sections (Added/Changed/Fixed/Removed) and are rolled into a
-  version heading at release time. Repo-only chores (website, CI plumbing)
-  don't need a changelog entry.
-- The trust boundary is a product invariant: approval writes repository files;
-  development Storybook is a trusted local interface; Git/PR review is the
-  authorization path. Weigh any change that touches the artifact route, path
-  guards (`src/node/paths.ts`), or approval flow accordingly.
+Commit, changelog, and changeset conventions are in
+[CONTRIBUTING.md](CONTRIBUTING.md#conventions) (imported above). Two things
+are product invariants rather than conventions, and neither is negotiable in
+a routine change:
+
+- **The trust boundary.** Approval writes repository files; development
+  Storybook is a trusted local interface; Git/PR review is the authorization
+  path. Weigh any change touching the artifact route, the path guards
+  (`src/node/paths.ts`), or the approval flow accordingly.
+- **Nothing publishes from a developer machine.** Releases run from a tag
+  through an approval-gated workflow — [RELEASING.md](RELEASING.md).
