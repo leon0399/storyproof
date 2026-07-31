@@ -7,15 +7,18 @@
   },
   "scripts": {
     "build": "turbo run build",
+    "changeset": "changeset",
     "dev": "turbo watch dev dev:app",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "turbo run lint",
     "prepare": "pnpm --filter storyproof build",
     "test": "turbo run test",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "version-packages": "changeset version"
   },
   "devDependencies": {
+    "@changesets/cli": "2.31.1",
     "prettier": "^3.5.1",
     "turbo": "2.10.4"
   }

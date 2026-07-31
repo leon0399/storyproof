@@ -1,0 +1,285 @@
+# Publishing half of the release pipeline, triggered by the tag release.yml
+# creates. The invariant this workflow exists to hold: **one artifact**.
+# `package` packs the tarball once and records its npm-compatible SHA-512
+# SRI; every later job consumes that same file and re-checks the digest, and
+# `publish` pushes that exact byte sequence to npm and attaches it to the
+# GitHub release. Nothing repacks, so what CI verified is what consumers
+# install, and the npm release and the GitHub release cannot describe
+# different bytes.
+#
+# Authentication is npm trusted publishing (OIDC) — no npm token exists in
+# this repository. `id-token: write` is granted to the publish job only.
+#
+# One-time setup this workflow assumes (see AGENTS.md "Releasing"):
+#   - npmjs.com > storyproof > Settings > Trusted publisher: this repository,
+#     workflow `.github/workflows/publish.yml`, allowed action `npm publish`
+#   - a GitHub environment named `release` with a required reviewer, so the
+#     publish job pauses for human approval
+
+name: Publish
+
+on:
+  push:
+    tags:
+      - "storyproof@*"
+
+permissions: {}
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # Mirrors packages/storyproof/test/pack-inventory.test.ts, asserted here
+  # against the artifact itself rather than a fresh pack.
+  MAX_TARBALL_BYTES: "153600"
+
+jobs:
+  package:
+    name: pack once
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      version: ${{ steps.pack.outputs.version }}
+      sri: ${{ steps.pack.outputs.sri }}
+      dist-tag: ${{ steps.pack.outputs.dist_tag }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      # Dependency caching is deliberately off in this workflow: a poisoned
+      # cache could alter the bytes that ship. What zizmor still sees is the
+      # runner's own tool cache.
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0 # zizmor: ignore[cache-poisoning]
+        with:
+          node-version-file: ".node-version"
+      - run: pnpm install --frozen-lockfile
+      # `pnpm pack` reruns `build` through prepack, and the build itself gates
+      # on publint + attw — so packing is also the manifest check.
+      - id: pack
+        name: Pack and record the artifact digest
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version=$(node -p "require('./packages/storyproof/package.json').version")
+          # The tag names the version it releases; a mismatch means the tag
+          # points at the wrong commit, which must never publish.
+          if [ "$TAG" != "storyproof@${version}" ]; then
+            echo "Tag ${TAG} does not match manifest version ${version}" >&2
+            exit 1
+          fi
+          pnpm --filter storyproof pack --out /tmp/storyproof-release/package.tgz
+          sri="sha512-$(openssl dgst -sha512 -binary /tmp/storyproof-release/package.tgz | openssl base64 -A)"
+          # A prerelease version must never land on the `latest` dist-tag —
+          # npm would otherwise default it there and every plain
+          # `npm i storyproof` would pick it up.
+          case "$version" in
+            *-*) dist_tag="next" ;;
+            *) dist_tag="latest" ;;
+          esac
+          {
+            echo "version=${version}"
+            echo "sri=${sri}"
+            echo "dist_tag=${dist_tag}"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### storyproof@${version}"
+            echo ""
+            echo "- dist-tag: \`${dist_tag}\`"
+            echo "- integrity: \`${sri}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: storyproof-release
+          path: /tmp/storyproof-release/package.tgz
+          retention-days: 7
+          if-no-files-found: error
+
+  inventory:
+    name: verify the artifact
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: storyproof-release
+          path: /tmp/storyproof-release
+      - name: Digest matches what was packed
+        env:
+          EXPECTED_SRI: ${{ needs.package.outputs.sri }}
+        run: |
+          actual="sha512-$(openssl dgst -sha512 -binary /tmp/storyproof-release/package.tgz | openssl base64 -A)"
+          if [ "$actual" != "$EXPECTED_SRI" ]; then
+            echo "Artifact digest changed in transit: ${actual} != ${EXPECTED_SRI}" >&2
+            exit 1
+          fi
+      - name: Contents, size budget, and entry points
+        run: |
+          tarball=/tmp/storyproof-release/package.tgz
+          size=$(stat -c %s "$tarball")
+          if [ "$size" -gt "$MAX_TARBALL_BYTES" ]; then
+            echo "Tarball is ${size} bytes, over the ${MAX_TARBALL_BYTES} budget" >&2
+            exit 1
+          fi
+          files=$(tar -tzf "$tarball" | sed 's|^package/||' | grep -v '/$' | sort)
+          echo "$files"
+          unexpected=$(echo "$files" | grep -vE '^(dist/.+|LICENSE|README\.md|package\.json)$' || true)
+          if [ -n "$unexpected" ]; then
+            echo "Tarball ships files outside the allowlist:" >&2
+            echo "$unexpected" >&2
+            exit 1
+          fi
+          for entry in index manager preset preview; do
+            for ext in js d.ts; do
+              echo "$files" | grep -qx "dist/${entry}.${ext}" || {
+                echo "Missing dist/${entry}.${ext}" >&2
+                exit 1
+              }
+            done
+          done
+
+  consumer:
+    name: consumer (${{ matrix.example }})
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        example:
+          - react-vite-sb10.5
+          - nextjs-vite-sb10.5
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      # Dependency caching is deliberately off in this workflow: a poisoned
+      # cache could alter the bytes that ship. What zizmor still sees is the
+      # runner's own tool cache.
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0 # zizmor: ignore[cache-poisoning]
+        with:
+          node-version-file: ".node-version"
+      # Copied before any install runs in this checkout, so the copy carries
+      # no workspace symlinks — the same isolation argument as ci.yml's
+      # consumer job, here applied to the artifact that is about to ship.
+      - name: Copy the example out of the workspace
+        env:
+          EXAMPLE: ${{ matrix.example }}
+        run: |
+          dir=$(mktemp -d)
+          cp -r "examples/$EXAMPLE" "$dir/project"
+          echo "consumer_dir=$dir/project" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: storyproof-release
+          path: /tmp/storyproof-release
+      - name: Point the copy at the release tarball
+        working-directory: ${{ env.consumer_dir }}
+        run: pnpm pkg set dependencies.storyproof=file:/tmp/storyproof-release/package.tgz
+      - name: Install the copy in isolation
+        working-directory: ${{ env.consumer_dir }}
+        run: pnpm install --ignore-workspace
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+        working-directory: packages/storyproof
+      - name: Run the acceptance suite against the release tarball
+        env:
+          VISUAL_TEST_PROJECT_DIR: ${{ env.consumer_dir }}
+        run: pnpm --filter storyproof test:visual
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: failure()
+        with:
+          name: playwright-report-release-${{ matrix.example }}
+          path: packages/storyproof/test-results/
+          retention-days: 7
+
+  publish:
+    name: publish to npm and GitHub
+    needs: [package, inventory, consumer]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      # OIDC for npm trusted publishing; contents for the GitHub release.
+      id-token: write
+      contents: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      # Trusted publishing needs npm >= 11.5.1 on Node >= 22.14; the repo's
+      # pinned development Node is older, and this job only shells out to
+      # npm, so it pins its own.
+      # Dependency caching is deliberately off in this workflow: a poisoned
+      # cache could alter the bytes that ship. What zizmor still sees is the
+      # runner's own tool cache.
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0 # zizmor: ignore[cache-poisoning]
+        with:
+          node-version: 22.14.0
+          registry-url: https://registry.npmjs.org
+      # Pinned, not `@latest`: this is the only unlocked install in the
+      # release path, so the version that authenticates the publish is
+      # reviewed like any other dependency.
+      - run: npm install -g npm@12.0.2 # zizmor: ignore[adhoc-packages]
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: storyproof-release
+          path: /tmp/storyproof-release
+      - name: Digest matches what was verified
+        env:
+          EXPECTED_SRI: ${{ needs.package.outputs.sri }}
+        run: |
+          actual="sha512-$(openssl dgst -sha512 -binary /tmp/storyproof-release/package.tgz | openssl base64 -A)"
+          if [ "$actual" != "$EXPECTED_SRI" ]; then
+            echo "Refusing to publish: digest ${actual} != verified ${EXPECTED_SRI}" >&2
+            exit 1
+          fi
+      - name: Publish the verified tarball
+        env:
+          DIST_TAG: ${{ needs.package.outputs.dist-tag }}
+        run: |
+          npm publish /tmp/storyproof-release/package.tgz \
+            --tag "$DIST_TAG" \
+            --access public \
+            --provenance
+      - name: Registry integrity matches the published artifact
+        env:
+          VERSION: ${{ needs.package.outputs.version }}
+          EXPECTED_SRI: ${{ needs.package.outputs.sri }}
+        run: |
+          published=$(npm view "storyproof@${VERSION}" dist.integrity)
+          if [ "$published" != "$EXPECTED_SRI" ]; then
+            echo "Registry reports ${published}, expected ${EXPECTED_SRI}" >&2
+            exit 1
+          fi
+          echo "Registry integrity matches: ${published}"
+      # Same artifact, same job: the GitHub release cannot describe bytes
+      # other than the ones npm now serves.
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.package.outputs.version }}
+          DIST_TAG: ${{ needs.package.outputs.dist-tag }}
+          SRI: ${{ needs.package.outputs.sri }}
+        run: |
+          asset="/tmp/storyproof-release/storyproof-${VERSION}.tgz"
+          cp /tmp/storyproof-release/package.tgz "$asset"
+          notes=$(printf '%s\n' \
+            "\`npm install storyproof@${VERSION}\` (dist-tag: \`${DIST_TAG}\`)" \
+            "" \
+            "Integrity: \`${SRI}\`" \
+            "" \
+            "See [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/${TAG}/packages/storyproof/CHANGELOG.md) for what changed.")
+          prerelease=""
+          case "$VERSION" in
+            *-*) prerelease="--prerelease" ;;
+          esac
+          # shellcheck disable=SC2086
+          gh release create "$TAG" "$asset" \
+            --title "storyproof ${VERSION}" \
+            --notes "$notes" \
+            $prerelease
