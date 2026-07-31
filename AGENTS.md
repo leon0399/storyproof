@@ -196,13 +196,11 @@ The loop:
    and the manifest version absent from the registry, it creates the tag
    `storyproof@<version>`. That tag is the only way a release starts, which
    is what keeps npm and the GitHub releases from drifting apart.
-4. The tag triggers `publish.yml`: **pack once**, record the npm-compatible
-   SHA-512 SRI, verify the artifact (tarball inventory, size budget, entry
-   points) and run the full acceptance suite against that exact tarball in
-   both examples, then — after approval on the `release` environment —
-   publish those same bytes and attach them to a GitHub release. Nothing
-   repacks; the digest is re-checked before publishing and against
-   `dist.integrity` after.
+4. The tag triggers `publish.yml`: pack once, verify that exact tarball
+   (`test/pack-inventory.test.ts` run against it, plus the full acceptance
+   suite in both examples), then — after approval on the `release`
+   environment — publish those same bytes and attach them to a GitHub
+   release. Why it is built this way is in the workflow's header comment.
 
 Prereleases use Changesets' pre mode; the dist-tag follows the version, so a
 prerelease can never land on `latest`:
@@ -214,9 +212,9 @@ pnpm exec changeset pre exit         # when the line goes stable
 ```
 
 Note that pre mode continues the _existing_ prerelease counter rather than
-restarting at `.0` (from `0.0.1-alpha.1`, the first minor prerelease resolves
-to `0.1.0-next.2`). Edit the version in the version PR if an exact number
-matters.
+restarting at `.0` — measured with `@changesets/cli` 2.31.1, where a minor
+bump from `0.0.1-alpha.1` resolves to `0.1.0-next.2`. Edit the version in the
+version PR if an exact number matters.
 
 Owner setup, once, before the first release:
 

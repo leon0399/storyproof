@@ -26,6 +26,28 @@ interface PnpmPackResult {
 }
 
 /**
+ * Point this at an existing `.tgz` to assert the tarball inventory of an
+ * artifact someone else packed instead of packing a fresh one. The release
+ * pipeline (`.github/workflows/publish.yml`) uses it to hold its one-artifact
+ * invariant: the bytes that ship are the bytes these assertions ran against,
+ * with no second pack in between — and the allowlist, size budget, and entry
+ * points stay defined here alone rather than being restated in the workflow.
+ */
+const providedTarball = process.env.STORYPROOF_PACK_TARBALL;
+
+/** `tar -tzf` listing as `pnpm pack --json`'s `files` shape. */
+function listTarballEntries(tarball: string): { path: string }[] {
+  const listing = spawnSync("tar", ["-tzf", tarball], { encoding: "utf8" });
+  if (listing.status !== 0) {
+    throw new Error(`Cannot list ${tarball}: ${listing.stderr}`);
+  }
+  return listing.stdout
+    .split("\n")
+    .filter((line) => line.length > 0 && !line.endsWith("/"))
+    .map((line) => ({ path: line.replace(/^package\//, "") }));
+}
+
+/**
  * `pnpm pack --json` always runs the package's `prepack` (build) lifecycle
  * script first, and that script's own stdout precedes the JSON result on the
  * same stream -- so this takes the last top-level (column-0) `{` rather than
@@ -40,12 +62,18 @@ describe("packed artifact", () => {
   let destination: string;
   let result: PnpmPackResult;
 
-  // One pack for the whole file, shared by both tests below: `pnpm pack`
+  // One pack for the whole file, shared by the tests below: `pnpm pack`
   // always reruns `build` via `prepack` first, so this is also what leaves
   // a fresh dist/preset.js on disk for the "compiled preset entry
-  // resolution" test -- no second build needed.
+  // resolution" test -- no second build needed. With STORYPROOF_PACK_TARBALL
+  // set there is no pack at all: the supplied artifact is the subject.
   beforeAll(async () => {
     destination = await mkdtemp(path.join(tmpdir(), "storyproof-pack-"));
+    if (providedTarball) {
+      const filename = path.resolve(providedTarball);
+      result = { filename, files: listTarballEntries(filename) };
+      return;
+    }
     const packed = spawnSync(
       "pnpm",
       ["pack", "--json", "--pack-destination", destination],
@@ -113,6 +141,10 @@ describe("packed artifact", () => {
     }
   });
 
+  // Skipped when verifying a supplied tarball: this asserts on the local
+  // build the pack above leaves behind, which says nothing about the
+  // artifact under review — CI's `test` job covers it on every commit.
+  //
   // Runtime coverage for preset.ts's compiled/source directory detection
   // (`path.basename(directory) === "dist"`): nothing else in this suite
   // exercises that branch, since test/server.test.ts imports src/preset.ts
@@ -124,33 +156,36 @@ describe("packed artifact", () => {
   // exercises the identical code path a real installed consumer hits, with
   // no separate build and no package install. Genuine node_modules
   // resolution against a real installed package is Task 8's concern.
-  test("resolves manager and preview entries to real, existing built files", async () => {
-    const presetPath = path.join(packageRoot, "dist", "preset.js");
-    const preset = (await import(pathToFileURL(presetPath).href)) as {
-      managerEntries: (existing?: string[]) => Promise<string[]>;
-      previewAnnotations: (existing?: string[]) => Promise<string[]>;
-    };
-    expect(preset.managerEntries).toBeTypeOf("function");
-    expect(preset.previewAnnotations).toBeTypeOf("function");
+  test.skipIf(providedTarball)(
+    "resolves manager and preview entries to real, existing built files",
+    async () => {
+      const presetPath = path.join(packageRoot, "dist", "preset.js");
+      const preset = (await import(pathToFileURL(presetPath).href)) as {
+        managerEntries: (existing?: string[]) => Promise<string[]>;
+        previewAnnotations: (existing?: string[]) => Promise<string[]>;
+      };
+      expect(preset.managerEntries).toBeTypeOf("function");
+      expect(preset.previewAnnotations).toBeTypeOf("function");
 
-    const managerEntries = await preset.managerEntries();
-    const previewEntries = await preset.previewAnnotations();
-    expect(managerEntries).toHaveLength(1);
-    expect(previewEntries).toHaveLength(1);
+      const managerEntries = await preset.managerEntries();
+      const previewEntries = await preset.previewAnnotations();
+      expect(managerEntries).toHaveLength(1);
+      expect(previewEntries).toHaveLength(1);
 
-    for (const entryPath of [...managerEntries, ...previewEntries]) {
-      expect(path.isAbsolute(entryPath)).toBe(true);
-      expect(entryPath.endsWith(".js")).toBe(true);
-      // The compiled branch must never resolve back to TypeScript source
-      // (that's exactly what regresses if a build-config change moves where
-      // dist/preset.js lands relative to its siblings).
-      expect(entryPath.endsWith(".ts") || entryPath.endsWith(".tsx")).toBe(
-        false,
-      );
-      const entryStat = await stat(entryPath);
-      expect(entryStat.isFile()).toBe(true);
-    }
-    expect(managerEntries[0]).toMatch(/\/manager\.js$/);
-    expect(previewEntries[0]).toMatch(/\/preview\.js$/);
-  });
+      for (const entryPath of [...managerEntries, ...previewEntries]) {
+        expect(path.isAbsolute(entryPath)).toBe(true);
+        expect(entryPath.endsWith(".js")).toBe(true);
+        // The compiled branch must never resolve back to TypeScript source
+        // (that's exactly what regresses if a build-config change moves where
+        // dist/preset.js lands relative to its siblings).
+        expect(entryPath.endsWith(".ts") || entryPath.endsWith(".tsx")).toBe(
+          false,
+        );
+        const entryStat = await stat(entryPath);
+        expect(entryStat.isFile()).toBe(true);
+      }
+      expect(managerEntries[0]).toMatch(/\/manager\.js$/);
+      expect(previewEntries[0]).toMatch(/\/preview\.js$/);
+    },
+  );
 });
