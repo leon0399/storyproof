@@ -15,7 +15,7 @@
     "prepare": "pnpm --filter storyproof build",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "version-packages": "changeset version"
+    "version-packages": "changeset version && node scripts/roll-changelog.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "2.31.1",

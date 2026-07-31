@@ -15,9 +15,11 @@ publish job authenticates with npm trusted publishing (OIDC).
    is why `changelog` is `false` in `.changeset/config.json`. A PR that
    arrives without one is fine; add it before releasing.
 2. Merging to `main` runs `release.yml`, which opens (or refreshes) a
-   **"chore: version packages"** PR: bumped manifest, changesets consumed.
-   Roll `## [Unreleased]` into a version heading in the CHANGELOG on that PR —
-   Changesets does not write it.
+   **"chore: version packages"** PR: bumped manifest, changesets consumed,
+   and `## [Unreleased]` rolled into a dated version heading
+   (`scripts/roll-changelog.mjs`, run by `pnpm version-packages`). The prose
+   itself stays hand-written in feature PRs — review the version PR, don't
+   edit it.
 3. Merging the version PR runs `release.yml` again. With no changesets left,
    `changeset tag` tags any released version that has no tag yet
    (`storyproof@<version>`) and hands each new tag to `publish.yml` — the
