@@ -1,22 +1,21 @@
-# Publishing half of the release pipeline, triggered by the tag release.yml
-# creates. The invariant this workflow exists to hold: **one artifact**.
-# `package` packs the tarball once and records its npm-compatible SHA-512
-# SRI; every later job consumes that same file and re-checks the digest, and
-# `publish` pushes that exact byte sequence to npm and attaches it to the
-# GitHub release. Nothing repacks, so what CI verified is what consumers
-# install, and the npm release and the GitHub release cannot describe
+# Publish half of the release pipeline, triggered by the storyproof@<version>
+# tag release.yml creates. The split (version PR on main, publish from a
+# dedicated tag-triggered workflow) is the documented pattern for npm trusted
+# publishing with changesets — see changesets/action#515 — and it is what
+# lets OIDC and the human approval gate (`release` environment) apply to
+# publishing alone.
+#
+# This workflow deliberately re-verifies nothing. The tagged commit already
+# passed ci.yml on main: unit tests including the tarball inventory, the
+# packed-consumer acceptance suite, lint, types. **Approve the release only
+# when that commit's CI is green** — the approval is the checkpoint. What
+# happens here is only: pack once, publish those bytes with provenance,
+# prove the registry serves the same digest, and attach the same file to the
+# GitHub release — so the npm release and the GitHub release cannot describe
 # different bytes.
 #
-# Authentication is npm trusted publishing (OIDC) — no npm token exists in
-# this repository. `id-token: write` is granted to the publish job only.
-# Dependency caching is off throughout: a poisoned cache could alter the very
-# bytes this workflow exists to vouch for.
-#
-# One-time setup this workflow assumes (see AGENTS.md "Releasing"):
-#   - npmjs.com > storyproof > Settings > Trusted publisher: this repository,
-#     workflow `.github/workflows/publish.yml`, allowed action `npm publish`
-#   - a GitHub environment named `release` with a required reviewer, so the
-#     publish job pauses for human approval
+# No npm token exists in this repository (OIDC trusted publishing), and
+# dependency caching is off: a poisoned cache could alter the bytes that ship.
 
 name: Publish
 
@@ -32,28 +31,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  package:
-    name: pack once
+  publish:
+    name: publish to npm and GitHub
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    outputs:
-      version: ${{ steps.pack.outputs.version }}
-      sri: ${{ steps.pack.outputs.sri }}
-      dist-tag: ${{ steps.pack.outputs.dist_tag }}
+    timeout-minutes: 20
+    environment: release
+    permissions:
+      # OIDC for npm trusted publishing; contents for the GitHub release.
+      id-token: write
+      contents: write
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-      # No dependency caching — see the header.
+      # 22.14.0 rather than .node-version's pin: trusted publishing needs
+      # npm >= 11.5.1 on Node >= 22.14. (No dependency caching — see header.)
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0 # zizmor: ignore[cache-poisoning]
         with:
-          node-version-file: ".node-version"
+          node-version: 22.14.0
+          registry-url: https://registry.npmjs.org
+      # Pinned, not `@latest`: the one unlocked install in the release path,
+      # reviewed like any other dependency.
+      - run: npm install -g npm@12.0.2 # zizmor: ignore[adhoc-packages]
       - run: pnpm install --frozen-lockfile
-      # `pnpm pack` reruns `build` through prepack, and the build itself gates
-      # on publint + attw — so packing is also the manifest check.
-      - id: pack
-        name: Pack and record the artifact digest
+      # `pnpm pack` reruns `build` via prepack, which gates on publint + attw.
+      - name: Pack the tag's version
         env:
           TAG: ${{ github.ref_name }}
         run: |
@@ -64,210 +67,49 @@ jobs:
             echo "Tag ${TAG} does not match manifest version ${version}" >&2
             exit 1
           fi
-          pnpm --filter storyproof pack --out /tmp/storyproof-release/package.tgz
-          sri="sha512-$(openssl dgst -sha512 -binary /tmp/storyproof-release/package.tgz | openssl base64 -A)"
-          # A prerelease version must never land on the `latest` dist-tag —
-          # npm would otherwise default it there and every plain
-          # `npm i storyproof` would pick it up.
+          # Prereleases must never land on `latest`: npm defaults the tag,
+          # and a plain `npm i storyproof` would pick them up.
           case "$version" in
             *-*) dist_tag="next" ;;
             *) dist_tag="latest" ;;
           esac
+          pnpm --filter storyproof pack --out /tmp/storyproof-release/package.tgz
           {
-            echo "version=${version}"
-            echo "sri=${sri}"
-            echo "dist_tag=${dist_tag}"
-          } >> "$GITHUB_OUTPUT"
-          {
-            echo "### storyproof@${version}"
-            echo ""
-            echo "- dist-tag: \`${dist_tag}\`"
-            echo "- integrity: \`${sri}\`"
-          } >> "$GITHUB_STEP_SUMMARY"
+            echo "VERSION=${version}"
+            echo "DIST_TAG=${dist_tag}"
+          } >> "$GITHUB_ENV"
+      # The bytes survive the run even if a later step fails, so recovery
+      # never requires repacking.
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: storyproof-release
           path: /tmp/storyproof-release/package.tgz
           retention-days: 7
           if-no-files-found: error
-
-  inventory:
-    name: verify the artifact
-    needs: package
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-      # Dependency caching is deliberately off in this workflow: a poisoned
-      # cache could alter the bytes that ship (see the header). What zizmor
-      # still sees is the runner's own tool cache.
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0 # zizmor: ignore[cache-poisoning]
-        with:
-          node-version-file: ".node-version"
-      # --ignore-scripts: the root `prepare` hook builds the addon, and this
-      # job must never produce a dist that could be mistaken for the artifact
-      # it is checking. Only the test runner is needed here.
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: storyproof-release
-          path: /tmp/storyproof-release
-      - name: Digest matches what was packed
-        env:
-          EXPECTED_SRI: ${{ needs.package.outputs.sri }}
-        run: |
-          actual="sha512-$(openssl dgst -sha512 -binary /tmp/storyproof-release/package.tgz | openssl base64 -A)"
-          if [ "$actual" != "$EXPECTED_SRI" ]; then
-            echo "Artifact digest changed in transit: ${actual} != ${EXPECTED_SRI}" >&2
-            exit 1
-          fi
-      # The allowlist, size budget, and entry points are defined once, in the
-      # test CI already runs on every commit; STORYPROOF_PACK_TARBALL points
-      # it at this exact artifact instead of a fresh pack.
-      - name: Inventory, size budget, and entry points
-        env:
-          STORYPROOF_PACK_TARBALL: /tmp/storyproof-release/package.tgz
-        run: pnpm --filter storyproof exec vitest run test/pack-inventory.test.ts
-
-  consumer:
-    name: consumer (${{ matrix.example }})
-    needs: package
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        example:
-          - react-vite-sb10.5
-          - nextjs-vite-sb10.5
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-      # No dependency caching — see the header.
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0 # zizmor: ignore[cache-poisoning]
-        with:
-          node-version-file: ".node-version"
-      # Copied before any install runs in this checkout, so the copy carries
-      # no workspace symlinks — the same isolation argument as ci.yml's
-      # consumer job, here applied to the artifact that is about to ship.
-      - name: Copy the example out of the workspace
-        env:
-          EXAMPLE: ${{ matrix.example }}
-        run: |
-          dir=$(mktemp -d)
-          cp -r "examples/$EXAMPLE" "$dir/project"
-          echo "consumer_dir=$dir/project" >> "$GITHUB_ENV"
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: storyproof-release
-          path: /tmp/storyproof-release
-      - name: Point the copy at the release tarball
-        working-directory: ${{ env.consumer_dir }}
-        run: pnpm pkg set dependencies.storyproof=file:/tmp/storyproof-release/package.tgz
-      - name: Install the copy in isolation
-        working-directory: ${{ env.consumer_dir }}
-        run: pnpm install --ignore-workspace
-      - name: Assert storyproof resolves under this copy's node_modules
-        working-directory: ${{ env.consumer_dir }}
-        run: |
-          resolved=$(node --input-type=module -e "console.log(import.meta.resolve('storyproof'))")
-          case "$resolved" in
-            "file://$PWD/node_modules/"*) echo "resolved: $resolved" ;;
-            *)
-              echo "storyproof did not resolve under $PWD/node_modules (got: $resolved)" >&2
-              exit 1
-              ;;
-          esac
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
-        working-directory: packages/storyproof
-      - name: Run the acceptance suite against the release tarball
-        env:
-          VISUAL_TEST_PROJECT_DIR: ${{ env.consumer_dir }}
-        run: pnpm --filter storyproof test:visual
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: failure()
-        with:
-          name: playwright-report-release-${{ matrix.example }}
-          path: packages/storyproof/test-results/
-          retention-days: 7
-
-  publish:
-    name: publish to npm and GitHub
-    needs: [package, inventory, consumer]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment: release
-    permissions:
-      # OIDC for npm trusted publishing; contents for the GitHub release.
-      id-token: write
-      contents: write
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-      # Pins its own Node: trusted publishing needs npm >= 11.5.1 on
-      # Node >= 22.14, the repo's development pin is older, and this job only
-      # shells out to npm. (No dependency caching — see the header.)
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0 # zizmor: ignore[cache-poisoning]
-        with:
-          node-version: 22.14.0
-          registry-url: https://registry.npmjs.org
-      # Pinned, not `@latest`: this is the only unlocked install in the
-      # release path, so the version that authenticates the publish is
-      # reviewed like any other dependency.
-      - run: npm install -g npm@12.0.2 # zizmor: ignore[adhoc-packages]
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: storyproof-release
-          path: /tmp/storyproof-release
-      - name: Digest matches what was verified
-        env:
-          EXPECTED_SRI: ${{ needs.package.outputs.sri }}
-        run: |
-          actual="sha512-$(openssl dgst -sha512 -binary /tmp/storyproof-release/package.tgz | openssl base64 -A)"
-          if [ "$actual" != "$EXPECTED_SRI" ]; then
-            echo "Refusing to publish: digest ${actual} != verified ${EXPECTED_SRI}" >&2
-            exit 1
-          fi
-      - name: Publish the verified tarball
-        env:
-          DIST_TAG: ${{ needs.package.outputs.dist-tag }}
+      - name: Publish
         run: |
           npm publish /tmp/storyproof-release/package.tgz \
             --tag "$DIST_TAG" \
             --access public \
             --provenance
-      - name: Registry integrity matches the published artifact
-        env:
-          VERSION: ${{ needs.package.outputs.version }}
-          EXPECTED_SRI: ${{ needs.package.outputs.sri }}
+      - name: Registry serves the same bytes
         run: |
+          local_sri="sha512-$(openssl dgst -sha512 -binary /tmp/storyproof-release/package.tgz | openssl base64 -A)"
           published=$(npm view "storyproof@${VERSION}" dist.integrity)
-          if [ "$published" != "$EXPECTED_SRI" ]; then
-            echo "Registry reports ${published}, expected ${EXPECTED_SRI}" >&2
+          if [ "$published" != "$local_sri" ]; then
+            echo "Registry reports ${published}, packed ${local_sri}" >&2
             exit 1
           fi
-          echo "Registry integrity matches: ${published}"
-      # Same artifact, same job: the GitHub release cannot describe bytes
-      # other than the ones npm now serves.
+          echo "Registry integrity matches: ${published}" >> "$GITHUB_STEP_SUMMARY"
+      # Same file, same job: the GitHub release cannot describe bytes other
+      # than the ones npm now serves.
       - name: Create the GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
-          VERSION: ${{ needs.package.outputs.version }}
-          DIST_TAG: ${{ needs.package.outputs.dist-tag }}
-          SRI: ${{ needs.package.outputs.sri }}
         run: |
           notes=$(printf '%s\n' \
             "\`npm install storyproof@${VERSION}\` (dist-tag: \`${DIST_TAG}\`)" \
-            "" \
-            "Integrity: \`${SRI}\`" \
             "" \
             "See [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/${TAG}/packages/storyproof/CHANGELOG.md) for what changed.")
           args=(--title "storyproof ${VERSION}" --notes "$notes")

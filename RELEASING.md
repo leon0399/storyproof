@@ -22,11 +22,13 @@ publish job authenticates with npm trusted publishing (OIDC).
    and the manifest version absent from the registry, it creates the tag
    `storyproof@<version>`. That tag is the only way a release starts, which is
    what keeps npm and the GitHub releases from drifting apart.
-4. The tag triggers `publish.yml`: pack once, verify that exact tarball
-   (`test/pack-inventory.test.ts` run against it, plus the full acceptance
-   suite in both examples), then — after approval on the `release`
-   environment — publish those same bytes and attach them to a GitHub release.
-   Why it is built that way is in the workflow's header comment.
+4. The tag triggers `publish.yml`: after your approval on the `release`
+   environment, one job packs, publishes those bytes with provenance, checks
+   the registry serves the same digest, and attaches the same file to a
+   GitHub release. It re-verifies nothing — the tagged commit already passed
+   the full CI on `main` (inventory test, packed-consumer acceptance), so
+   **approve only when that commit's CI is green**; the approval is the
+   checkpoint.
 
 Two merges and one approval click; everything else is automatic.
 
@@ -66,5 +68,8 @@ Before the first release:
 - **Published, but the artifact is bad** — npm versions are immutable. Ship a
   new patch; `npm deprecate` the bad one. Do not unpublish.
 - **Tag exists but no release ran** — re-run `publish.yml` from the Actions
-  tab; every job is idempotent up to the publish step, and that step refuses
-  to run twice against the same version.
+  tab. npm refuses to overwrite an existing version, so a re-run after a
+  successful publish fails at the publish step — that is the guard working.
+- **Published, but the GitHub release step failed** — the exact tarball is
+  saved as the run's `storyproof-release` artifact; create the release by
+  hand with that file rather than repacking.

@@ -42,10 +42,6 @@ connection failure) skip automatically when the target has no
 be packed. `test/pack-inventory.test.ts` packs the package itself and asserts
 the tarball ships only `dist/**`, `LICENSE`, `README.md`, and `package.json`
 within a 150 KiB budget — there is no separate inventory script or CLI flag.
-Setting `STORYPROOF_PACK_TARBALL=<path.tgz>` makes it assert against an
-existing artifact instead of packing one; the release pipeline uses that to
-check the exact tarball it is about to publish, so this file stays the only
-definition of the allowlist, the budget, and the required entry points.
 
 ## Structure
 
