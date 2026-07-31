@@ -1,16 +1,14 @@
 # Versioning half of the release pipeline. Changesets owns "what the next
-# version number is"; it deliberately does NOT publish here (see publish.yml
-# for why: the published artifact must be packed once, verified, and then
-# published unchanged — `changeset publish` would repack).
+# version number is"; publishing lives in publish.yml so the approval gate
+# and OIDC apply to publishing alone.
 #
-# Two things happen on a push to main:
-#   1. Pending changesets exist -> open/refresh the "Version Packages" PR.
-#   2. No pending changesets and the version in the manifest is not on the
-#      registry yet -> create the release tag, which triggers publish.yml.
-#
-# Step 2 is what makes npm and GitHub releases unable to drift: every
-# published version comes from exactly one tag, and that tag is created only
-# here.
+# On every push to main: pending changesets -> open/refresh the
+# "Version Packages" PR. No pending changesets -> `changeset tag` creates
+# tags for any released version not yet tagged (none, right after a plain
+# merge; the new one, right after the version PR lands), and each new tag is
+# handed to publish.yml. The dispatch is explicit because refs created with
+# GITHUB_TOKEN never trigger `on: push` workflows — GitHub's recursion
+# prevention.
 
 name: Release
 
@@ -32,57 +30,49 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      # gh workflow run (the hand-off to publish.yml)
+      actions: write
+
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          # Full history: `changeset version` reads the changeset files, but
-          # the action also needs to reuse an existing release branch.
+          # Full history and tags: `changeset tag` decides what is "new" by
+          # comparing manifest versions against existing tags.
           fetch-depth: 0
           persist-credentials: false
+
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version-file: ".node-version"
           cache: pnpm
+
       # --ignore-scripts: the root `prepare` hook builds the addon, which
       # this job never uses.
       - run: pnpm install --frozen-lockfile --ignore-scripts
+
       - id: changesets
         uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
           version: pnpm version-packages
           title: "chore: version packages"
           commit: "chore: version packages"
-          # Commits and tags go through the GitHub API rather than a pushed
-          # git remote, so this job needs no persisted checkout credentials.
+          # Commits go through the GitHub API rather than a pushed git
+          # remote, so this job needs no persisted checkout credentials.
           commit-mode: github-api
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # The version PR has landed when main carries a version that is not on
-      # the registry and nothing is pending. Tag that commit; publish.yml
-      # takes it from there. Checking the registry (rather than a commit
-      # message) keeps this correct no matter how the version commit was
-      # produced, and makes a re-run a no-op instead of a double publish.
-      - name: Create the release tag
+      - name: Tag new versions and start their publishes
         if: steps.changesets.outputs.hasChangesets == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
         run: |
-          version=$(node -p "require('./packages/storyproof/package.json').version")
-          tag="storyproof@${version}"
-          if gh api "repos/${REPO}/git/ref/tags/${tag}" >/dev/null 2>&1; then
-            echo "Tag ${tag} already exists — nothing to do."
-            exit 0
-          fi
-          if npm view "storyproof@${version}" version >/dev/null 2>&1; then
-            echo "storyproof@${version} is already on the registry — not tagging."
-            exit 0
-          fi
-          echo "Tagging ${tag} at ${SHA}"
-          gh api "repos/${REPO}/git/refs" \
-            -f "ref=refs/tags/${tag}" \
-            -f "sha=${SHA}" >/dev/null
-          echo "Created ${tag}; publish.yml will pick it up." >> "$GITHUB_STEP_SUMMARY"
+          pnpm exec changeset tag | tee /tmp/tags.log
+          sed -n 's/.*New tag: *//p' /tmp/tags.log | while read -r tag; do
+            gh api "repos/${REPO}/git/refs" -f "ref=refs/tags/${tag}" -f "sha=${SHA}" >/dev/null
+            gh workflow run publish.yml --ref "$tag"
+          done

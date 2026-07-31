@@ -18,10 +18,13 @@ publish job authenticates with npm trusted publishing (OIDC).
    **"chore: version packages"** PR: bumped manifest, changesets consumed.
    Roll `## [Unreleased]` into a version heading in the CHANGELOG on that PR —
    Changesets does not write it.
-3. Merging the version PR runs `release.yml` again. With no changesets left
-   and the manifest version absent from the registry, it creates the tag
-   `storyproof@<version>`. That tag is the only way a release starts, which is
-   what keeps npm and the GitHub releases from drifting apart.
+3. Merging the version PR runs `release.yml` again. With no changesets left,
+   `changeset tag` tags any released version that has no tag yet
+   (`storyproof@<version>`) and hands each new tag to `publish.yml` — the
+   hand-off is an explicit dispatch because GitHub never triggers workflows
+   from refs created with `GITHUB_TOKEN`. The tag is the only way a release
+   starts, which is what keeps npm and the GitHub releases from drifting
+   apart.
 4. The tag triggers `publish.yml`: after your approval on the `release`
    environment, one job packs, publishes those bytes with provenance, checks
    the registry serves the same digest, and attaches the same file to a
@@ -58,13 +61,18 @@ Before the first release:
 - A GitHub environment named **`release`** with a required reviewer, so the
   publish job pauses for human approval.
 - Deprecate the placeholder: `npm deprecate storyproof@0.0.1-alpha.1 "…"`.
+- Seed the placeholder's tag so `changeset tag` knows it is already
+  released (at the root commit, which predates `publish.yml`, so pushing it
+  triggers nothing):
+  `git tag storyproof@0.0.1-alpha.1 $(git rev-list --max-parents=0 HEAD) && git push origin storyproof@0.0.1-alpha.1`
 - After the first stable release, repoint the default tag explicitly:
   `npm dist-tag add storyproof@<version> latest`.
 
 ## When a release goes wrong
 
-- **Publish job failed before `npm publish`** — nothing shipped. Fix, delete
-  the tag, and let the next merge to `main` re-create it.
+- **Publish job failed before `npm publish`** — nothing shipped. Fix and
+  re-run the workflow from the Actions tab (or delete the tag and let the
+  next merge to `main` re-create it).
 - **Published, but the artifact is bad** — npm versions are immutable. Ship a
   new patch; `npm deprecate` the bad one. Do not unpublish.
 - **Tag exists but no release ran** — re-run `publish.yml` from the Actions
