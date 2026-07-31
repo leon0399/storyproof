@@ -59,7 +59,7 @@ Split by execution environment — the boundary is load-bearing:
 - `src/manager/` — runs in the browser (Storybook manager UI). `PanelView.tsx`
   (pure view), `Panel.tsx`/`TestProviderRow.tsx` (wiring), `state.ts`.
 - `src/shared/` — types crossing the boundary: `protocol.ts` (commands),
-  `results.ts` (`VisualResult`/`VisualRunState`), `capture.ts`.
+  `results.ts` (`VisualResult`/`VisualRunState`/`VisualCaptureMode`).
 - Entry points: `index.ts`, `manager.tsx`, `preset.ts`, `preview.ts` (see the
   `exports` map in `package.json`).
 - `test/` — vitest node unit tests; `test/smoke/` — playwright integration.

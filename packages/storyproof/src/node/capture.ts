@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { chromium, firefox, webkit } from "playwright";
 
 import { DEFAULT_ENVIRONMENT } from "../constants.js";
-import type { VisualCaptureMode } from "../shared/capture.js";
+import type { VisualCaptureMode } from "../shared/results.js";
 import { sha256 } from "./compare.js";
 import {
   acquireContainerBrowser,
@@ -105,9 +105,6 @@ export interface CaptureSession {
   close(): Promise<void>;
 }
 
-/** Historical name from the chromium-only era; same contract. */
-export type ChromiumCaptureSession = CaptureSession;
-
 export async function createCaptureSession(
   options: {
     launcher?: BrowserLauncher;
@@ -138,9 +135,6 @@ export async function createCaptureSession(
   return new PlaywrightCaptureSession(browser);
 }
 
-/** Historical name from the chromium-only era; same behavior. */
-export const createChromiumCaptureSession = createCaptureSession;
-
 interface SessionExtras {
   mapBaseUrl?: (url: string) => string;
   containerImage?: string;
@@ -148,7 +142,7 @@ interface SessionExtras {
   close?: () => Promise<void>;
 }
 
-class PlaywrightCaptureSession implements ChromiumCaptureSession {
+class PlaywrightCaptureSession implements CaptureSession {
   private readonly ownFingerprintCache: FingerprintCache = {};
 
   constructor(
