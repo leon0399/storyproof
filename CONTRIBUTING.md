@@ -6,7 +6,7 @@ is making a diff obvious.
 
 ## The loop
 
-Node ≥ 22.12 (pinned in [`.node-version`](.node-version)) and pnpm 10.
+Node ≥ 22.12 (development pin: [`.node-version`](.node-version)) and pnpm 10.
 
 ```bash
 pnpm install                           # also builds the addon, via the root `prepare` hook

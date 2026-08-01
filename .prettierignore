@@ -5,3 +5,7 @@ test-results
 storybook-static
 **/__screenshots__
 packages/storyproof/test/.tmp
+
+# Machine-written files: changesets owns their formatting, prettier does not.
+.changeset/pre.json
+packages/storyproof/CHANGELOG.md
