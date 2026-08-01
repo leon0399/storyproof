@@ -112,7 +112,9 @@ living in a trailer someone has to trust. It needs no per-repo setup.
 ## Pull requests
 
 `main` is protected: pull requests only, all CI checks green, every review
-thread resolved, squash merges. Review is auto-requested from the maintainer
+thread resolved, squash merges. (Only checks that run on _every_ pull request
+are required — CodeQL and the config validators are conditional, so they
+report but never gate.) Review is auto-requested from the maintainer
 via [`.github/CODEOWNERS`](.github/CODEOWNERS) — and only a maintainer can
 press Merge, so an outside pull request always waits for one.
 
