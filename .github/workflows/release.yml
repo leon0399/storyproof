@@ -60,7 +60,9 @@ jobs:
           commit: "chore: version packages"
           # Commits go through the GitHub API rather than a pushed git
           # remote, so this job needs no persisted checkout credentials.
-          commit-mode: github-api
+          # camelCase: the action warns on unknown inputs instead of
+          # failing, and the kebab-case spelling was silently ignored.
+          commitMode: github-api
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
