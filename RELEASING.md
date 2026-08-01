@@ -10,14 +10,13 @@ publish job authenticates with npm trusted publishing (OIDC).
 ## The loop
 
 1. A PR that changes the published package adds a changeset
-   (`pnpm changeset`). It records the bump only — the prose lives in
-   [packages/storyproof/CHANGELOG.md](packages/storyproof/CHANGELOG.md), which
-   is why `changelog` is `false` in `.changeset/config.json`. A PR that
+   (`pnpm changeset`). Its markdown body IS the changelog entry
+   (`@changesets/changelog-github`), so write it for users. A PR that
    arrives without one is fine; add it before releasing.
 2. Merging to `main` runs `release.yml`, which opens (or refreshes) a
-   **"chore: version packages"** PR: bumped manifest, changesets consumed.
-   Roll `## [Unreleased]` into a version heading in the CHANGELOG on that PR —
-   Changesets does not write it.
+   **"chore: version packages"** PR: bumped manifest, changesets consumed,
+   CHANGELOG.md written from their bodies. Review the version PR, don't
+   edit it.
 3. Merging the version PR runs `release.yml` again. With no changesets left,
    `changeset tag` tags any released version that has no tag yet
    (`storyproof@<version>`) and hands each new tag to `publish.yml` — the

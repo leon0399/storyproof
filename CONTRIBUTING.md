@@ -36,13 +36,12 @@ local run predicts CI without guaranteeing it.
 
 - **Conventional commits** (`feat:`, `fix:`, `build:`, `docs:`). No monorepo
   scope needed — the addon is the default subject; use `website:` for the site.
-- **Changelog**: user-visible changes to the package go under `## [Unreleased]`
-  in [packages/storyproof/CHANGELOG.md](packages/storyproof/CHANGELOG.md).
-  Repo-only chores don't need an entry.
 - **Changesets**: if your PR changes the published package, run
-  `pnpm changeset` and commit the file it writes — it records which version
-  bump the change deserves. Don't worry if you forget; a maintainer will add
-  it. You do not need to understand the release process
+  `pnpm changeset` and commit the file it writes. It records which version
+  bump the change deserves, and its markdown body becomes the
+  [CHANGELOG](packages/storyproof/CHANGELOG.md) entry — write it for users.
+  Repo-only chores need none, and don't worry if you forget; a maintainer
+  will add it. You do not need to understand the release process
   ([RELEASING.md](RELEASING.md) if you're curious).
 - **Rationale goes in the code.** This repository keeps no design docs: the
   "why" behind a non-obvious decision belongs in a comment at the decision

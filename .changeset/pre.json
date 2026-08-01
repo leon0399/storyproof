@@ -1,0 +1,11 @@
+{
+  "mode": "pre",
+  "tag": "next",
+  "initialVersions": {
+    "website": "0.0.0",
+    "storyproof-example-nextjs-vite-sb10.5": "0.0.0",
+    "storyproof-example-react-vite-sb10.5": "0.0.0",
+    "storyproof": "0.0.1-alpha.1"
+  },
+  "changesets": []
+}
