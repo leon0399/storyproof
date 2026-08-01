@@ -1,0 +1,4 @@
+# Every path, one owner: review is automatically requested on each pull
+# request, and the `main` ruleset requires that review before merge.
+# Contributors do not need to know this file exists.
+* @leon0399
