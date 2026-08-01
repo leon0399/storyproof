@@ -1,0 +1,86 @@
+# Grouped, cooled-down dependency updates. Design decisions:
+#
+# - Two npm groups, runtime vs development. A runtime bump changes what
+#   consumers install, so its PR gets a patch changeset at review time
+#   (RELEASING.md "Dependency updates"); development bumps are repo-only
+#   chores and need none. The split is what makes that rule mechanical.
+# - 7-day cooldown on version updates, mirroring the pnpm
+#   `minimumReleaseAge` policy this repository already lives by: a
+#   freshly-published release is the supply-chain attack window (see the
+#   2026 Trivy and 2025 tj-actions tag rewrites). Security updates are
+#   exempt from cooldown by design and land immediately, grouped.
+# - `playwright` bumps are never mechanical: the wire protocol is
+#   version-locked to the capture container image, and docs/tests reference
+#   the exact version. The group PR will fail CI until those move together —
+#   that is the system working, not flaking.
+# - Known gap: the `docker://rhysd/actionlint` digest pin in
+#   workflow-lint.yml is invisible to Dependabot (Docker refs in `uses:`
+#   are unsupported by the github-actions ecosystem) — bump it by hand.
+
+version: 2
+
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    cooldown:
+      default-days: 7
+    # A dependency joins the first group it matches, so order matters and
+    # the catch-all goes last.
+    groups:
+      # playwright and @playwright/test are version-locked to each other and
+      # to the capture-container image, so they must move in ONE PR — a
+      # dependency-type split would separate them (prod vs dev). Docs and
+      # tests reference the exact version; CI failing until everything moves
+      # together is the guard, not noise. Patch changeset: playwright is a
+      # runtime dependency of the published package.
+      playwright:
+        patterns:
+          - "playwright"
+          - "@playwright/test"
+      # The published package's remaining runtime dependencies — the only
+      # other bumps that ship to consumers, so these PRs carry a patch
+      # changeset (RELEASING.md). An explicit allowlist, not
+      # dependency-type: "production", because at root scope that would also
+      # catch the examples' react/next, whose bumps never touch the
+      # published artifact. Group names are hints for the PR title; the
+      # changeset decision is always RELEASING.md's manifest test.
+      published-runtime:
+        patterns:
+          - "@storybook/icons"
+          - "pixelmatch"
+          - "pngjs"
+      # Everything else — example/website dependencies and all
+      # devDependencies. Repo-only: no changeset.
+      repo-dependencies:
+        patterns:
+          - "*"
+      npm-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "build"
+      prefix-development: "chore"
+      include: "scope"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns:
+          - "*"
+      actions-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "build"
+      include: "scope"
