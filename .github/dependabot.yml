@@ -1,0 +1,61 @@
+# Grouped, cooled-down dependency updates. Design decisions:
+#
+# - Two npm groups, runtime vs development. A runtime bump changes what
+#   consumers install, so its PR gets a patch changeset at review time
+#   (RELEASING.md "Dependency updates"); development bumps are repo-only
+#   chores and need none. The split is what makes that rule mechanical.
+# - 7-day cooldown on version updates, mirroring the pnpm
+#   `minimumReleaseAge` policy this repository already lives by: a
+#   freshly-published release is the supply-chain attack window (see the
+#   2026 Trivy and 2025 tj-actions tag rewrites). Security updates are
+#   exempt from cooldown by design and land immediately, grouped.
+# - `playwright` bumps are never mechanical: the wire protocol is
+#   version-locked to the capture container image, and docs/tests reference
+#   the exact version. The group PR will fail CI until those move together —
+#   that is the system working, not flaking.
+# - Known gap: the `docker://rhysd/actionlint` digest pin in
+#   workflow-lint.yml is invisible to Dependabot (Docker refs in `uses:`
+#   are unsupported by the github-actions ecosystem) — bump it by hand.
+
+version: 2
+
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    cooldown:
+      default-days: 7
+    groups:
+      runtime-dependencies:
+        dependency-type: "production"
+      development-dependencies:
+        dependency-type: "development"
+      npm-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "build"
+      prefix-development: "chore"
+      include: "scope"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns:
+          - "*"
+      actions-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "build"
+      include: "scope"

@@ -67,6 +67,21 @@ Before the first release:
 - After the first stable release, repoint the default tag explicitly:
   `npm dist-tag add storyproof@<version> latest`.
 
+## Dependency updates
+
+Dependabot PRs arrive weekly, grouped (`.github/dependabot.yml`), with a
+7-day cooldown mirroring the pnpm `minimumReleaseAge` policy; security
+updates skip the cooldown. The changesets rule follows the group:
+
+- **runtime-dependencies** — changes what consumers install: add a `patch`
+  changeset at review time, body written for users ("Updates X to Y").
+- **development-dependencies** / **actions** — repo-only: no changeset.
+
+Never auto-merge a dependency PR: the update window is the supply-chain
+attack window, and review is the control. A `playwright` bump additionally
+moves the capture-container image pairing and version-referencing docs and
+tests together — CI failing on such a group PR is the guard, not noise.
+
 ## When a release goes wrong
 
 - **Publish job failed before `npm publish`** — nothing shipped. If the fix
