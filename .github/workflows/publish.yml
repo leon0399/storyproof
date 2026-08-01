@@ -122,8 +122,12 @@ jobs:
             "\`npm install storyproof@${VERSION}\` (dist-tag: \`${DIST_TAG}\`)" \
             "" \
             "See [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/${TAG}/packages/storyproof/CHANGELOG.md) for what changed.")
+          # A real copy, not gh's `file#label` syntax: the label only
+          # changes the display text, the downloaded filename stays the
+          # upload's basename (measured on 0.1.0-next.2, which shipped as
+          # `package.tgz`).
+          asset="/tmp/storyproof-release/storyproof-${VERSION}.tgz"
+          cp /tmp/storyproof-release/package.tgz "$asset"
           args=(--title "storyproof ${VERSION}" --notes "$notes")
           [ "$DIST_TAG" = "latest" ] || args+=(--prerelease)
-          gh release create "$TAG" \
-            "/tmp/storyproof-release/package.tgz#storyproof-${VERSION}.tgz" \
-            "${args[@]}"
+          gh release create "$TAG" "$asset" "${args[@]}"
