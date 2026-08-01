@@ -20,7 +20,7 @@ CHANGELOG holds the pre-extraction shipped record.
 
 ## Layout
 
-pnpm workspace monorepo (Node >= 22.12, pinned in `.node-version`; pnpm 10)
+pnpm workspace monorepo (Node >= 22.12 supported, development pinned by `.node-version`; pnpm 10)
 orchestrated by Turborepo. The graph is real, not ceremony: `examples/*` need
 `packages/storyproof` to have been **built**, not merely linked, and Storybook
 cannot hot-reload an addon (its manager bundle compiles once at startup) —
