@@ -69,9 +69,11 @@ Before the first release:
 
 ## When a release goes wrong
 
-- **Publish job failed before `npm publish`** — nothing shipped. Fix and
-  re-run the workflow from the Actions tab (or delete the tag and let the
-  next merge to `main` re-create it).
+- **Publish job failed before `npm publish`** — nothing shipped. If the fix
+  is in the workflow itself, re-running is not enough: a run uses
+  `publish.yml` as of the tag's commit, so delete the tag and re-create it
+  on a commit that carries the fix (the version and the tag must still
+  agree). Otherwise, just re-run from the Actions tab.
 - **Published, but the artifact is bad** — npm versions are immutable. Ship a
   new patch; `npm deprecate` the bad one. Do not unpublish.
 - **Tag exists but no release ran** — re-run `publish.yml` from the Actions
