@@ -80,7 +80,12 @@ across [OpenSSL](https://openssl-library.org/policies/general/ai-policy/), the
 [Linux kernel](https://docs.kernel.org/process/coding-assistants.html), and the
 [OpenInfra Foundation](https://openinfra.org/legal/ai-policy/). Note what it is
 _not_: `Co-authored-by:` and `Signed-off-by:` stay reserved for humans, because
-they carry authorship and legal attestation an agent cannot give.
+they carry authorship and legal attestation an agent cannot give. The same
+applies when squash-merging an automated pull request: delete the
+`Signed-off-by: dependabot[bot]` line the proposed message carries — a bot
+cannot certify origin. Do not substitute a human sign-off either; this
+project runs no DCO process, so the trailer would imply one that does not
+exist. Merging is the attestation.
 
 Mention it in the PR description too, briefly — which parts, which tool, what
 you checked yourself.
@@ -112,7 +117,9 @@ living in a trailer someone has to trust. It needs no per-repo setup.
 ## Pull requests
 
 `main` is protected: pull requests only, all CI checks green, every review
-thread resolved, squash merges. Review is auto-requested from the maintainer
+thread resolved, squash merges. (Only checks that run on _every_ pull request
+are required — CodeQL and the config validators are conditional, so they
+report but never gate.) Review is auto-requested from the maintainer
 via [`.github/CODEOWNERS`](.github/CODEOWNERS) — and only a maintainer can
 press Merge, so an outside pull request always waits for one.
 
