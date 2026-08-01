@@ -45,8 +45,8 @@ updates:
       # changeset (RELEASING.md). An explicit allowlist, not
       # dependency-type: "production", because at root scope that would also
       # catch the examples' react/next, whose bumps never touch the
-      # published artifact. The allowlist cannot drift silently: ci.yml's
-      # lint job fails if it disagrees with the manifest's dependencies.
+      # published artifact. Group names are hints for the PR title; the
+      # changeset decision is always RELEASING.md's manifest test.
       published-runtime:
         patterns:
           - "@storybook/icons"
