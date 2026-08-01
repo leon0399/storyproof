@@ -75,9 +75,11 @@ updates skip the cooldown. The changeset test is always the same — **did
 `packages/storyproof/package.json`'s `dependencies` change?** — and the
 groups exist to make the answer legible from the PR title:
 
-- **playwright** / **published-runtime** — change what consumers install:
-  add a `patch` changeset at review time, body written for users
-  ("Updates X to Y").
+- **playwright** / **published-runtime** — normally change what consumers
+  install: add a `patch` changeset at review time, body written for users
+  ("Updates X to Y"). The manifest test still decides — a PR that somehow
+  moves only `@playwright/test` changes no published dependency and needs
+  none.
 - **repo-dependencies** / **actions** — repo-only: no changeset.
 - **security groups** — apply the same manifest test: a security bump that
   touches the published package's `dependencies` gets a `patch` changeset;
