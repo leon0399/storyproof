@@ -1,9 +1,9 @@
 # Changesets
 
 Pending release intents: each file records which version bump a merged change
-deserves. The prose lives in
-[packages/storyproof/CHANGELOG.md](../packages/storyproof/CHANGELOG.md), which
-is why `changelog` is `false` in `config.json`.
+deserves, and its markdown body becomes the entry in
+[packages/storyproof/CHANGELOG.md](../packages/storyproof/CHANGELOG.md)
+(`@changesets/changelog-github`) — write it for users.
 
 ```bash
 pnpm changeset   # from the repository root, when a PR changes the package
