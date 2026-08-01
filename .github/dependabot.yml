@@ -54,9 +54,19 @@ updates:
           - "pngjs"
       # Everything else — example/website dependencies and all
       # devDependencies. Repo-only: no changeset.
+      #
+      # Minors and patches only: a grouped major is unreviewable. The first
+      # batch bundled typescript 5→7, vite 7→8 and next 15→16 into one PR,
+      # where TS7 rejecting untyped CSS side-effect imports and Storybook
+      # failing to build under Next 16 arrived as a single red "chore".
+      # Majors still get PRs — one per dependency, ungrouped, which is the
+      # only way to read a migration.
       repo-dependencies:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
       npm-security:
         applies-to: security-updates
         patterns:
