@@ -144,8 +144,10 @@ describe("VisualTestRunner", () => {
     });
 
     expect(resolveArtifactPaths).not.toHaveBeenCalled();
+    // Not "passed": nothing was captured or compared, so a green check would
+    // claim verification that never happened.
     expect(state.results[0]).toMatchObject({
-      status: "passed",
+      status: "disabled",
       message: "Visual tests disabled for this story",
     });
   });

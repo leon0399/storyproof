@@ -524,7 +524,7 @@ export function registerAddonAcceptanceSuite({
       storyId: "visual-fixture--disabled",
     });
     await expect(
-      disabledPanel.getByText("Passed", { exact: true }),
+      disabledPanel.getByText("Disabled", { exact: true }),
     ).toBeVisible();
     await expect(
       disabledPanel.getByText("Visual tests disabled for this story", {
