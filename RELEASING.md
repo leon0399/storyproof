@@ -71,16 +71,23 @@ Before the first release:
 
 Dependabot PRs arrive weekly, grouped (`.github/dependabot.yml`), with a
 7-day cooldown mirroring the pnpm `minimumReleaseAge` policy; security
-updates skip the cooldown. The changesets rule follows the group:
+updates skip the cooldown. The changeset test is always the same — **did
+`packages/storyproof/package.json`'s `dependencies` change?** — and the
+groups exist to make the answer legible from the PR title:
 
-- **runtime-dependencies** — changes what consumers install: add a `patch`
-  changeset at review time, body written for users ("Updates X to Y").
-- **development-dependencies** / **actions** — repo-only: no changeset.
+- **playwright** / **published-runtime** — change what consumers install:
+  add a `patch` changeset at review time, body written for users
+  ("Updates X to Y").
+- **repo-dependencies** / **actions** — repo-only: no changeset.
+- **security groups** — apply the same manifest test: a security bump that
+  touches the published package's `dependencies` gets a `patch` changeset;
+  one that only moves the lockfile or dev dependencies does not.
 
 Never auto-merge a dependency PR: the update window is the supply-chain
 attack window, and review is the control. A `playwright` bump additionally
 moves the capture-container image pairing and version-referencing docs and
-tests together — CI failing on such a group PR is the guard, not noise.
+tests together — CI failing on that group's PR until everything moves as
+one is the guard, not noise.
 
 ## When a release goes wrong
 

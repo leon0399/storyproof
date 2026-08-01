@@ -27,11 +27,36 @@ updates:
       day: "monday"
     cooldown:
       default-days: 7
+    # A dependency joins the first group it matches, so order matters and
+    # the catch-all goes last.
     groups:
-      runtime-dependencies:
-        dependency-type: "production"
-      development-dependencies:
-        dependency-type: "development"
+      # playwright and @playwright/test are version-locked to each other and
+      # to the capture-container image, so they must move in ONE PR — a
+      # dependency-type split would separate them (prod vs dev). Docs and
+      # tests reference the exact version; CI failing until everything moves
+      # together is the guard, not noise. Patch changeset: playwright is a
+      # runtime dependency of the published package.
+      playwright:
+        patterns:
+          - "playwright"
+          - "@playwright/test"
+      # The published package's remaining runtime dependencies — the only
+      # other bumps that ship to consumers, so these PRs carry a patch
+      # changeset (RELEASING.md). An explicit allowlist, not
+      # dependency-type: "production", because at root scope that would also
+      # catch the examples' react/next, whose bumps never touch the
+      # published artifact. Adding a runtime dependency to
+      # packages/storyproof? Add it here.
+      published-runtime:
+        patterns:
+          - "@storybook/icons"
+          - "pixelmatch"
+          - "pngjs"
+      # Everything else — example/website dependencies and all
+      # devDependencies. Repo-only: no changeset.
+      repo-dependencies:
+        patterns:
+          - "*"
       npm-security:
         applies-to: security-updates
         patterns:
