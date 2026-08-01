@@ -111,9 +111,10 @@ living in a trailer someone has to trust. It needs no per-repo setup.
 
 ## Pull requests
 
-`main` is protected: pull requests only, CI green, review threads resolved,
-and a maintainer approval (requested automatically via `.github/CODEOWNERS`).
-Squash is the only merge method.
+`main` is protected: pull requests only, all CI checks green, every review
+thread resolved, squash merges. Review is auto-requested from the maintainer
+via [`.github/CODEOWNERS`](.github/CODEOWNERS) — and only a maintainer can
+press Merge, so an outside pull request always waits for one.
 
 Small and focused beats large and complete. Describe what changed and how you
 verified it — for visual behavior, a screenshot of the panel says more than a
