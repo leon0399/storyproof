@@ -47,6 +47,29 @@ jobs:
       # job's out-of-workspace copy). The only sanctioned divergence is the
       # framework type-import in *.stories.tsx; screenshots are excluded
       # because committed baselines are per-environment by design.
+      # The dependabot groups that carry a patch changeset (RELEASING.md)
+      # are hand-written allowlists, and the repo-dependencies catch-all
+      # means an omission FAILS OPEN — a new runtime dependency would ship
+      # in a PR labeled repo-only. This fails instead.
+      - name: Dependabot groups cover the published runtime dependencies
+        run: |
+          # shellcheck disable=SC2016 # the $-free JS is quoted on purpose
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            const deps = Object.keys(JSON.parse(readFileSync("packages/storyproof/package.json", "utf8")).dependencies ?? {});
+            const config = readFileSync(".github/dependabot.yml", "utf8");
+            const patterns = (group) => {
+              const match = new RegExp(`      ${group}:\\n        patterns:\\n((?:          - "[^"]+"\\n)+)`).exec(config);
+              if (!match) throw new Error(`group ${group} not found in dependabot.yml`);
+              return [...match[1].matchAll(/- "([^"]+)"/g)].map((entry) => entry[1]);
+            };
+            const covered = new Set([...patterns("playwright"), ...patterns("published-runtime")]);
+            const missing = deps.filter((name) => !covered.has(name));
+            const stale = patterns("published-runtime").filter((name) => !deps.includes(name));
+            if (missing.length) throw new Error(`runtime dependencies missing from dependabot.yml changeset groups: ${missing.join(", ")}`);
+            if (stale.length) throw new Error(`stale published-runtime entries (no longer runtime dependencies): ${stale.join(", ")}`);
+            console.log(`covered: ${[...covered].join(", ")}`);
+          '
       - name: Examples stay identical
         run: |
           diff -r \
