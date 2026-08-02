@@ -152,10 +152,14 @@ function Summary({
         <Headline>
           <StatusDot $status={status} />
           <HeadlineText>{statusLabel(status)}</HeadlineText>
-          {/* Rendered at zero too: "Changed · 0 px" is what tells a reviewer
-              the images are identical and only the metadata moved — the case
-              a schema migration produces for every story. */}
-          {typeof result?.diffPixels === "number" ? (
+          {/* Zero is rendered too — "Changed · 0 px" is what tells a reviewer
+              the images are identical and only the metadata moved, the case a
+              schema migration produces for every story. Restricted to
+              `changed` because that is the only status whose diffPixels came
+              from an actual comparison: "new" carries 0 as a placeholder (no
+              baseline to compare) and approval resets it to 0. */}
+          {result?.status === "changed" &&
+          typeof result.diffPixels === "number" ? (
             <Metric>{result.diffPixels.toLocaleString("en-US")} px</Metric>
           ) : null}
         </Headline>
@@ -231,8 +235,10 @@ function Review({
   // With no local run, fall back to the committed baseline so it stays
   // reviewable; a run supplies the full baseline/candidate/diff set.
   const artifacts =
-    result?.artifacts ??
-    (baseline?.artifactId ? { baseline: baseline.artifactId } : undefined);
+    result?.status === "disabled"
+      ? undefined
+      : (result?.artifacts ??
+        (baseline?.artifactId ? { baseline: baseline.artifactId } : undefined));
   // A committed baseline under a DIFFERENT environment key is invisible to
   // this session's runs; without this line a bare-host user staring at
   // committed container baselines sees an unexplained "New". Shown until a

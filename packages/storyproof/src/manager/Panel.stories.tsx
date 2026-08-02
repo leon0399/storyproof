@@ -363,6 +363,13 @@ export const Disabled: Story = {
   tags: ["ai-generated"],
   args: {
     currentStoryId: "button--primary",
+    // A committed baseline from before the story opted out: it must not be
+    // displayed, or the panel implies this run verified something.
+    baseline: {
+      storyId: "button--primary",
+      environmentKey: "linux-chromium-1280x720@1x",
+      artifactId: "baseline",
+    },
     state: {
       runId: "run-disabled",
       running: true,
@@ -391,6 +398,9 @@ export const Disabled: Story = {
     await expect(
       canvas.queryByRole("button", { name: /Accept/ }),
     ).not.toBeInTheDocument();
+    await expect(
+      canvas.getByRole("button", { name: "Baseline" }),
+    ).toBeDisabled();
   },
 };
 
