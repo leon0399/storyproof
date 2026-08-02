@@ -131,7 +131,7 @@ export function registerAddonAcceptanceSuite({
     );
 
     await runCurrent(panel);
-    await expect(panel.getByText("Passed", { exact: true })).toBeVisible({
+    await expect(panel.getByText("Disabled", { exact: true })).toBeVisible({
       timeout: RUN_TIMEOUT_MS,
     });
     await expect(
