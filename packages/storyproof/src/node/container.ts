@@ -116,7 +116,7 @@ export function containerRunArguments(options: {
     // install created it. Old ones are inert; `docker volume ls` finds them
     // by this prefix.
     "-v",
-    `storyproof-npm-cache-${options.playwrightVersion}:/root/.npm`,
+    `storyproof-npm-cache-${volumeSafe(options.playwrightVersion)}:/root/.npm`,
     // Safe again now the volume is version-scoped: the cached version list
     // can only ever be consulted for the version whose install wrote it, so
     // skipping the freshness check cannot hide a release from itself. Keeps
@@ -152,6 +152,20 @@ export function containerRunArguments(options: {
     // image does not ship the npm package.
     `ip=$(getent ahostsv4 host.docker.internal | head -n1 | cut -d" " -f1); [ -n "$ip" ] || ip=$(getent hosts host.docker.internal | head -n1 | cut -d" " -f1); echo "STORYPROOF_GATEWAY $ip"; exec npx -y playwright@${options.playwrightVersion} run-server --host 0.0.0.0 --port ${String(CONTAINER_SERVER_PORT)}`,
   ];
+}
+
+/**
+ * Docker's local volume driver accepts `[a-zA-Z0-9][a-zA-Z0-9_.-]*`, which a
+ * semver build-identifier (`1.2.3+build.5`) violates. No published
+ * playwright version has ever carried one, but this reads whatever version
+ * is installed — a patched or forked build can — and the failure would be an
+ * opaque Docker naming error at capture time. `__` is the substitution
+ * because it cannot occur in a semver, so a sanitized name can never collide
+ * with another version's and quietly restore the cross-version cache sharing
+ * the per-version key exists to prevent.
+ */
+function volumeSafe(version: string): string {
+  return version.replace(/[^a-zA-Z0-9_.-]/g, "__");
 }
 
 export function parseListeningEndpoint(chunk: string): string | undefined {

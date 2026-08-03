@@ -174,6 +174,20 @@ describe("container plumbing", () => {
     expect(args.join(" ")).toContain("-e npm_config_ignore_scripts=true");
   });
 
+  test("cache volume name survives a semver build identifier", () => {
+    // Docker's local driver rejects "+"; no published playwright has one,
+    // but a patched build can, and the failure would be an opaque Docker
+    // naming error rather than anything about capture.
+    const args = containerRunArguments({
+      name: "storyproof-test",
+      image: "example.com/custom:tag",
+      playwrightVersion: "1.62.1+build.5",
+    });
+    const volume = args[args.indexOf("-v") + 1];
+    expect(volume).toBe("storyproof-npm-cache-1.62.1__build.5:/root/.npm");
+    expect(volume).toMatch(/^[a-zA-Z0-9][a-zA-Z0-9_.-]*:/);
+  });
+
   test("names the cache volume when npm calls the pinned version missing", () => {
     // ETARGET reads as "that version does not exist", so a reader suspects
     // anything but the npm cache — which is exactly what it usually is.
