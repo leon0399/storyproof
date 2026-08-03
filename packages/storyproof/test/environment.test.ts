@@ -158,34 +158,15 @@ describe("container plumbing", () => {
     // Firefox refuses to launch when $HOME isn't owned by the current user;
     // pinned so an image override or env-injecting wrapper can't break it.
     expect(args.join(" ")).toContain("-e HOME=/root");
-    // The npm cache persists across containers so the exact-version npx
-    // install pays its network cost once per machine, not per cold start —
-    // but keyed by version, so a cache written before a playwright release
-    // can never be consulted for it. A shared volume made every capture
-    // fail after an upgrade with "No matching version found".
+    // Version-keyed so a cache written before a playwright release is never
+    // consulted for it; prefer-offline is safe only because of that.
     expect(args.join(" ")).toContain(
       "-v storyproof-npm-cache-1.55.1:/root/.npm",
     );
-    // Safe only because the volume is version-scoped: a cached version list
-    // is consulted for the version that wrote it and no other.
     expect(args.join(" ")).toContain("-e npm_config_prefer_offline=true");
     // The runtime install arrives from the network at capture time, so its
     // lifecycle hooks are code from outside the pinned supply chain.
     expect(args.join(" ")).toContain("-e npm_config_ignore_scripts=true");
-  });
-
-  test("cache volume name survives a semver build identifier", () => {
-    // Docker's local driver rejects "+"; no published playwright has one,
-    // but a patched build can, and the failure would be an opaque Docker
-    // naming error rather than anything about capture.
-    const args = containerRunArguments({
-      name: "storyproof-test",
-      image: "example.com/custom:tag",
-      playwrightVersion: "1.62.1+build.5",
-    });
-    const volume = args[args.indexOf("-v") + 1];
-    expect(volume).toBe("storyproof-npm-cache-1.62.1__build.5:/root/.npm");
-    expect(volume).toMatch(/^[a-zA-Z0-9][a-zA-Z0-9_.-]*:/);
   });
 
   test("names the cache volume when npm calls the pinned version missing", () => {
@@ -197,22 +178,6 @@ describe("container plumbing", () => {
     );
     expect(hint).toContain("docker volume rm storyproof-npm-cache-1.62.1");
     expect(hint).toContain("exists on the registry");
-    // The hint must name the volume actually mounted, not a reconstruction
-    // of it — they were briefly allowed to disagree for versions needing
-    // sanitization, which pointed recovery at a volume that never existed.
-    const version = "1.62.1+build.5";
-    const args = containerRunArguments({
-      name: "storyproof-test",
-      image: "img",
-      playwrightVersion: version,
-    });
-    const mounted = args[args.indexOf("-v") + 1]!.replace(":/root/.npm", "");
-    expect(
-      cacheHint(["npm error code ETARGET"], {
-        image: "img",
-        playwrightVersion: version,
-      }),
-    ).toContain(`docker volume rm ${mounted}`);
     // Every other container failure keeps its own message uncluttered.
     expect(
       cacheHint(["Error: connect ECONNREFUSED"], {

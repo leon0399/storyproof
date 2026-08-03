@@ -99,29 +99,18 @@ export function containerRunArguments(options: {
     // Persist npm's cache across containers so the exact-version `npx`
     // install below downloads once per machine rather than on every
     // container start (measured biting: a slow registry moment pushed
-    // first-capture past the acceptance suite's UI timeout in CI). The cache
-    // is content-addressed (cacache) and integrity-checked, so concurrent
-    // containers sharing it are safe.
+    // first-capture past the acceptance suite's UI timeout in CI).
     //
-    // Keyed by playwright version, and that is the whole point rather than
-    // tidiness. A single shared volume outlives its own correctness: npm
-    // caches the package's version list, and one written before a given
-    // playwright release has no record of it. Measured 2026-08-03 — a
-    // volume created 2026-07-29 failed every capture after the 1.55.1 ->
-    // 1.62.1 upgrade with "No matching version found for playwright@1.62.1",
-    // blaming a version that plainly exists, and kept failing until the
-    // volume was deleted by hand. Every user meets that on their first
-    // upgrade, with nothing pointing at the cache. Per-version volumes make
-    // it unreachable: a volume only ever serves the one version whose
-    // install created it. Old ones are inert; `docker volume ls` finds them
-    // by this prefix.
+    // Keyed by playwright version, which is load-bearing: npm caches the
+    // package's version list, and one written before a given release has no
+    // record of it. Measured 2026-08-03 — a single shared volume created
+    // 2026-07-29 failed every capture after the 1.55.1 -> 1.62.1 upgrade
+    // with "No matching version found for playwright@1.62.1", and kept
+    // failing until it was deleted by hand. Per-version volumes make that
+    // unreachable, and are what makes prefer-offline below safe: a cache is
+    // only ever consulted for the version whose install wrote it.
     "-v",
-    `storyproof-npm-cache-${volumeSafe(options.playwrightVersion)}:/root/.npm`,
-    // Safe again now the volume is version-scoped: the cached version list
-    // can only ever be consulted for the version whose install wrote it, so
-    // skipping the freshness check cannot hide a release from itself. Keeps
-    // a warm start independent of the registry, which is the resilience the
-    // measured CI timeout above was about.
+    `storyproof-npm-cache-${options.playwrightVersion}:/root/.npm`,
     "-e",
     "npm_config_prefer_offline=true",
     // Lifecycle scripts stay off: this install is fetched from the network
@@ -152,20 +141,6 @@ export function containerRunArguments(options: {
     // image does not ship the npm package.
     `ip=$(getent ahostsv4 host.docker.internal | head -n1 | cut -d" " -f1); [ -n "$ip" ] || ip=$(getent hosts host.docker.internal | head -n1 | cut -d" " -f1); echo "STORYPROOF_GATEWAY $ip"; exec npx -y playwright@${options.playwrightVersion} run-server --host 0.0.0.0 --port ${String(CONTAINER_SERVER_PORT)}`,
   ];
-}
-
-/**
- * Docker's local volume driver accepts `[a-zA-Z0-9][a-zA-Z0-9_.-]*`, which a
- * semver build-identifier (`1.2.3+build.5`) violates. No published
- * playwright version has ever carried one, but this reads whatever version
- * is installed — a patched or forked build can — and the failure would be an
- * opaque Docker naming error at capture time. `__` is the substitution
- * because it cannot occur in a semver, so a sanitized name can never collide
- * with another version's and quietly restore the cross-version cache sharing
- * the per-version key exists to prevent.
- */
-function volumeSafe(version: string): string {
-  return version.replace(/[^a-zA-Z0-9_.-]/g, "__");
 }
 
 export function parseListeningEndpoint(chunk: string): string | undefined {
@@ -418,9 +393,7 @@ export function cacheHint(
   request: ContainerBrowserRequest,
 ): string {
   const text = stderrTail.join("");
-  if (!text.includes("ETARGET") && !text.includes("No matching version")) {
-    return "";
-  }
-  const volume = `storyproof-npm-cache-${volumeSafe(request.playwrightVersion)}`;
+  if (!text.includes("ETARGET")) return "";
+  const volume = `storyproof-npm-cache-${request.playwrightVersion}`;
   return `\nplaywright@${request.playwrightVersion} exists on the registry, so this is most likely a stale npm cache rather than a missing version. Clear it with "docker volume rm ${volume}" and capture again.`;
 }
