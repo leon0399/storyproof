@@ -117,6 +117,13 @@ export function containerRunArguments(options: {
     // by this prefix.
     "-v",
     `storyproof-npm-cache-${options.playwrightVersion}:/root/.npm`,
+    // Safe again now the volume is version-scoped: the cached version list
+    // can only ever be consulted for the version whose install wrote it, so
+    // skipping the freshness check cannot hide a release from itself. Keeps
+    // a warm start independent of the registry, which is the resilience the
+    // measured CI timeout above was about.
+    "-e",
+    "npm_config_prefer_offline=true",
     // Lifecycle scripts stay off: this install is fetched from the network
     // at capture time, so its install hooks would be arbitrary code entering
     // from outside the pinned supply chain — the one part of container
@@ -327,7 +334,7 @@ function waitForEndpoint(
         clearTimeout(timer);
         reject(
           new Error(
-            `The capture container exited before its browser server was ready (exit code ${String(code)}).${tail(stderrTail)}`,
+            `The capture container exited before its browser server was ready (exit code ${String(code)}).${cacheHint(stderrTail, request)}${tail(stderrTail)}`,
           ),
         );
       });
@@ -381,4 +388,25 @@ function installExitHook(): void {
 function tail(stderrTail: string[]): string {
   const text = stderrTail.join("").trim();
   return text ? `\nContainer output:\n${text.slice(-2000)}` : "";
+}
+
+/**
+ * npm reports an unresolvable version as `ETARGET` / "No matching version
+ * found", which reads as "that version does not exist" — so the one thing a
+ * reader will not suspect is the npm cache. It can still be the cause: the
+ * volume is version-scoped, but a first install attempted before the
+ * registry served that version can leave a version list that lacks it, and
+ * prefer-offline then keeps serving it. Recovery is one `docker volume rm`,
+ * worth nothing at all if the message doesn't name the volume.
+ */
+export function cacheHint(
+  stderrTail: string[],
+  request: ContainerBrowserRequest,
+): string {
+  const text = stderrTail.join("");
+  if (!text.includes("ETARGET") && !text.includes("No matching version")) {
+    return "";
+  }
+  const volume = `storyproof-npm-cache-${request.playwrightVersion}`;
+  return `\nplaywright@${request.playwrightVersion} exists on the registry, so this is most likely a stale npm cache rather than a missing version. Clear it with "docker volume rm ${volume}" and capture again.`;
 }

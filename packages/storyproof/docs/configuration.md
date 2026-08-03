@@ -137,7 +137,11 @@ the version cannot be read from the name, so verify the digest matches
 your installed `playwright` yourself. The runtime `npx` install is pinned
 to that exact version and runs with lifecycle scripts disabled
 (`npm_config_ignore_scripts`), so a package fetched at capture time cannot
-execute install hooks.
+execute install hooks. One consequence for custom images: Playwright's
+postinstall is what would otherwise download missing browsers, so a custom
+image must already ship the binaries for the engine you capture with,
+matching the pinned version. The official images do. An image without them
+starts the container and then fails when the browser launches.
 
 Every machine then renders under the same
 `container-chromium-…` key (a distinct identity from bare-Linux capture,

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  cacheHint,
   containerRunArguments,
   parseGatewayAddress,
   parseListeningEndpoint,
@@ -165,9 +166,30 @@ describe("container plumbing", () => {
     expect(args.join(" ")).toContain(
       "-v storyproof-npm-cache-1.55.1:/root/.npm",
     );
+    // Safe only because the volume is version-scoped: a cached version list
+    // is consulted for the version that wrote it and no other.
+    expect(args.join(" ")).toContain("-e npm_config_prefer_offline=true");
     // The runtime install arrives from the network at capture time, so its
     // lifecycle hooks are code from outside the pinned supply chain.
     expect(args.join(" ")).toContain("-e npm_config_ignore_scripts=true");
+  });
+
+  test("names the cache volume when npm calls the pinned version missing", () => {
+    // ETARGET reads as "that version does not exist", so a reader suspects
+    // anything but the npm cache — which is exactly what it usually is.
+    const hint = cacheHint(
+      ["npm error code ETARGET\nnpm error notarget No matching version"],
+      { image: "img", playwrightVersion: "1.62.1" },
+    );
+    expect(hint).toContain("docker volume rm storyproof-npm-cache-1.62.1");
+    expect(hint).toContain("exists on the registry");
+    // Every other container failure keeps its own message uncluttered.
+    expect(
+      cacheHint(["Error: connect ECONNREFUSED"], {
+        image: "img",
+        playwrightVersion: "1.62.1",
+      }),
+    ).toBe("");
   });
 
   test("recognizes the server's readiness line", () => {

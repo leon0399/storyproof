@@ -17,8 +17,13 @@ ever be consulted for the version that created it.
 The install that runs inside the container is fetched from the registry at
 capture time. It was already pinned to an exact version; it now also runs
 with lifecycle scripts disabled, so a package arriving at capture time
-cannot execute install hooks. The image already ships the browsers that
-Playwright's postinstall would otherwise download.
+cannot execute install hooks. The official images already ship the browsers
+that Playwright's postinstall would otherwise download — if you point
+`capture.container.image` at a custom image, it must ship them too.
+
+And when npm does report a version as missing, the error now says it is usually
+the cache and names the volume to remove, instead of leaving you to
+disbelieve a version you can see on the registry.
 
 If you hit the old failure, any leftover `storyproof-npm-cache` volume is
 now unused and can be removed: `docker volume rm storyproof-npm-cache`.
