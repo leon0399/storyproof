@@ -158,9 +158,16 @@ describe("container plumbing", () => {
     // pinned so an image override or env-injecting wrapper can't break it.
     expect(args.join(" ")).toContain("-e HOME=/root");
     // The npm cache persists across containers so the exact-version npx
-    // install pays its network cost once per machine, not per cold start.
-    expect(args.join(" ")).toContain("-v storyproof-npm-cache:/root/.npm");
-    expect(args.join(" ")).toContain("npm_config_prefer_offline=true");
+    // install pays its network cost once per machine, not per cold start —
+    // but keyed by version, so a cache written before a playwright release
+    // can never be consulted for it. A shared volume made every capture
+    // fail after an upgrade with "No matching version found".
+    expect(args.join(" ")).toContain(
+      "-v storyproof-npm-cache-1.55.1:/root/.npm",
+    );
+    // The runtime install arrives from the network at capture time, so its
+    // lifecycle hooks are code from outside the pinned supply chain.
+    expect(args.join(" ")).toContain("-e npm_config_ignore_scripts=true");
   });
 
   test("recognizes the server's readiness line", () => {

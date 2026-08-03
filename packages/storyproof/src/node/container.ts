@@ -96,18 +96,36 @@ export function containerRunArguments(options: {
     // confusing error, so make it true by construction rather than by luck.
     "-e",
     "HOME=/root",
-    // Persist npm's cache across containers: the exact-version `npx` install
-    // below then downloads from the registry once per machine instead of on
-    // every container start (measured biting: a slow registry moment pushed
+    // Persist npm's cache across containers so the exact-version `npx`
+    // install below downloads once per machine rather than on every
+    // container start (measured biting: a slow registry moment pushed
     // first-capture past the acceptance suite's UI timeout in CI). The cache
-    // is content-addressed (cacache), so concurrent containers sharing it
-    // are safe; remove any time with `docker volume rm storyproof-npm-cache`.
+    // is content-addressed (cacache) and integrity-checked, so concurrent
+    // containers sharing it are safe.
+    //
+    // Keyed by playwright version, and that is the whole point rather than
+    // tidiness. A single shared volume outlives its own correctness: npm
+    // caches the package's version list, and one written before a given
+    // playwright release has no record of it. Measured 2026-08-03 — a
+    // volume created 2026-07-29 failed every capture after the 1.55.1 ->
+    // 1.62.1 upgrade with "No matching version found for playwright@1.62.1",
+    // blaming a version that plainly exists, and kept failing until the
+    // volume was deleted by hand. Every user meets that on their first
+    // upgrade, with nothing pointing at the cache. Per-version volumes make
+    // it unreachable: a volume only ever serves the one version whose
+    // install created it. Old ones are inert; `docker volume ls` finds them
+    // by this prefix.
     "-v",
-    "storyproof-npm-cache:/root/.npm",
-    // With a warm cache, let npm skip registry round-trips it can answer
-    // locally; a cold cache still fetches normally.
+    `storyproof-npm-cache-${options.playwrightVersion}:/root/.npm`,
+    // Lifecycle scripts stay off: this install is fetched from the network
+    // at capture time, so its install hooks would be arbitrary code entering
+    // from outside the pinned supply chain — the one part of container
+    // capture not fixed by the image digest or the exact version. Verified
+    // 2026-08-03 that `run-server` starts without them ("Listening on
+    // ws://0.0.0.0:9999/"); the image already ships the browsers that
+    // playwright's postinstall would otherwise fetch.
     "-e",
-    "npm_config_prefer_offline=true",
+    "npm_config_ignore_scripts=true",
     // Host side stays loopback-only: the browser server is a local tool, not
     // a network service.
     "-p",

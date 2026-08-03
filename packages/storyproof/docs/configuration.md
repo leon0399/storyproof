@@ -129,6 +129,16 @@ the same render fingerprint and interoperate with ones captured from
 network that blocks npmjs.org, container capture currently fails there even
 with a mirrored image.
 
+Two notes for supply-chain-sensitive setups. The derived default is a
+_tag_, and tags are mutable: pass a digest instead
+(`{ image: "mcr.microsoft.com/playwright@sha256:…" }`) to pin the image
+itself. Storyproof skips its version check for a digest reference, since
+the version cannot be read from the name, so verify the digest matches
+your installed `playwright` yourself. The runtime `npx` install is pinned
+to that exact version and runs with lifecycle scripts disabled
+(`npm_config_ignore_scripts`), so a package fetched at capture time cannot
+execute install hooks.
+
 Every machine then renders under the same
 `container-chromium-…` key (a distinct identity from bare-Linux capture,
 which renders differently even on the same machine) and produces identical
