@@ -421,6 +421,6 @@ export function cacheHint(
   if (!text.includes("ETARGET") && !text.includes("No matching version")) {
     return "";
   }
-  const volume = `storyproof-npm-cache-${request.playwrightVersion}`;
+  const volume = `storyproof-npm-cache-${volumeSafe(request.playwrightVersion)}`;
   return `\nplaywright@${request.playwrightVersion} exists on the registry, so this is most likely a stale npm cache rather than a missing version. Clear it with "docker volume rm ${volume}" and capture again.`;
 }

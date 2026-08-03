@@ -197,6 +197,27 @@ describe("container plumbing", () => {
     );
     expect(hint).toContain("docker volume rm storyproof-npm-cache-1.62.1");
     expect(hint).toContain("exists on the registry");
+    // The hint must name the volume actually mounted, not a reconstruction
+    // of it — they were briefly allowed to disagree for versions needing
+    // sanitization, which pointed recovery at a volume that never existed.
+    const version = "1.62.1+build.5";
+    const mounted = containerRunArguments({
+      name: "storyproof-test",
+      image: "img",
+      playwrightVersion: version,
+    })[
+      containerRunArguments({
+        name: "storyproof-test",
+        image: "img",
+        playwrightVersion: version,
+      }).indexOf("-v") + 1
+    ]!.replace(":/root/.npm", "");
+    expect(
+      cacheHint(["npm error code ETARGET"], {
+        image: "img",
+        playwrightVersion: version,
+      }),
+    ).toContain(`docker volume rm ${mounted}`);
     // Every other container failure keeps its own message uncluttered.
     expect(
       cacheHint(["Error: connect ECONNREFUSED"], {
