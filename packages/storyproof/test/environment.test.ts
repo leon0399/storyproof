@@ -201,17 +201,12 @@ describe("container plumbing", () => {
     // of it — they were briefly allowed to disagree for versions needing
     // sanitization, which pointed recovery at a volume that never existed.
     const version = "1.62.1+build.5";
-    const mounted = containerRunArguments({
+    const args = containerRunArguments({
       name: "storyproof-test",
       image: "img",
       playwrightVersion: version,
-    })[
-      containerRunArguments({
-        name: "storyproof-test",
-        image: "img",
-        playwrightVersion: version,
-      }).indexOf("-v") + 1
-    ]!.replace(":/root/.npm", "");
+    });
+    const mounted = args[args.indexOf("-v") + 1]!.replace(":/root/.npm", "");
     expect(
       cacheHint(["npm error code ETARGET"], {
         image: "img",
