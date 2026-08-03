@@ -433,7 +433,7 @@ export class VisualTestRunner {
       return;
     }
     if (capture.status === "disabled") {
-      result.status = "passed";
+      result.status = "disabled";
       result.message = "Visual tests disabled for this story";
       return;
     }

@@ -131,7 +131,7 @@ export function registerAddonAcceptanceSuite({
     );
 
     await runCurrent(panel);
-    await expect(panel.getByText("Passed", { exact: true })).toBeVisible({
+    await expect(panel.getByText("Disabled", { exact: true })).toBeVisible({
       timeout: RUN_TIMEOUT_MS,
     });
     await expect(
@@ -524,7 +524,7 @@ export function registerAddonAcceptanceSuite({
       storyId: "visual-fixture--disabled",
     });
     await expect(
-      disabledPanel.getByText("Passed", { exact: true }),
+      disabledPanel.getByText("Disabled", { exact: true }),
     ).toBeVisible();
     await expect(
       disabledPanel.getByText("Visual tests disabled for this story", {

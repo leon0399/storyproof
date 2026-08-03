@@ -23,6 +23,7 @@ describe("statusValueFor", () => {
     ["new", "status-value:new"],
     ["changed", "status-value:modified"],
     ["passed", "status-value:success"],
+    ["disabled", "status-value:unknown"],
     ["capture-error", "status-value:error"],
     ["cancelled", "status-value:unknown"],
   ] as const)("maps %s to %s", (input, expected) => {

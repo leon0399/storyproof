@@ -152,7 +152,14 @@ function Summary({
         <Headline>
           <StatusDot $status={status} />
           <HeadlineText>{statusLabel(status)}</HeadlineText>
-          {result?.diffPixels ? (
+          {/* Zero is rendered too — "Changed · 0 px" is what tells a reviewer
+              the images are identical and only the metadata moved, the case a
+              schema migration produces for every story. Restricted to
+              `changed` because that is the only status whose diffPixels came
+              from an actual comparison: "new" carries 0 as a placeholder (no
+              baseline to compare) and approval resets it to 0. */}
+          {result?.status === "changed" &&
+          typeof result.diffPixels === "number" ? (
             <Metric>{result.diffPixels.toLocaleString("en-US")} px</Metric>
           ) : null}
         </Headline>
@@ -228,8 +235,10 @@ function Review({
   // With no local run, fall back to the committed baseline so it stays
   // reviewable; a run supplies the full baseline/candidate/diff set.
   const artifacts =
-    result?.artifacts ??
-    (baseline?.artifactId ? { baseline: baseline.artifactId } : undefined);
+    result?.status === "disabled"
+      ? undefined
+      : (result?.artifacts ??
+        (baseline?.artifactId ? { baseline: baseline.artifactId } : undefined));
   // A committed baseline under a DIFFERENT environment key is invisible to
   // this session's runs; without this line a bare-host user staring at
   // committed container baselines sees an unexplained "New". Shown until a
@@ -250,14 +259,22 @@ function Review({
   const artifactId = artifacts?.[imageKind];
   const isError = result?.status === "capture-error";
 
+  // Keyed to THIS story, not the suite: a finished story showed "Capturing
+  // this story…" for as long as any other story was still running.
+  const capturing =
+    result?.status === "running" || result?.status === "queued" || !result;
   const placeholder = artifactId
     ? undefined
     : isError
       ? undefined
-      : running
-        ? "Capturing this story…"
-        : result
-          ? "No image for this view."
+      : result
+        ? capturing
+          ? "Capturing this story…"
+          : result.status === "disabled"
+            ? "Visual tests are disabled for this story."
+            : "No image for this view."
+        : running
+          ? "Capturing this story…"
           : "Run the visual test to capture this story and compare it with its baseline.";
 
   return (
@@ -391,6 +408,8 @@ function statusLabel(status: DisplayStatus): string {
       return "Changed";
     case "passed":
       return "Passed";
+    case "disabled":
+      return "Disabled";
     case "capture-error":
       return "Capture failed";
     case "running":
@@ -406,6 +425,8 @@ function statusLabel(status: DisplayStatus): string {
 
 function statusColor(theme: Theme, status: DisplayStatus): string {
   if (status === "passed") return theme.color.positive;
+  // Muted, not green: the story opted out; nothing was verified.
+  if (status === "disabled") return theme.textMutedColor;
   if (status === "new" || status === "changed") return theme.color.warning;
   if (status === "capture-error") return theme.color.negative;
   if (status === "running" || status === "queued") return theme.color.secondary;

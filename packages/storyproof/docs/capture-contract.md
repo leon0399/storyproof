@@ -23,7 +23,8 @@ described in the [README](../README.md).
 
 ## Deterministic environment
 
-Each story runs in a fresh context from one bundled Playwright Chromium process:
+Each story runs in a fresh context from one Playwright process for the
+selected browser engine:
 
 - viewport: `1280x720` CSS pixels;
 - device scale factor: `1`;
@@ -142,7 +143,8 @@ a run:
   a capture error naming it; other stories still run. Reporter findings from
   other Storybook test providers, such as accessibility results, do not turn a
   rendered story into a capture error.
-- **A disabled story** reports a passing result with an explanatory message and
+- **A disabled story** reports its own `disabled` status (not a pass — nothing
+  was captured or compared) with an explanatory message and
   writes no candidate.
 
 Two failures are run-wide rather than per story:
