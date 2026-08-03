@@ -7,6 +7,8 @@ export type VisualResultStatus =
   | "new"
   | "changed"
   | "passed"
+  // Not a pass: the story opted out, so nothing was captured or compared.
+  | "disabled"
   | "capture-error"
   | "cancelled";
 

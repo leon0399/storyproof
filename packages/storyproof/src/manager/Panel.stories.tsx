@@ -238,6 +238,9 @@ export const MetadataOnlyChange: Story = {
     ).toHaveAttribute("aria-pressed", "true");
     // Zero changed pixels must not cost the reviewer their approval path.
     await expect(canvas.getByRole("button", { name: /Accept/ })).toBeEnabled();
+    // ...and the count must be visible, or "Changed" with a dead Diff tab
+    // reads as a broken panel rather than "identical pixels, metadata moved".
+    await expect(canvas.getByText("0 px")).toBeInTheDocument();
   },
 };
 
@@ -345,6 +348,59 @@ export const BaselineElsewhereAfterRun: Story = {
       ),
     ).toBeInTheDocument();
     await expect(canvas.queryByText(/also exist/)).not.toBeInTheDocument();
+  },
+};
+
+/**
+ * A disabled story is not a pass. It reports its own muted status, offers no
+ * Accept, and says so in the viewport instead of claiming a capture is in
+ * flight — the three-way contradiction ("Passed" + "disabled" + "Capturing
+ * this story…") this state used to render.
+ *
+ * @summary for a story that opted out of visual testing
+ */
+export const Disabled: Story = {
+  tags: ["ai-generated"],
+  args: {
+    currentStoryId: "button--primary",
+    // A committed baseline from before the story opted out: it must not be
+    // displayed, or the panel implies this run verified something.
+    baseline: {
+      storyId: "button--primary",
+      environmentKey: "linux-chromium-1280x720@1x",
+      artifactId: "baseline",
+    },
+    state: {
+      runId: "run-disabled",
+      running: true,
+      results: [
+        {
+          runId: "run-disabled",
+          storyId: "button--primary",
+          title: "Button / Primary",
+          environmentKey: "linux-chromium-1280x720@1x",
+          status: "disabled",
+          message: "Visual tests disabled for this story",
+        },
+      ],
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Disabled")).toBeInTheDocument();
+    await expect(canvas.queryByText("Passed")).not.toBeInTheDocument();
+    // The suite is still running; this story is not.
+    await expect(
+      canvas.queryByText("Capturing this story…"),
+    ).not.toBeInTheDocument();
+    await expect(
+      canvas.getByText("Visual tests are disabled for this story."),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.queryByRole("button", { name: /Accept/ }),
+    ).not.toBeInTheDocument();
+    await expect(
+      canvas.getByRole("button", { name: "Baseline" }),
+    ).toBeDisabled();
   },
 };
 
