@@ -1,13 +1,13 @@
 {
   "schemaVersion": 2,
-  "baselineSha256": "b454b1e2c6969294ad41087576979bddeb3194eabef6f4b160cb73d2b75eccbf",
+  "baselineSha256": "77842c02d217317308c67775edc7655f7d4af734086819307bb21281a4e5bb22",
   "browser": {
     "name": "chromium",
-    "version": "140.0.7339.186",
-    "playwrightVersion": "1.55.1"
+    "version": "151.0.7922.34",
+    "playwrightVersion": "1.62.1"
   },
   "platform": "container",
-  "renderFingerprint": "eb5f3e3e2d215c78a1322b09deb3546da9672c95459c7e9d9cc5bc962240a100",
+  "renderFingerprint": "3e29eab7550d1f4a91064e7ce396a75009304650bc52ceea9643824c1c6528bd",
   "viewport": {
     "width": 1280,
     "height": 720

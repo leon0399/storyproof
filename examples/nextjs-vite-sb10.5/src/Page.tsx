@@ -7,14 +7,13 @@ import { Header } from "./Header";
 // Every figure is a fixed literal: these components exist to be screenshot,
 // so nothing here derives from time, locale, or randomness.
 
-// The committed container baselines for the Page stories were approved
-// before Cartwright Co. settled INV-1042 (see the ACTIVITY row and the
-// Overdue stat below). That edit is deliberate and should stay: it makes
-// the Page stories open in the "Changed" state, so the panel demonstrates
-// the baseline/candidate/diff review out of the box. Re-approving in
-// container mode turns them green — which is the product working, not a
-// bug. If you edit this file, keep baselines and source one honest edit
-// apart or re-approve and stage a new difference.
+// The committed container baselines for the Page stories show INV-1042
+// (Cartwright Co.) as paid. The source marks it overdue — that deliberate
+// one-edit difference keeps Page in the "Changed" state so the panel
+// demonstrates baseline/candidate/diff review out of the box.
+// Re-approving in container mode turns them green — which is the product
+// working, not a bug. If you edit this file, keep baselines and source one
+// honest edit apart or re-approve and stage a new difference.
 const STATS = [
   {
     label: "Outstanding",
@@ -62,7 +61,7 @@ const ACTIVITY = [
     client: "Cartwright Co.",
     invoice: "INV-1042",
     amount: "$4,720.00",
-    status: "paid" as const,
+    status: "overdue" as const,
   },
   {
     client: "Ostrander Ltd.",
