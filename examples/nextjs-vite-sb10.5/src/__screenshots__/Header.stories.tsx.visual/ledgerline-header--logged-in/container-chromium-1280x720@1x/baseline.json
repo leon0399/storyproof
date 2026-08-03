@@ -4,7 +4,7 @@
   "browser": {
     "name": "chromium",
     "version": "151.0.7922.34",
-    "playwrightVersion": "1.62.0"
+    "playwrightVersion": "1.62.1"
   },
   "platform": "container",
   "renderFingerprint": "3e29eab7550d1f4a91064e7ce396a75009304650bc52ceea9643824c1c6528bd",
