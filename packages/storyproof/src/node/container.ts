@@ -393,7 +393,13 @@ export function cacheHint(
   request: ContainerBrowserRequest,
 ): string {
   const text = stderrTail.join("");
-  if (!text.includes("ETARGET")) return "";
+  // Both spellings: stderrTail keeps only the last 40 chunks, so a noisy
+  // failure can evict the one holding `code ETARGET` while a later chunk
+  // still carries the prose. Losing the hint is the failure this exists to
+  // prevent, and the second test is free.
+  if (!text.includes("ETARGET") && !text.includes("No matching version")) {
+    return "";
+  }
   const volume = `storyproof-npm-cache-${request.playwrightVersion}`;
   return `\nplaywright@${request.playwrightVersion} exists on the registry, so this is most likely a stale npm cache rather than a missing version. Clear it with "docker volume rm ${volume}" and capture again.`;
 }

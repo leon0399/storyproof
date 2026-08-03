@@ -178,6 +178,14 @@ describe("container plumbing", () => {
     );
     expect(hint).toContain("docker volume rm storyproof-npm-cache-1.62.1");
     expect(hint).toContain("exists on the registry");
+    // Either spelling alone still triggers it — the buffer can hold one
+    // without the other.
+    expect(
+      cacheHint(["npm error notarget No matching version found"], {
+        image: "img",
+        playwrightVersion: "1.62.1",
+      }),
+    ).toContain("docker volume rm");
     // Every other container failure keeps its own message uncluttered.
     expect(
       cacheHint(["Error: connect ECONNREFUSED"], {
