@@ -40,7 +40,7 @@ importers:
     devDependencies:
       '@storybook/nextjs-vite':
         specifier: ~10.5.0
-        version: 10.5.4(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(esbuild@0.28.1)(next@15.5.22(@playwright/test@1.62.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rollup@4.62.3)(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(typescript@5.9.3)(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1))
+        version: 10.5.4(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(esbuild@0.28.1)(next@15.5.22(@playwright/test@1.62.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rollup@4.62.3)(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(typescript@5.9.3)(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1))
       '@types/react':
         specifier: ^19.2.2
         version: 19.2.17
@@ -57,8 +57,8 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
       vite:
-        specifier: ^7.3.3
-        version: 7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1)
+        specifier: ^8.1.5
+        version: 8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1)
 
   examples/react-vite-sb10.5:
     dependencies:
@@ -74,7 +74,7 @@ importers:
     devDependencies:
       '@storybook/react-vite':
         specifier: ~10.5.0
-        version: 10.5.4(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(esbuild@0.28.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rollup@4.62.3)(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(typescript@5.9.3)(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1))
+        version: 10.5.4(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(esbuild@0.28.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rollup@4.62.3)(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(typescript@5.9.3)(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1))
       '@types/react':
         specifier: ^19.2.2
         version: 19.2.17
@@ -83,7 +83,7 @@ importers:
         version: 19.2.3(@types/react@19.2.17)
       '@vitejs/plugin-react':
         specifier: 5.2.0
-        version: 5.2.0(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1))
+        version: 5.2.0(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1))
       playwright:
         specifier: 1.62.1
         version: 1.62.1
@@ -94,8 +94,8 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
       vite:
-        specifier: ^7.3.3
-        version: 7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1)
+        specifier: ^8.1.5
+        version: 8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1)
 
   packages/storyproof:
     dependencies:
@@ -2537,6 +2537,11 @@ packages:
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
+  nanoid@3.3.17:
+    resolution: {integrity: sha512-xQLf0A3HOMlgHq0n247/LRuAOYmB7dXJ/DvAxGvsSBij45XtBSmQycu+F8ODbHwns/XyFZagyL1+J0Offw1E0g==}
+    engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
+    hasBin: true
+
   next@15.5.22:
     resolution: {integrity: sha512-mrtal1sRxO4YrlDS98sDuIvGZivKbFix8w7oAL9ZynfOgc3cADQOQgvwtMooc18Qr8bKzvQAcHwHZ0mbJ7zcfQ==}
     engines: {node: ^18.18.0 || ^19.8.0 || >= 20.0.0}
@@ -2689,10 +2694,6 @@ packages:
 
   postcss@8.4.31:
     resolution: {integrity: sha512-PS08Iboia9mts/2ygV3eLpY5ghnUcfLV/EXTOW1E2qYxJKGGBUtNjN76FYHnMs36RmARn41bC0AZmn+rR0OVpQ==}
-    engines: {node: ^10 || ^12 || >=14}
-
-  postcss@8.5.23:
-    resolution: {integrity: sha512-g50586zr4bZmwFiTlflMu8E0bDTb5I5gertgwAKmsdUlTQIhZtunzUlD1WSzwcVWPoAVpsrA6vlfCD7oXvRwgg==}
     engines: {node: ^10 || ^12 || >=14}
 
   postcss@8.5.25:
@@ -3108,46 +3109,6 @@ packages:
       vite: '*'
     peerDependenciesMeta:
       vite:
-        optional: true
-
-  vite@7.3.6:
-    resolution: {integrity: sha512-4XP60spRGjSZFf1qYH+dJIkK2znL3zQfl9KkOV9MkkRR/3Dls0dxaBsQPTloEc5BLXWPL9vsOxopxyKoMmDueg==}
-    engines: {node: ^20.19.0 || >=22.12.0}
-    hasBin: true
-    peerDependencies:
-      '@types/node': ^20.19.0 || >=22.12.0
-      jiti: '>=1.21.0'
-      less: ^4.0.0
-      lightningcss: ^1.21.0
-      sass: ^1.70.0
-      sass-embedded: ^1.70.0
-      stylus: '>=0.54.8'
-      sugarss: ^5.0.0
-      terser: ^5.16.0
-      tsx: ^4.8.1
-      yaml: ^2.4.2
-    peerDependenciesMeta:
-      '@types/node':
-        optional: true
-      jiti:
-        optional: true
-      less:
-        optional: true
-      lightningcss:
-        optional: true
-      sass:
-        optional: true
-      sass-embedded:
-        optional: true
-      stylus:
-        optional: true
-      sugarss:
-        optional: true
-      terser:
-        optional: true
-      tsx:
-        optional: true
-      yaml:
         optional: true
 
   vite@8.1.5:
@@ -3797,11 +3758,11 @@ snapshots:
     optionalDependencies:
       '@types/node': 22.20.1
 
-  '@joshwooding/vite-plugin-react-docgen-typescript@0.7.0(typescript@5.9.3)(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1))':
+  '@joshwooding/vite-plugin-react-docgen-typescript@0.7.0(typescript@5.9.3)(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1))':
     dependencies:
       glob: 13.0.6
       react-docgen-typescript: 2.4.0(typescript@5.9.3)
-      vite: 7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1)
+      vite: 8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1)
     optionalDependencies:
       typescript: 5.9.3
 
@@ -4300,17 +4261,6 @@ snapshots:
 
   '@standard-schema/spec@1.1.0': {}
 
-  '@storybook/builder-vite@10.5.4(esbuild@0.28.1)(rollup@4.62.3)(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1))':
-    dependencies:
-      '@storybook/csf-plugin': 10.5.4(esbuild@0.28.1)(rollup@4.62.3)(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1))
-      storybook: 10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8)
-      ts-dedent: 2.3.0
-      vite: 7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1)
-    transitivePeerDependencies:
-      - esbuild
-      - rollup
-      - webpack
-
   '@storybook/builder-vite@10.5.4(esbuild@0.28.1)(rollup@4.62.3)(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1))':
     dependencies:
       '@storybook/csf-plugin': 10.5.4(esbuild@0.28.1)(rollup@4.62.3)(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1))
@@ -4321,15 +4271,6 @@ snapshots:
       - esbuild
       - rollup
       - webpack
-
-  '@storybook/csf-plugin@10.5.4(esbuild@0.28.1)(rollup@4.62.3)(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1))':
-    dependencies:
-      storybook: 10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8)
-      unplugin: 2.3.11
-    optionalDependencies:
-      esbuild: 0.28.1
-      rollup: 4.62.3
-      vite: 7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1)
 
   '@storybook/csf-plugin@10.5.4(esbuild@0.28.1)(rollup@4.62.3)(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1))':
     dependencies:
@@ -4346,18 +4287,18 @@ snapshots:
     dependencies:
       react: 19.2.8
 
-  '@storybook/nextjs-vite@10.5.4(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(esbuild@0.28.1)(next@15.5.22(@playwright/test@1.62.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rollup@4.62.3)(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(typescript@5.9.3)(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1))':
+  '@storybook/nextjs-vite@10.5.4(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(esbuild@0.28.1)(next@15.5.22(@playwright/test@1.62.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rollup@4.62.3)(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(typescript@5.9.3)(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1))':
     dependencies:
-      '@storybook/builder-vite': 10.5.4(esbuild@0.28.1)(rollup@4.62.3)(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1))
+      '@storybook/builder-vite': 10.5.4(esbuild@0.28.1)(rollup@4.62.3)(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1))
       '@storybook/react': 10.5.4(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(typescript@5.9.3)
-      '@storybook/react-vite': 10.5.4(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(esbuild@0.28.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rollup@4.62.3)(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(typescript@5.9.3)(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1))
+      '@storybook/react-vite': 10.5.4(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(esbuild@0.28.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rollup@4.62.3)(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(typescript@5.9.3)(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1))
       next: 15.5.22(@playwright/test@1.62.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
       storybook: 10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8)
       styled-jsx: 5.1.6(react@19.2.8)
-      vite: 7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1)
-      vite-plugin-storybook-nextjs: 3.3.0(next@15.5.22(@playwright/test@1.62.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(typescript@5.9.3)(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1))
+      vite: 8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1)
+      vite-plugin-storybook-nextjs: 3.3.0(next@15.5.22(@playwright/test@1.62.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(typescript@5.9.3)(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1))
     optionalDependencies:
       '@types/react': 19.2.17
       '@types/react-dom': 19.2.3(@types/react@19.2.17)
@@ -4379,11 +4320,11 @@ snapshots:
       '@types/react': 19.2.17
       '@types/react-dom': 19.2.3(@types/react@19.2.17)
 
-  '@storybook/react-vite@10.5.4(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(esbuild@0.28.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rollup@4.62.3)(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(typescript@5.9.3)(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1))':
+  '@storybook/react-vite@10.5.4(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(esbuild@0.28.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rollup@4.62.3)(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(typescript@5.9.3)(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1))':
     dependencies:
-      '@joshwooding/vite-plugin-react-docgen-typescript': 0.7.0(typescript@5.9.3)(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1))
+      '@joshwooding/vite-plugin-react-docgen-typescript': 0.7.0(typescript@5.9.3)(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1))
       '@rollup/pluginutils': 5.4.0(rollup@4.62.3)
-      '@storybook/builder-vite': 10.5.4(esbuild@0.28.1)(rollup@4.62.3)(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1))
+      '@storybook/builder-vite': 10.5.4(esbuild@0.28.1)(rollup@4.62.3)(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1))
       '@storybook/react': 10.5.4(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(typescript@5.9.3)
       empathic: 2.0.1
       magic-string: 0.30.21
@@ -4393,7 +4334,7 @@ snapshots:
       resolve: 1.22.12
       storybook: 10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8)
       tsconfig-paths: 4.2.0
-      vite: 7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1)
+      vite: 8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1)
     optionalDependencies:
       typescript: 5.9.3
     transitivePeerDependencies:
@@ -4626,7 +4567,7 @@ snapshots:
   '@typescript/typescript-win32-x64@7.0.2':
     optional: true
 
-  '@vitejs/plugin-react@5.2.0(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1))':
+  '@vitejs/plugin-react@5.2.0(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1))':
     dependencies:
       '@babel/core': 7.29.7
       '@babel/plugin-transform-react-jsx-self': 7.29.7(@babel/core@7.29.7)
@@ -4634,7 +4575,7 @@ snapshots:
       '@rolldown/pluginutils': 1.0.0-rc.3
       '@types/babel__core': 7.20.5
       react-refresh: 0.18.0
-      vite: 7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1)
+      vite: 8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -5205,6 +5146,8 @@ snapshots:
 
   nanoid@3.3.16: {}
 
+  nanoid@3.3.17: {}
+
   next@15.5.22(@playwright/test@1.62.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
     dependencies:
       '@next/env': 15.5.22
@@ -5382,15 +5325,9 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
-  postcss@8.5.23:
-    dependencies:
-      nanoid: 3.3.16
-      picocolors: 1.1.1
-      source-map-js: 1.2.1
-
   postcss@8.5.25:
     dependencies:
-      nanoid: 3.3.16
+      nanoid: 3.3.17
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
@@ -5570,6 +5507,7 @@ snapshots:
       '@rollup/rollup-win32-x64-gnu': 4.62.3
       '@rollup/rollup-win32-x64-msvc': 4.62.3
       fsevents: 2.3.3
+    optional: true
 
   run-applescript@7.1.0: {}
 
@@ -5840,7 +5778,7 @@ snapshots:
 
   verkit@0.3.0: {}
 
-  vite-plugin-storybook-nextjs@3.3.0(next@15.5.22(@playwright/test@1.62.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(typescript@5.9.3)(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1)):
+  vite-plugin-storybook-nextjs@3.3.0(next@15.5.22(@playwright/test@1.62.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(storybook@10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8))(typescript@5.9.3)(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1)):
     dependencies:
       '@next/env': 16.0.0
       image-size: 2.0.2
@@ -5849,36 +5787,22 @@ snapshots:
       next: 15.5.22(@playwright/test@1.62.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       storybook: 10.5.4(@types/react@19.2.17)(prettier@3.9.6)(react@19.2.8)
       ts-dedent: 2.3.0
-      vite: 7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1)
-      vite-tsconfig-paths: 5.1.4(typescript@5.9.3)(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1))
+      vite: 8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1)
+      vite-tsconfig-paths: 5.1.4(typescript@5.9.3)(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1))
     transitivePeerDependencies:
       - supports-color
       - typescript
 
-  vite-tsconfig-paths@5.1.4(typescript@5.9.3)(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1)):
+  vite-tsconfig-paths@5.1.4(typescript@5.9.3)(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1)):
     dependencies:
       debug: 4.4.3
       globrex: 0.1.2
       tsconfck: 3.1.6(typescript@5.9.3)
     optionalDependencies:
-      vite: 7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1)
+      vite: 8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1)
     transitivePeerDependencies:
       - supports-color
       - typescript
-
-  vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(tsx@4.23.1):
-    dependencies:
-      esbuild: 0.28.1
-      fdir: 6.5.0(picomatch@4.0.5)
-      picomatch: 4.0.5
-      postcss: 8.5.23
-      rollup: 4.62.3
-      tinyglobby: 0.2.17
-    optionalDependencies:
-      '@types/node': 22.20.1
-      fsevents: 2.3.3
-      lightningcss: 1.33.0
-      tsx: 4.23.1
 
   vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(tsx@4.23.1):
     dependencies:
