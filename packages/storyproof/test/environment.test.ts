@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  cacheHint,
   containerRunArguments,
   parseGatewayAddress,
   parseListeningEndpoint,
@@ -157,10 +158,41 @@ describe("container plumbing", () => {
     // Firefox refuses to launch when $HOME isn't owned by the current user;
     // pinned so an image override or env-injecting wrapper can't break it.
     expect(args.join(" ")).toContain("-e HOME=/root");
-    // The npm cache persists across containers so the exact-version npx
-    // install pays its network cost once per machine, not per cold start.
-    expect(args.join(" ")).toContain("-v storyproof-npm-cache:/root/.npm");
-    expect(args.join(" ")).toContain("npm_config_prefer_offline=true");
+    // Version-keyed so a cache written before a playwright release is never
+    // consulted for it; prefer-offline is safe only because of that.
+    expect(args.join(" ")).toContain(
+      "-v storyproof-npm-cache-1.55.1:/root/.npm",
+    );
+    expect(args.join(" ")).toContain("-e npm_config_prefer_offline=true");
+    // The runtime install arrives from the network at capture time, so its
+    // lifecycle hooks are code from outside the pinned supply chain.
+    expect(args.join(" ")).toContain("-e npm_config_ignore_scripts=true");
+  });
+
+  test("names the cache volume when npm calls the pinned version missing", () => {
+    // ETARGET reads as "that version does not exist", so a reader suspects
+    // anything but the npm cache — which is exactly what it usually is.
+    const hint = cacheHint(
+      ["npm error code ETARGET\nnpm error notarget No matching version"],
+      { image: "img", playwrightVersion: "1.62.1" },
+    );
+    expect(hint).toContain("docker volume rm storyproof-npm-cache-1.62.1");
+    expect(hint).toContain("exists on the registry");
+    // Either spelling alone still triggers it — the buffer can hold one
+    // without the other.
+    expect(
+      cacheHint(["npm error notarget No matching version found"], {
+        image: "img",
+        playwrightVersion: "1.62.1",
+      }),
+    ).toContain("docker volume rm");
+    // Every other container failure keeps its own message uncluttered.
+    expect(
+      cacheHint(["Error: connect ECONNREFUSED"], {
+        image: "img",
+        playwrightVersion: "1.62.1",
+      }),
+    ).toBe("");
   });
 
   test("recognizes the server's readiness line", () => {

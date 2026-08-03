@@ -96,18 +96,32 @@ export function containerRunArguments(options: {
     // confusing error, so make it true by construction rather than by luck.
     "-e",
     "HOME=/root",
-    // Persist npm's cache across containers: the exact-version `npx` install
-    // below then downloads from the registry once per machine instead of on
-    // every container start (measured biting: a slow registry moment pushed
-    // first-capture past the acceptance suite's UI timeout in CI). The cache
-    // is content-addressed (cacache), so concurrent containers sharing it
-    // are safe; remove any time with `docker volume rm storyproof-npm-cache`.
+    // Persist npm's cache across containers so the exact-version `npx`
+    // install below downloads once per machine rather than on every
+    // container start (measured biting: a slow registry moment pushed
+    // first-capture past the acceptance suite's UI timeout in CI).
+    //
+    // Keyed by playwright version, which is load-bearing: npm caches the
+    // package's version list, and one written before a given release has no
+    // record of it. Measured 2026-08-03 — a single shared volume created
+    // 2026-07-29 failed every capture after the 1.55.1 -> 1.62.1 upgrade
+    // with "No matching version found for playwright@1.62.1", and kept
+    // failing until it was deleted by hand. Per-version volumes make that
+    // unreachable, and are what makes prefer-offline below safe: a cache is
+    // only ever consulted for the version whose install wrote it.
     "-v",
-    "storyproof-npm-cache:/root/.npm",
-    // With a warm cache, let npm skip registry round-trips it can answer
-    // locally; a cold cache still fetches normally.
+    `storyproof-npm-cache-${options.playwrightVersion}:/root/.npm`,
     "-e",
     "npm_config_prefer_offline=true",
+    // Lifecycle scripts stay off: this install is fetched from the network
+    // at capture time, so its install hooks would be arbitrary code entering
+    // from outside the pinned supply chain — the one part of container
+    // capture not fixed by the image digest or the exact version. Verified
+    // 2026-08-03 that `run-server` starts without them ("Listening on
+    // ws://0.0.0.0:9999/"); the image already ships the browsers that
+    // playwright's postinstall would otherwise fetch.
+    "-e",
+    "npm_config_ignore_scripts=true",
     // Host side stays loopback-only: the browser server is a local tool, not
     // a network service.
     "-p",
@@ -309,7 +323,7 @@ function waitForEndpoint(
         clearTimeout(timer);
         reject(
           new Error(
-            `The capture container exited before its browser server was ready (exit code ${String(code)}).${tail(stderrTail)}`,
+            `The capture container exited before its browser server was ready (exit code ${String(code)}).${cacheHint(stderrTail, request)}${tail(stderrTail)}`,
           ),
         );
       });
@@ -363,4 +377,29 @@ function installExitHook(): void {
 function tail(stderrTail: string[]): string {
   const text = stderrTail.join("").trim();
   return text ? `\nContainer output:\n${text.slice(-2000)}` : "";
+}
+
+/**
+ * npm reports an unresolvable version as `ETARGET` / "No matching version
+ * found", which reads as "that version does not exist" — so the one thing a
+ * reader will not suspect is the npm cache. It can still be the cause: the
+ * volume is version-scoped, but a first install attempted before the
+ * registry served that version can leave a version list that lacks it, and
+ * prefer-offline then keeps serving it. Recovery is one `docker volume rm`,
+ * worth nothing at all if the message doesn't name the volume.
+ */
+export function cacheHint(
+  stderrTail: string[],
+  request: ContainerBrowserRequest,
+): string {
+  const text = stderrTail.join("");
+  // Both spellings: stderrTail keeps only the last 40 chunks, so a noisy
+  // failure can evict the one holding `code ETARGET` while a later chunk
+  // still carries the prose. Losing the hint is the failure this exists to
+  // prevent, and the second test is free.
+  if (!text.includes("ETARGET") && !text.includes("No matching version")) {
+    return "";
+  }
+  const volume = `storyproof-npm-cache-${request.playwrightVersion}`;
+  return `\nplaywright@${request.playwrightVersion} exists on the registry, so this is most likely a stale npm cache rather than a missing version. Clear it with "docker volume rm ${volume}" and capture again.`;
 }
