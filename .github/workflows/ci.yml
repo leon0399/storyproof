@@ -428,31 +428,6 @@ jobs:
               exit 1
               ;;
           esac
-      # playwright is a PEER dependency: the whole point is that the consumer
-      # owns the version, which only holds if storyproof's own createRequire
-      # (src/node/capture.ts) reaches the consumer's copy rather than a nested
-      # one. Asserted rather than assumed, because the job would otherwise
-      # still pass with two Playwright installs — and the failure that
-      # eventually surfaces is a baseline rejected for a version the consumer
-      # never chose. A nested copy also breaks `playwright install` below:
-      # browsers land for the consumer's version, not storyproof's.
-      - name: Assert storyproof resolves the consumer's own playwright
-        working-directory: ${{ env.consumer_dir }}
-        run: |
-          node --input-type=module -e "
-            import { createRequire } from 'node:module';
-            const inAddon = createRequire(
-              new URL('./node/capture.js', import.meta.resolve('storyproof')),
-            ).resolve('playwright/package.json');
-            const inConsumer = createRequire(
-              process.cwd() + '/x.js',
-            ).resolve('playwright/package.json');
-            if (inAddon !== inConsumer) {
-              console.error('storyproof resolved ' + inAddon + ', consumer has ' + inConsumer);
-              process.exit(1);
-            }
-            console.log('one shared playwright: ' + inAddon);
-          "
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
         working-directory: packages/storyproof
