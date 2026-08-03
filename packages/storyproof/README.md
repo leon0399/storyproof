@@ -140,7 +140,8 @@ glob from mistaking an artifact directory for a story file.
 
 ## Capture contract
 
-The initial environment is fixed: bundled Playwright Chromium, `1280x720`, DPR
+The initial environment is fixed: Chromium from your own `playwright`
+install, `1280x720`, DPR
 1, `en-US`, UTC, and reduced motion. Capture waits for Storybook's finished
 event, including the story `play` function. Normal component stories are
 cropped to their visible content, including body portals. Fullscreen stories

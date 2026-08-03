@@ -23,7 +23,8 @@ described in the [README](../README.md).
 
 ## Deterministic environment
 
-Each story runs in a fresh context from one Playwright Chromium process:
+Each story runs in a fresh context from one Playwright process for the
+selected browser engine:
 
 - viewport: `1280x720` CSS pixels;
 - device scale factor: `1`;

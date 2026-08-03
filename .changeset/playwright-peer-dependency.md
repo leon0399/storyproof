@@ -24,4 +24,4 @@ decision, made when you have time to review what moved. It also means a single
 Playwright copy and a single browser download shared with any Playwright you
 already run for end-to-end tests.
 
-The supported range is `^1.55.1`; 1.55.1 is the version CI exercises.
+The declared peer range is `^1.55.1`; 1.55.1 is the version CI exercises.
