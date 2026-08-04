@@ -3,6 +3,15 @@ packages:
   - "packages/*"
   - "examples/*"
 
+# 7 days, in minutes.
+minimumReleaseAge: 10080
+
+# One playwright version everywhere: the package, both examples, and the
+# capture container image the committed baselines were shot in.
+catalog:
+  "@playwright/test": 1.62.0
+  playwright: 1.62.0
+
 # Packages not listed are blocked from running install scripts.
 allowBuilds:
   esbuild: true

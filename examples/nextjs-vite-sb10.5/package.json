@@ -11,7 +11,7 @@
     "dev:app": "next dev -p 6207"
   },
   "dependencies": {
-    "next": "^16.3.0",
+    "next": "^16.2.12",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "storyproof": "workspace:*"
@@ -20,7 +20,7 @@
     "@storybook/nextjs-vite": "~10.5.0",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
-    "playwright": "1.62.1",
+    "playwright": "catalog:",
     "storybook": "~10.5.0",
     "typescript": "^5.9.3",
     "vite": "^8.1.5"

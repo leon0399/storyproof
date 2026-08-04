@@ -19,11 +19,11 @@
     "@storybook/react-vite": "~10.5.0",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
-    "playwright": "1.62.1",
+    "playwright": "catalog:",
     "storybook": "~10.5.0",
     "typescript": "^5.9.3",
     "vite": "^8.1.5",
-    "@vitejs/plugin-react": "5.2.0"
+    "@vitejs/plugin-react": "^5.2.0"
   },
   "engines": {
     "node": ">=22.12"

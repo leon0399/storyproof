@@ -57,27 +57,27 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@storybook/icons": "2.1.0",
+    "@storybook/icons": "^2.1.0",
     "pixelmatch": "^7.1.0",
     "pngjs": "^7.0.0"
   },
   "devDependencies": {
     "@arethetypeswrong/core": "^0.18.5",
-    "@playwright/test": "1.62.1",
+    "@playwright/test": "catalog:",
     "@storybook/react-vite": "^10.5.0",
     "@types/node": "^22",
     "@types/pngjs": "^6.0.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "oxlint": "^1.72.0",
-    "playwright": "1.62.1",
+    "playwright": "catalog:",
     "publint": "^0.3.22",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "storybook": "^10.5.0",
     "tsdown": "^0.22.14",
     "tsx": "^4.20.3",
-    "typescript": "7.0.2",
+    "typescript": "^7.0.2",
     "unrun": "^0.3.1",
     "vitest": "^4.1.10"
   },

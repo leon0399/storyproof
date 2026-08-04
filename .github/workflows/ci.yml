@@ -406,7 +406,12 @@ jobs:
           path: /tmp/storyproof-artifact
       - name: Point the copy at the packed tarball
         working-directory: ${{ env.consumer_dir }}
-        run: pnpm pkg set dependencies.storyproof=file:/tmp/storyproof-artifact/package.tgz
+        run: |
+          pnpm pkg set dependencies.storyproof=file:/tmp/storyproof-artifact/package.tgz
+          # `catalog:` resolves against pnpm-workspace.yaml, which the copy no
+          # longer has an ancestor of — inline the version it points at.
+          pw=$(sed -n 's/^  playwright: //p' "$GITHUB_WORKSPACE/pnpm-workspace.yaml")
+          pnpm pkg set devDependencies.playwright="$pw"
       # The copy has no ancestor pnpm-workspace.yaml once outside the repo,
       # but --ignore-workspace is kept for defense in depth: empirically (see
       # empirically confirmed), a plain `pnpm install`
