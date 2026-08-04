@@ -25,8 +25,24 @@ const ENVIRONMENT_KEY = `${
 // probe); a slow registry moment pushed that past 30s in CI, so container
 // runs get a startup-inclusive budget. The npm-cache volume makes later
 // cold starts fast, but the very first on a machine still pays in full.
+// ...and the same reasoning applies to the non-chromium engines, which the
+// 30s figure never accounted for: it was set against chromium, the fastest
+// of the three. Measured 2026-08-04 — a lockfile change that added modest
+// latency turned `visual smoke (webkit)` red 4 runs out of 4 while firefox
+// and chromium stayed green on the identical tree, which is what no
+// headroom looks like. The failure is also not confined to the test that
+// runs out of budget: the suite shares one Storybook dev server and one
+// VisualTestRunner across all tests, so a run still in flight when its
+// assertion gives up is inherited by the next tests, which is why the
+// casualties are always the same forward-running set rather than a random
+// one.
 const RUN_TIMEOUT_MS =
-  process.env.STORYPROOF_CONTAINER === "1" ? 120_000 : 30_000;
+  process.env.STORYPROOF_CONTAINER === "1"
+    ? 120_000
+    : process.env.STORYPROOF_BROWSER &&
+        process.env.STORYPROOF_BROWSER !== "chromium"
+      ? 90_000
+      : 30_000;
 
 type AddonAcceptanceSuiteOptions = {
   expect: typeof PlaywrightExpect;
