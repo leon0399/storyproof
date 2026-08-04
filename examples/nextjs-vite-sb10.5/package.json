@@ -11,7 +11,7 @@
     "dev:app": "next dev -p 6207"
   },
   "dependencies": {
-    "next": "^15.5.22",
+    "next": "^16.3.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "storyproof": "workspace:*"
