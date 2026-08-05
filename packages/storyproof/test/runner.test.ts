@@ -796,13 +796,19 @@ describe("VisualTestRunner", () => {
       }),
     });
 
-    const state = await runner.run({ scope: "current", storyId: "alpha--one" });
+    try {
+      const state = await runner.run({
+        scope: "current",
+        storyId: "alpha--one",
+      });
 
-    expect(state.running).toBe(false);
-    expect(state.results).toHaveLength(1);
-    expect(state.results[0]!.status).toBe("capture-error");
-    expect(state.results[0]!.message).toContain("timed out");
-    await rm(root, { recursive: true, force: true });
+      expect(state.running).toBe(false);
+      expect(state.results).toHaveLength(1);
+      expect(state.results[0]!.status).toBe("capture-error");
+      expect(state.results[0]!.message).toContain("timed out");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });
 

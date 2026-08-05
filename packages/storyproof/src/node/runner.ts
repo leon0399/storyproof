@@ -396,26 +396,34 @@ export class VisualTestRunner {
     const timeoutMs = this.options.captureTimeoutMs ?? CAPTURE_TIMEOUT_MS;
 
     try {
-      const capturePromise = session.capture({
-        baseUrl: this.options.baseUrl,
-        storyId: result.storyId,
-        signal: run.controller.signal,
-      });
-      const capture = await Promise.race([
-        capturePromise,
-        new Promise<never>((_resolve, reject) =>
-          setTimeout(
-            () =>
-              reject(
-                new DOMException(
-                  `Capture timed out (${String(timeoutMs / 1000)} s). The browser or its transport may be unresponsive.`,
-                  "TimeoutError",
-                ),
+      const timeoutSignal = AbortSignal.timeout(timeoutMs);
+      const signal = AbortSignal.any([run.controller.signal, timeoutSignal]);
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const timeoutPromise = new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(
+              new DOMException(
+                `Capture timed out (${String(timeoutMs / 1000)} s). The browser or its transport may be unresponsive.`,
+                "TimeoutError",
               ),
-            timeoutMs,
-          ),
-        ),
-      ]);
+            ),
+          timeoutMs,
+        );
+      });
+      let capture: CaptureResult;
+      try {
+        capture = await Promise.race([
+          session.capture({
+            baseUrl: this.options.baseUrl,
+            storyId: result.storyId,
+            signal,
+          }),
+          timeoutPromise,
+        ]);
+      } finally {
+        clearTimeout(timer);
+      }
       if (capture.status !== "captured") {
         await this.finishCapture(run, result, undefined, capture);
         this.publish(run);
