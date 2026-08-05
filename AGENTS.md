@@ -82,9 +82,9 @@ Each of these cost real time at least once, because the symptom does not name
 the cause.
 
 **`acceptance - node 24 - webkit - host` red, other engines green.** Not your
-diff: webkit fails on roughly half of all runs, while chromium and firefox have
-not failed once in the same window. It is a required check, so it blocks merges
-for no signal — worth fixing rather than waiting out.
+diff: webkit fails on roughly one quarter of all runs, while chromium and
+firefox have not failed once in the same window. It is a required check, so it
+blocks merges for no signal — worth fixing rather than waiting out.
 
 **`ERR_PNPM_NO_MATURE_MATCHING_VERSION` naming a package you never touched.**
 The release cooldown re-validates the whole graph on any resolution, so the

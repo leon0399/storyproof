@@ -191,13 +191,13 @@ jobs:
         run: |
           dir=$(mktemp -d)
           cp -r "examples/$EXAMPLE" "$dir/project"
-          echo "consumer_dir=$dir/project" >> "$GITHUB_ENV"
+          echo "tarball_dir=$dir/project" >> "$GITHUB_ENV"
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: storyproof-package
           path: /tmp/storyproof-artifact
       - name: Point the copy at the packed tarball
-        working-directory: ${{ env.consumer_dir }}
+        working-directory: ${{ env.tarball_dir }}
         run: |
           pnpm pkg set dependencies.storyproof=file:/tmp/storyproof-artifact/package.tgz
           # `catalog:` won't resolve outside the workspace; inline the version.
@@ -211,10 +211,10 @@ jobs:
           pnpm pkg set devDependencies.playwright="$pw"
       # --ignore-workspace: without it, pnpm silently no-ops under a workspace root.
       - name: Install the copy in isolation
-        working-directory: ${{ env.consumer_dir }}
+        working-directory: ${{ env.tarball_dir }}
         run: pnpm install --ignore-workspace
       - name: Assert storyproof resolves under this copy's node_modules
-        working-directory: ${{ env.consumer_dir }}
+        working-directory: ${{ env.tarball_dir }}
         run: |
           resolved=$(node --input-type=module -e "console.log(import.meta.resolve('storyproof'))")
           case "$resolved" in
@@ -229,11 +229,11 @@ jobs:
         working-directory: packages/storyproof
       - name: Run the acceptance suite against the packed copy
         env:
-          VISUAL_TEST_PROJECT_DIR: ${{ env.consumer_dir }}
+          VISUAL_TEST_PROJECT_DIR: ${{ env.tarball_dir }}
         run: pnpm --filter storyproof test:visual
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
-          name: playwright-report-consumer-${{ matrix.example }}
+          name: playwright-report-tarball-${{ matrix.example }}
           path: packages/storyproof/test-results/
           retention-days: 7
