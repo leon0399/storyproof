@@ -1,10 +1,4 @@
-# CI — parallel jobs; Node 22/24 matrix on every job where the runtime
-# matters (unit tests, visual smoke). The Storybook-version × framework
-# matrix arrives with the packed-consumer harness —
-# those rows install the packed archive into fixture projects, so they
-# can't exist before the harness does.
-#
-# Actions are pinned to commit SHAs (comment = the release tag they resolve to).
+# Action versions pinned to commit SHAs (tag in trailing comment).
 
 name: CI
 
@@ -25,37 +19,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: ".node-version"
-          cache: pnpm
-      # Turbo's local cache. Each runner starts empty, so without this the
-      # task graph buys ordering but no reuse; restore-keys let an unchanged
-      # task replay across runs on the same lockfile.
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .turbo/cache
-          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
-            turbo-${{ runner.os }}-
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm exec turbo run lint
-      # The two examples' demo sources are one design, maintained as
-      # verbatim copies (a shared workspace package would break the consumer
-      # job's out-of-workspace copy). The only sanctioned divergence is the
-      # framework type-import in *.stories.tsx; screenshots are excluded
-      # because committed baselines are per-environment by design.
-      - name: Examples stay identical
-        run: |
-          diff -r \
-            -I '@storybook/[a-z-]*-vite' \
-            --exclude=__screenshots__ \
-            examples/react-vite-sb10.5/src examples/nextjs-vite-sb10.5/src
-          diff -r \
-            -I '@storybook/[a-z-]*-vite' \
-            examples/react-vite-sb10.5/outside examples/nextjs-vite-sb10.5/outside
+      - uses: ./.github/actions/setup
+      - run: pnpm exec turbo run lint --log-prefix=none -- --format github
 
   typecheck:
     name: typecheck
@@ -65,19 +30,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: ./.github/actions/setup
         with:
-          node-version-file: ".node-version"
-          cache: pnpm
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .turbo/cache
-          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
-            turbo-${{ runner.os }}-
-      - run: pnpm install --frozen-lockfile
+          turbo-cache-prefix: turbo
       - run: pnpm exec turbo run typecheck
 
   format:
@@ -88,12 +43,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: ".node-version"
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup
       - run: pnpm run format:check
 
   test:
@@ -108,30 +58,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: ./.github/actions/setup
         with:
           node-version: ${{ matrix.node }}
-          cache: pnpm
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .turbo/cache
-          key: turbo-node${{ matrix.node }}-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
-          restore-keys: |
-            turbo-node${{ matrix.node }}-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
-            turbo-node${{ matrix.node }}-${{ runner.os }}-
-      - run: pnpm install --frozen-lockfile
+          turbo-cache-prefix: turbo-node${{ matrix.node }}
       - run: pnpm exec turbo run test
 
-  # Pack the archive. `pnpm pack` always reruns `build` first via the
-  # `prepack` lifecycle script (so a stale build can never be packed), and
-  # `build` itself runs publint + attw as build-time gates (configured in
-  # tsdown.config.ts) -- so packing alone proves build, publint, and attw
-  # all pass, with no separate build step needed. Test coverage (including
-  # the tarball-inventory snapshot, test/pack-inventory.test.ts) is the
-  # `test` job's job, not this one's -- this job does not run the suite.
-  # The packed tarball is uploaded so the `consumer` job below can install
-  # the exact same archive rather than repacking.
+  # `prepack` reruns build (publint + attw gated), so packing alone proves
+  # the build. Uploads the tarball for the consumer job.
   package:
     name: package
     runs-on: ubuntu-latest
@@ -140,12 +74,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: ".node-version"
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup
       - run: pnpm --filter storyproof pack --out /tmp/storyproof-ci/package.tgz
       - run: git diff --exit-code
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -154,222 +83,92 @@ jobs:
           path: /tmp/storyproof-ci/package.tgz
           retention-days: 7
 
+  # Acceptance suite across engine, topology, and node-version axes.
+  # Turbo cache serves `^build` only — test:visual is uncached.
   visual:
-    name: visual smoke (Node ${{ matrix.node }})
+    name: visual - node ${{ matrix.node }} - ${{ matrix.browser }} - ${{ matrix.topology }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        node: [22, 24]
+        include:
+          - { node: 22, browser: chromium, topology: host }
+          - { node: 24, browser: chromium, topology: host }
+          - { node: 24, browser: firefox, topology: host }
+          - { node: 24, browser: webkit, topology: host }
+          - { node: 24, browser: chromium, topology: container }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: ./.github/actions/setup
         with:
           node-version: ${{ matrix.node }}
-          cache: pnpm
-      # Separate key prefix from the unit-test jobs: this job's cache is
-      # written after a Playwright install, and mixing the two namespaces
-      # just causes needless cache churn.
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .turbo/cache
-          key: turbo-visual-node${{ matrix.node }}-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
-          restore-keys: |
-            turbo-visual-node${{ matrix.node }}-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
-            turbo-visual-node${{ matrix.node }}-${{ runner.os }}-
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
+          turbo-cache-prefix: turbo-visual-node${{ matrix.node }}
+      # Test driver is always chromium; matrix.browser is the addon's capture engine.
+      - run: pnpm exec playwright install --with-deps chromium "$BROWSER"
         working-directory: packages/storyproof
-      # Proves the addon through its actual in-Storybook UI against the
-      # fixture project: capture after play, review, approve exact bytes,
-      # and rerun as passed. `test:visual` is declared `cache: false` in
-      # turbo.json -- a replayed cache hit would report green without ever
-      # starting Chromium -- so the turbo cache here only serves its `^build`
-      # dependency.
-      - run: pnpm exec turbo run test:visual
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: failure()
-        with:
-          name: playwright-report-node${{ matrix.node }}
-          path: packages/storyproof/test-results/
-          retention-days: 7
-
-  # Same acceptance suite per non-default engine (capture.browser). One
-  # engine per dev server by design — per-engine environment keys make the
-  # baselines coexist, and multi-engine review-per-story is deliberately
-  # deferred until a multi-candidate review UI exists. WebKit here is the
-  # engine on Linux, not Safari;
-  # the docs state that plainly.
-  visual-engine:
-    name: visual smoke (${{ matrix.browser }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        browser: [firefox, webkit]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: ".node-version"
-          cache: pnpm
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .turbo/cache
-          key: turbo-visual-${{ matrix.browser }}-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
-          restore-keys: |
-            turbo-visual-${{ matrix.browser }}-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
-            turbo-visual-${{ matrix.browser }}-${{ runner.os }}-
-      - run: pnpm install --frozen-lockfile
-      # Chromium as well: the suite's own Playwright driver (the browser that
-      # clicks the panel) always runs on chromium; the matrix engine is what
-      # the ADDON captures with.
-      - run: pnpm exec playwright install --with-deps chromium ${{ matrix.browser }}
-        working-directory: packages/storyproof
+        env:
+          BROWSER: ${{ matrix.browser }}
+      - name: Pre-pull the capture container image
+        if: matrix.topology == 'container'
+        run: |
+          version=$(node -p "require('./packages/storyproof/node_modules/playwright/package.json').version")
+          docker pull "mcr.microsoft.com/playwright:v${version}-noble"
       - run: pnpm exec turbo run test:visual
         env:
           STORYPROOF_BROWSER: ${{ matrix.browser }}
+          STORYPROOF_CONTAINER: ${{ matrix.topology == 'container' && '1' || '' }}
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
-          name: playwright-report-engine-${{ matrix.browser }}
+          name: playwright-report-${{ matrix.node }}-${{ matrix.browser }}-${{ matrix.topology }}
           path: packages/storyproof/test-results/
           retention-days: 7
 
-  # Same acceptance suite, but the addon captures inside the version-matched
-  # Playwright container instead of the host browser (capture.container).
-  # Proves the container topology end to end on native Linux Docker: bridge
-  # network, host.docker.internal:host-gateway back to the Storybook server,
-  # loopback-only WebSocket publish, exact-version playwright run-server.
-  # The suite's own Playwright driver still runs on the host (it drives the
-  # manager UI), so the host browser install remains. Single Node version:
-  # the dimension under test is the capture topology, not the runtime.
-  visual-container:
-    name: visual smoke (container capture)
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: ".node-version"
-          cache: pnpm
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .turbo/cache
-          key: turbo-visual-container-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
-          restore-keys: |
-            turbo-visual-container-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
-            turbo-visual-container-${{ runner.os }}-
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
-        working-directory: packages/storyproof
-      # Pre-pull so the first in-suite capture run doesn't spend its UI
-      # timeouts on a ~2 GB image download.
-      - name: Pre-pull the capture container image
-        run: |
-          version=$(node -p "require('./packages/storyproof/node_modules/playwright/package.json').version")
-          docker pull "mcr.microsoft.com/playwright:v${version}-noble"
-      - run: pnpm exec turbo run test:visual
-        env:
-          STORYPROOF_CONTAINER: "1"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: failure()
-        with:
-          name: playwright-report-container
-          path: packages/storyproof/test-results/
-          retention-days: 7
-
-  # The examples commit container-captured baselines staged to show every
-  # panel state (passed / changed / new) on a fresh clone — see
-  # examples/*/README.md. Those PNGs can silently rot when demo sources
-  # change, so this job boots each example's Storybook in container mode and
-  # asserts the staged state matrix with the same script maintainers use to
-  # re-approve (packages/storyproof/scripts/example-states.mjs).
+  # Asserts committed baselines still produce the expected panel states.
+  # Uses the same script maintainers run to re-approve.
   example-states:
-    name: example committed baselines
+    name: example states (${{ matrix.example }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { example: react-vite-sb10.5, port: 6106 }
+          - { example: nextjs-vite-sb10.5, port: 6107 }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: ".node-version"
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      # The verify script's own driver browser (it reads the manager over
-      # the addon channel); captures happen inside the container image.
+      - uses: ./.github/actions/setup
       - run: pnpm exec playwright install --with-deps chromium
         working-directory: packages/storyproof
       - name: Pre-pull the capture container image
         run: |
           version=$(node -p "require('./packages/storyproof/node_modules/playwright/package.json').version")
           docker pull "mcr.microsoft.com/playwright:v${version}-noble"
-      - name: Verify staged states (react-vite example)
+      - name: Verify staged states
         run: |
-          pnpm --filter ./examples/react-vite-sb10.5 run dev > /tmp/sb-react.log 2>&1 &
+          pnpm --filter "./examples/$EXAMPLE" run dev > /tmp/sb.log 2>&1 &
           sb_pid=$!
-          for _ in $(seq 1 90); do curl -sf -o /dev/null http://localhost:6106/ && break; sleep 2; done
-          curl -sf -o /dev/null http://localhost:6106/ || { cat /tmp/sb-react.log; exit 1; }
-          (cd packages/storyproof && node scripts/example-states.mjs --port 6106 --mode verify)
+          for _ in $(seq 1 90); do curl -sf -o /dev/null "http://localhost:$PORT/" && break; sleep 2; done
+          curl -sf -o /dev/null "http://localhost:$PORT/" || { cat /tmp/sb.log; exit 1; }
+          (cd packages/storyproof && node scripts/example-states.mjs --port "$PORT" --mode verify)
           kill "$sb_pid"
         env:
-          STORYPROOF_CONTAINER: "1"
-      - name: Verify staged states (nextjs-vite example)
-        run: |
-          pnpm --filter ./examples/nextjs-vite-sb10.5 run dev > /tmp/sb-next.log 2>&1 &
-          sb_pid=$!
-          for _ in $(seq 1 90); do curl -sf -o /dev/null http://localhost:6107/ && break; sleep 2; done
-          curl -sf -o /dev/null http://localhost:6107/ || { cat /tmp/sb-next.log; exit 1; }
-          (cd packages/storyproof && node scripts/example-states.mjs --port 6107 --mode verify)
-          kill "$sb_pid"
-        env:
+          EXAMPLE: ${{ matrix.example }}
+          PORT: ${{ matrix.port }}
           STORYPROOF_CONTAINER: "1"
       - name: Storybook logs
         if: failure()
-        run: cat /tmp/sb-react.log /tmp/sb-next.log 2>/dev/null || true
+        run: cat /tmp/sb.log 2>/dev/null || true
 
-  # Packed-consumer harness. examples/** are real pnpm
-  # workspace members (storyproof: workspace:*) for local development -- a
-  # contributor cloning the repo sees their own working tree, not a stale
-  # published build. That link proves nothing about the packed npm tarball,
-  # so this job copies an example *out* of the workspace before installing
-  # it, which both bypasses the workspace link and gives the isolation
-  # guarantee for free (no separate negative-control fixture needed): the
-  # copy is made before any node_modules exist anywhere in the checkout, so
-  # there's nothing to symlink back to source even if we wanted to.
-  # VISUAL_TEST_PROJECT_DIR then points the existing test:visual harness
-  # (test/fixture-server.ts, test/smoke/addon.spec.ts) at that copy instead
-  # of the workspace-source fixture -- no new orchestrator script. Single
-  # Node version: coverage across 22/24 is already proven by `test`/`visual`;
-  # this matrix's dimension is framework integration (react-vite, nextjs-vite)
-  # on the verified Storybook 10.5 floor. A third cell pinning Storybook
-  # `~10.0.0` (react-vite-sb10.0) was tried and removed: the addon's manager
-  # panel rendered and its buttons were correctly named, but every visual-test
-  # run submitted through it never completed (systemic `toBeVisible` timeouts
-  # waiting on a result). This *was* an addon-side defect after all: Storybook
-  # 10.0.x never registers a "storyIndexGenerator" preset (confirmed absent
-  # from its common preset, present from 10.5.x onward), so the addon's
-  # unchecked cast over that value produced `undefined` and blew up deep
-  # inside the runner instead of failing at startup -- the addon now fails
-  # dated note next to Task 8 for the full evidence trail, including why an
-  # intra-Storybook version-skew theory was ruled out first. The addon now
-  # fails closed with a named "storyIndexGenerator" error at dev-server
-  # startup on any Storybook that doesn't expose this capability.
+  # Proves the packed tarball works outside pnpm workspace resolution.
+  # Copies an example out before install (no node_modules leak), installs
+  # the archive, and runs the acceptance suite against it.
   consumer:
     name: consumer (${{ matrix.example }})
     needs: package
@@ -390,9 +189,7 @@ jobs:
         with:
           node-version-file: ".node-version"
           cache: pnpm
-      # Copied before any `pnpm install` runs in this checkout, so the copy
-      # is guaranteed to carry no node_modules (workspace symlinks or
-      # otherwise) that could compromise the isolation this job proves.
+      # Before any install — guarantees no node_modules in the copy.
       - name: Copy the example out of the workspace
         env:
           EXAMPLE: ${{ matrix.example }}
@@ -408,9 +205,7 @@ jobs:
         working-directory: ${{ env.consumer_dir }}
         run: |
           pnpm pkg set dependencies.storyproof=file:/tmp/storyproof-artifact/package.tgz
-          # `catalog:` resolves against pnpm-workspace.yaml, which the copy no
-          # longer has an ancestor of — inline the version it points at. Fail
-          # here rather than let an empty value surface as a resolution error.
+          # `catalog:` won't resolve outside the workspace; inline the version.
           pw=$(awk '$1 == "playwright:" { print $2; exit }' "$GITHUB_WORKSPACE/pnpm-workspace.yaml")
           case "$pw" in
             "" | *[[:space:]]*)
@@ -419,13 +214,7 @@ jobs:
               ;;
           esac
           pnpm pkg set devDependencies.playwright="$pw"
-      # The copy has no ancestor pnpm-workspace.yaml once outside the repo,
-      # but --ignore-workspace is kept for defense in depth: empirically (see
-      # empirically confirmed), a plain `pnpm install`
-      # inside a non-member directory *under* this workspace silently no-ops,
-      # and a plain `pnpm add` rewrites the *root* pnpm-lock.yaml instead of
-      # the target directory's own -- exactly the kind of workspace bleed
-      # this job exists to rule out.
+      # --ignore-workspace: without it, pnpm silently no-ops under a workspace root.
       - name: Install the copy in isolation
         working-directory: ${{ env.consumer_dir }}
         run: pnpm install --ignore-workspace

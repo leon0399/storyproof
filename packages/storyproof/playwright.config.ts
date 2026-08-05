@@ -7,8 +7,8 @@ export default defineConfig({
   timeout: 60_000,
   workers: 1,
   // Retry in CI only. The engine matrix has a standing intermittent failure
-  // — measured 2026-08-03 across 25 runs, `visual smoke (webkit)` failed 6
-  // of them (~24%), always the same heaviest tests (the run-all, the
+  // — measured 2026-08-03 across 25 runs, `visual - node 24 - webkit - host`
+  // failed 6 of them (~24%), always the same heaviest tests (the run-all, the
   // approve flow, the forced connection failure), and firefox once burned
   // its whole 25-minute budget then passed in 2m21s on a rerun of the
   // identical tree. A 10x gap is a hang, not slowness, so there is a real
@@ -24,6 +24,7 @@ export default defineConfig({
   // Safe because every test resets the fixture project in beforeEach, so a
   // retry starts from the same state the first attempt did.
   retries: process.env.CI ? 2 : 0,
+  reporter: process.env.CI ? [["github"], ["list"]] : "list",
   use: {
     baseURL: `http://127.0.0.1:${devPort}`,
     browserName: "chromium",
