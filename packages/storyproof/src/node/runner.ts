@@ -388,6 +388,10 @@ export class VisualTestRunner {
               run,
               "Aborting: 3 consecutive captures timed out — the browser or its transport is unresponsive.",
             );
+            run.controller.abort();
+            for (const [key, c] of this.completed) {
+              if (c.runId === run.id) this.completed.delete(key);
+            }
             return;
           }
         } else {
