@@ -1,40 +1,24 @@
 # Releasing
 
-For maintainers. Contributors never need this file — see
-[CONTRIBUTING.md](CONTRIBUTING.md).
+For maintainers; contributors never need this file.
 
-Changesets decides the version; two workflows do the rest. **Nothing publishes
-from a developer machine, and no npm token exists in this repository** — the
-publish job authenticates with npm trusted publishing (OIDC).
+**Nothing publishes from a developer machine, and no npm token exists in this
+repository.** `publish.yml` authenticates with npm trusted publishing (OIDC) and
+pauses on the `release` environment for a human approval.
 
 ## The loop
 
-1. A PR that changes the published package adds a changeset (`pnpm changeset`).
-   Its markdown body IS the changelog entry (`@changesets/changelog-github`), so
-   write it for users. A PR that arrives without one is fine; add it before
-   releasing.
-2. Merging to `main` runs `release.yml`, which opens (or refreshes) a **"chore:
-   version packages"** PR: bumped manifest, changesets consumed, CHANGELOG.md
-   written from their bodies. Review the version PR, don't edit it.
-3. Merging the version PR runs `release.yml` again. With no changesets left,
-   `changeset tag` tags any released version that has no tag yet
-   (`storyproof@<version>`) and hands each new tag to `publish.yml` — the
-   hand-off is an explicit dispatch because GitHub never triggers workflows from
-   refs created with `GITHUB_TOKEN`. The tag is the only way a release starts,
-   which is what keeps npm and the GitHub releases from drifting apart.
-4. The tag triggers `publish.yml`: after your approval on the `release`
-   environment, one job packs, publishes those bytes with provenance, checks the
-   registry serves the same digest, and attaches the same file to a GitHub
-   release. It re-verifies nothing — the tagged commit already passed the full
-   CI on `main` (inventory test, packed-consumer acceptance), so **approve only
-   when that commit's CI is green**; the approval is the checkpoint.
+1. A PR changing the published package adds a changeset. Its body becomes the
+   changelog entry, so write it for users.
+2. Merging to `main` opens a **"chore: version packages"** PR. Review it, don't
+   edit it.
+3. Merging that PR tags `storyproof@<version>` and dispatches `publish.yml`.
+4. Approve the `release` environment — **only when the tagged commit's CI is
+   green**, because the publish job re-verifies nothing.
 
-Two merges and one approval click; everything else is automatic.
+Two merges and one approval; the rest is automatic.
 
 ## Prereleases
-
-Changesets' pre mode. The dist-tag follows the version, so a prerelease can
-never land on `latest`:
 
 ```bash
 pnpm exec changeset pre enter next   # commit .changeset/pre.json
@@ -42,66 +26,33 @@ pnpm changeset                       # ...then the loop above
 pnpm exec changeset pre exit         # when the line goes stable
 ```
 
-Pre mode continues the _existing_ prerelease counter rather than restarting at
-`.0` — measured with `@changesets/cli` 2.31.1, where a minor bump from
-`0.0.1-alpha.1` resolves to `0.1.0-next.2`. Edit the version in the version PR
-if an exact number matters.
+Pre mode continues the existing prerelease counter rather than restarting at
+`.0`. Edit the version in the version PR if an exact number matters.
 
-## One-time setup
-
-Before the first release:
-
-- npmjs.com → `storyproof` → Settings → **Trusted publisher**: this repository,
-  workflow `.github/workflows/publish.yml`, allowed action `npm publish`.
-- A GitHub environment named **`release`** with a required reviewer, so the
-  publish job pauses for human approval.
-- Deprecate the placeholder: `npm deprecate storyproof@0.0.1-alpha.1 "…"`.
-- Seed the placeholder's tag so `changeset tag` knows it is already released (at
-  the root commit, which predates `publish.yml`, so pushing it triggers
-  nothing):
-  `git tag storyproof@0.0.1-alpha.1 $(git rev-list --max-parents=0 HEAD) && git push origin storyproof@0.0.1-alpha.1`
-- After the first stable release, repoint the default tag explicitly:
-  `npm dist-tag add storyproof@<version> latest`.
+`latest` points at `0.1.0-next.2`, moved there by hand because the package had
+no usable stable release. Repoint it after the first one:
+`npm dist-tag add storyproof@<version> latest`.
 
 ## Dependency updates
 
-Dependabot PRs arrive weekly, grouped (`.github/dependabot.yml`), with a 7-day
-cooldown mirroring the pnpm `minimumReleaseAge` policy; security updates skip
-the cooldown. The changeset test is always the same — **did
-`packages/storyproof/package.json`'s `dependencies` or `peerDependencies`
-change?** — and the groups exist to make the answer legible from the PR title:
-
-- **playwright** — repo-only, despite the name. `playwright` is a peer
-  dependency: consumers own the version, so a bump moves only this repository's
-  devDependencies and its examples' committed baselines. No changeset. Raising
-  or widening the peer _range_ is a separate, deliberate edit that is
-  consumer-visible and does need one.
-- **published-runtime** — normally changes what consumers install: add a `patch`
-  changeset at review time, body written for users ("Updates X to Y"). The
-  manifest test still decides.
-- **repo-dependencies** / **actions** — repo-only: no changeset.
-- **security groups** — apply the same manifest test: a security bump that
-  touches the published package's `dependencies` gets a `patch` changeset; one
-  that only moves the lockfile or dev dependencies does not.
+One rule: **did `packages/storyproof/package.json`'s `dependencies` or
+`peerDependencies` change?** If so the PR needs a `patch` changeset. The groups
+in [dependabot.yml](.github/dependabot.yml) exist to make that answer legible
+from the PR title, and its comments explain each one.
 
 Never auto-merge a dependency PR: the update window is the supply-chain attack
-window, and review is the control. A `playwright` bump additionally re-captures
-every example baseline and moves the version-referencing docs and tests with it
-— CI failing on that group's PR until everything moves as one is the guard, not
-noise.
+window, and review is the control.
 
 ## When a release goes wrong
 
-- **Publish job failed before `npm publish`** — nothing shipped. If the fix is
-  in the workflow itself, re-running is not enough: a run uses `publish.yml` as
-  of the tag's commit, so delete the tag and re-create it on a commit that
-  carries the fix (the version and the tag must still agree). Otherwise, just
-  re-run from the Actions tab.
-- **Published, but the artifact is bad** — npm versions are immutable. Ship a
-  new patch; `npm deprecate` the bad one. Do not unpublish.
-- **Tag exists but no release ran** — re-run `publish.yml` from the Actions tab.
+- **Failed before `npm publish`** — nothing shipped. If the fix is in the
+  workflow, re-running is not enough: a run uses `publish.yml` as of the tag's
+  commit, so delete the tag and re-create it on a commit carrying the fix.
+- **Published a bad artifact** — npm versions are immutable. Ship a patch and
+  `npm deprecate` the bad one; never unpublish.
+- **Tag exists, no release ran** — re-run `publish.yml` from the Actions tab.
   npm refuses to overwrite an existing version, so a re-run after a successful
-  publish fails at the publish step — that is the guard working.
-- **Published, but the GitHub release step failed** — the exact tarball is saved
-  as the run's `storyproof-release` artifact; create the release by hand with
-  that file rather than repacking.
+  publish fails at the publish step. That is the guard working.
+- **Published, GitHub release step failed** — the exact tarball is saved as the
+  run's `storyproof-release` artifact. Create the release by hand with that file
+  rather than repacking.
