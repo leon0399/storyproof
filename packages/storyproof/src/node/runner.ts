@@ -15,7 +15,7 @@ import type {
   VisualResult,
 } from "../shared/results.js";
 
-export const CAPTURE_TIMEOUT_MS = 60_000;
+const CAPTURE_TIMEOUT_MS = 60_000;
 
 import {
   approveCandidate as approveCandidateDefault,
@@ -300,7 +300,10 @@ export class VisualTestRunner {
       this.publish(run);
       await this.runPool(run, session);
     } finally {
-      await session.close().catch(() => undefined);
+      await Promise.race([
+        session.close().catch(() => undefined),
+        new Promise((resolve) => setTimeout(resolve, 5_000)),
+      ]);
       run.state.running = false;
       this.publish(run);
     }
@@ -367,6 +370,7 @@ export class VisualTestRunner {
     session: CaptureSession,
   ): Promise<void> {
     let cursor = 0;
+    let consecutiveTimeouts = 0;
     const worker = async () => {
       while (cursor < run.targets.length) {
         const index = cursor;
@@ -377,6 +381,18 @@ export class VisualTestRunner {
           continue;
         }
         await this.runStory(run, result, session);
+        if (result.message?.includes("timed out")) {
+          consecutiveTimeouts += 1;
+          if (consecutiveTimeouts >= 3) {
+            this.failRun(
+              run,
+              "Aborting: 3 consecutive captures timed out — the browser or its transport is unresponsive.",
+            );
+            return;
+          }
+        } else {
+          consecutiveTimeouts = 0;
+        }
       }
     };
     const count = Math.min(
@@ -394,36 +410,36 @@ export class VisualTestRunner {
     result.status = "running";
     this.publish(run);
     const timeoutMs = this.options.captureTimeoutMs ?? CAPTURE_TIMEOUT_MS;
+    const timeoutController = new AbortController();
+    const signal = AbortSignal.any([
+      run.controller.signal,
+      timeoutController.signal,
+    ]);
+    const timeoutError = new DOMException(
+      `Capture timed out (${String(timeoutMs / 1000)} s). The browser or its transport may be unresponsive.`,
+      "TimeoutError",
+    );
+    const timer = setTimeout(() => {
+      timeoutController.abort(timeoutError);
+    }, timeoutMs);
 
     try {
-      const timeoutSignal = AbortSignal.timeout(timeoutMs);
-      const signal = AbortSignal.any([run.controller.signal, timeoutSignal]);
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      const timeoutPromise = new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(
-          () =>
-            reject(
-              new DOMException(
-                `Capture timed out (${String(timeoutMs / 1000)} s). The browser or its transport may be unresponsive.`,
-                "TimeoutError",
-              ),
-            ),
-          timeoutMs,
-        );
-      });
-      let capture: CaptureResult;
-      try {
-        capture = await Promise.race([
-          session.capture({
-            baseUrl: this.options.baseUrl,
-            storyId: result.storyId,
-            signal,
-          }),
-          timeoutPromise,
-        ]);
-      } finally {
-        clearTimeout(timer);
-      }
+      const capture = await Promise.race([
+        session.capture({
+          baseUrl: this.options.baseUrl,
+          storyId: result.storyId,
+          signal,
+        }),
+        new Promise<never>((_resolve, reject) => {
+          signal.addEventListener(
+            "abort",
+            () => {
+              if (timeoutController.signal.aborted) reject(timeoutError);
+            },
+            { once: true },
+          );
+        }),
+      ]);
       if (capture.status !== "captured") {
         await this.finishCapture(run, result, undefined, capture);
         this.publish(run);
@@ -440,13 +456,17 @@ export class VisualTestRunner {
       await writeFile(paths.candidatePath, capture.image);
       await this.finishCapture(run, result, paths, capture);
     } catch (error) {
-      result.status = run.controller.signal.aborted
-        ? "cancelled"
-        : "capture-error";
-      result.message =
-        result.status === "cancelled"
-          ? undefined
-          : `Visual capture failed: ${errorMessage(error)}`;
+      if (run.controller.signal.aborted) {
+        result.status = "cancelled";
+      } else if (timeoutController.signal.aborted) {
+        result.status = "capture-error";
+        result.message = `Visual capture failed: ${timeoutError.message}`;
+      } else {
+        result.status = "capture-error";
+        result.message = `Visual capture failed: ${errorMessage(error)}`;
+      }
+    } finally {
+      clearTimeout(timer);
     }
     this.publish(run);
   }
