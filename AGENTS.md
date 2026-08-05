@@ -1,7 +1,8 @@
 # Agent instructions — storyproof
 
 Why the repository is shaped the way it is — the decisions that are expensive to
-rediscover. `CLAUDE.md` and `GEMINI.md` are symlinks to this file.
+rediscover. `GEMINI.md` is a symlink to this file; `CLAUDE.md` imports it and
+adds its own rules.
 
 ## Documentation
 
@@ -62,6 +63,38 @@ The parts of the command list that look wrong until you know why.
   `exports: true`-derived subpaths as bare strings with no explicit `"types"`
   condition (TypeScript resolves the sibling `.d.ts`; attw passing is the
   authority). Do not "helpfully" add a CJS output without that evidence.
+
+## Finishing pass
+
+Run the checks from [the loop](CONTRIBUTING.md#the-loop) before declaring work
+done, not merely before pushing. Add `test:visual` when the diff touches
+capture, comparison, or approval, and a container run when it could move pixels.
+
+**Never hand-edit `baseline.png` or `baseline.json`**: they are bound to a
+candidate hash, so editing either makes the next run report stale-approval.
+Re-approve through a running example ([examples/AGENTS.md](examples/AGENTS.md)).
+
+## Frequent problems
+
+Each of these cost real time at least once, because the symptom does not name
+the cause.
+
+**`visual smoke (webkit)` red, other engines green.** Not your diff: webkit
+fails on roughly half of all runs, while chromium and firefox have not failed
+once in the same window. It is a required check, so it blocks merges for no
+signal — worth fixing rather than waiting out.
+
+**`ERR_PNPM_NO_MATURE_MATCHING_VERSION` naming a package you never touched.**
+The release cooldown re-validates the whole graph on any resolution, so the
+package it names is rarely the one you edited. Look instead for a range whose
+_entire_ satisfying set is younger than the cooldown, which is usually a caret
+whose floor is a fresh release: `^16.3.0` published yesterday has nothing mature
+to fall back to. Lower the floor rather than adding an exclusion.
+
+**Every baseline reports "changed" after a Playwright bump, and every PNG is
+byte-identical.** The environment identity moved, not the pixels —
+`baseline.json` records the Playwright version, and a mismatch is reported
+rather than diffed. Re-approve in container mode.
 
 ## Commits
 
