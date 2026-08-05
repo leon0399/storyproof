@@ -18,7 +18,14 @@
     "version-packages": "changeset version"
   },
   "prettier": {
-    "proseWrap": "always"
+    "overrides": [
+      {
+        "files": "*.md",
+        "options": {
+          "proseWrap": "always"
+        }
+      }
+    ]
   },
   "devDependencies": {
     "@changesets/changelog-github": "^0.7.0",
