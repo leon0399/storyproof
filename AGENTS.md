@@ -81,7 +81,7 @@ Re-approve through a running example ([examples/AGENTS.md](examples/AGENTS.md)).
 Each of these cost real time at least once, because the symptom does not name
 the cause.
 
-**`visual - node 24 - webkit - host` red, other engines green.** Not your diff:
+**`acceptance - node 24 - webkit - host` red, other engines green.** Not your diff:
 webkit fails on roughly half of all runs, while chromium and firefox have not
 failed once in the same window. It is a required check, so it blocks merges for
 no signal — worth fixing rather than waiting out.

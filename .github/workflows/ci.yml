@@ -83,21 +83,18 @@ jobs:
           path: /tmp/storyproof-ci/package.tgz
           retention-days: 7
 
-  # Acceptance suite across engine, topology, and node-version axes.
+  # Acceptance suite: full node × browser × topology cross-product.
   # Turbo cache serves `^build` only — test:visual is uncached.
-  visual:
-    name: visual - node ${{ matrix.node }} - ${{ matrix.browser }} - ${{ matrix.topology }}
+  acceptance:
+    name: acceptance - node ${{ matrix.node }} - ${{ matrix.browser }} - ${{ matrix.topology }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { node: 22, browser: chromium, topology: host }
-          - { node: 24, browser: chromium, topology: host }
-          - { node: 24, browser: firefox, topology: host }
-          - { node: 24, browser: webkit, topology: host }
-          - { node: 24, browser: chromium, topology: container }
+        node: [22, 24]
+        browser: [chromium, firefox, webkit]
+        topology: [host, container]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -129,8 +126,8 @@ jobs:
 
   # Asserts committed baselines still produce the expected panel states.
   # Uses the same script maintainers run to re-approve.
-  example-states:
-    name: example states (${{ matrix.example }})
+  example-baselines:
+    name: example baselines (${{ matrix.example }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -166,11 +163,9 @@ jobs:
         if: failure()
         run: cat /tmp/sb.log 2>/dev/null || true
 
-  # Proves the packed tarball works outside pnpm workspace resolution.
-  # Copies an example out before install (no node_modules leak), installs
-  # the archive, and runs the acceptance suite against it.
-  consumer:
-    name: consumer (${{ matrix.example }})
+  # Proves the packed tarball installs and works outside pnpm workspace resolution.
+  tarball-install:
+    name: tarball install (${{ matrix.example }})
     needs: package
     runs-on: ubuntu-latest
     timeout-minutes: 20
