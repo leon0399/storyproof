@@ -14,9 +14,11 @@ single story from its panel, then approve the exact captured candidate.
 [![license](https://img.shields.io/npm/l/storyproof)](https://github.com/leon0399/storyproof/blob/main/LICENSE)
 
 **[storyproof.dev](https://storyproof.dev)** ·
-[Configuration](docs/configuration.md) ·
-[Capture contract](docs/capture-contract.md) · [Changelog](CHANGELOG.md) ·
 [Source](https://github.com/leon0399/storyproof)
+
+- [Configuration](https://github.com/leon0399/storyproof/blob/main/packages/storyproof/docs/configuration.md)
+- [Capture contract](https://github.com/leon0399/storyproof/blob/main/packages/storyproof/docs/capture-contract.md)
+- [Changelog](https://github.com/leon0399/storyproof/blob/main/packages/storyproof/CHANGELOG.md)
 
 ## Install
 
@@ -55,8 +57,8 @@ A baseline is only valid for the environment that rendered it — measured, not
 assumed: bare macOS and bare Linux render different pixels, and even two Linux
 machines with identical platform, browser build, and font metrics have been
 measured rasterizing differently (see the
-[capture contract](docs/capture-contract.md)). storyproof therefore records
-identity in two layers:
+[capture contract](https://github.com/leon0399/storyproof/blob/main/packages/storyproof/docs/capture-contract.md)).
+storyproof therefore records identity in two layers:
 
 - **The environment key** (`linux-chromium-1280x720@1x`) leads with the platform
   the browser renders on, so different platforms keep coexisting baselines
@@ -69,7 +71,7 @@ identity in two layers:
 For one developer on one machine, none of this needs configuring. A team on
 mixed machines chooses between per-platform baselines (the default) and one
 shared baseline set captured
-[inside the version-matched Playwright container](docs/configuration.md#container-capture-capturecontainer)
+[inside the version-matched Playwright container](https://github.com/leon0399/storyproof/blob/main/packages/storyproof/docs/configuration.md#container-capture-capturecontainer)
 (`capture: { container: true }`, requires Docker) — every machine then captures
 under the shared `container-…` key and produces identical pixels, which was
 likewise measured rather than assumed.
@@ -79,9 +81,10 @@ likewise measured rather than assumed.
 - **Cannot work today.** HTTPS capture origins and reverse-proxy path prefixes:
   the capture origin is not configurable, so the addon must share a loopback
   interface with Storybook. The one exception is
-  [container capture](docs/configuration.md#container-capture-capturecontainer),
+  [container capture](https://github.com/leon0399/storyproof/blob/main/packages/storyproof/docs/configuration.md#container-capture-capturecontainer),
   whose topology the addon owns. The
-  [capture contract](docs/capture-contract.md) itemizes them.
+  [capture contract](https://github.com/leon0399/storyproof/blob/main/packages/storyproof/docs/capture-contract.md)
+  itemizes them.
 - **Deferred, not precluded.** Remote approval, several engines in one run,
   viewport and theme matrices, masking, and a CI runner. Each expands baseline
   identity, review semantics, or execution topology, so each needs its own
@@ -135,8 +138,11 @@ component stories are cropped to their visible content, including body portals.
 Fullscreen stories retain the viewport. A story or component can override that
 choice or disable visual capture through `parameters.visualTests`.
 
-See the [capture contract](docs/capture-contract.md) for exact framing semantics
-and [configuration](docs/configuration.md) for component and story examples.
+See the
+[capture contract](https://github.com/leon0399/storyproof/blob/main/packages/storyproof/docs/capture-contract.md)
+for exact framing semantics and
+[configuration](https://github.com/leon0399/storyproof/blob/main/packages/storyproof/docs/configuration.md)
+for component and story examples.
 
 The addon is development-only because approval writes repository files. Static
 Storybook builds keep the panel visible but mark visual testing unavailable.

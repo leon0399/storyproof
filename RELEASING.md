@@ -30,8 +30,8 @@ Pre mode continues the existing prerelease counter rather than restarting at
 `.0`. Edit the version in the version PR if an exact number matters.
 
 `latest` points at `0.1.0-next.2`, moved there by hand because the package had
-no usable stable release. Repoint it after the first one:
-`npm dist-tag add storyproof@<version> latest`.
+no usable stable release. It corrects itself: `publish.yml` assigns `latest` to
+any version without a prerelease suffix.
 
 ## Dependency updates
 

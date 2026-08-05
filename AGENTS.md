@@ -104,7 +104,7 @@ rather than diffed. Re-approve in container mode.
 pull request titles, since `main` squash-merges. The type is the part worth
 copying, because the mapping here is not the obvious one:
 
-```
+```text
 build: gate dependency resolution behind a 7-day release cooldown
 test: re-approve example baselines for playwright 1.62.0
 ci: fail fast when the playwright catalog entry cannot be read
@@ -119,7 +119,7 @@ what the change does; bodies say why.
 
 Trailers, `Generated-by:` when the agent wrote most of the diff:
 
-```
+```text
 Assisted-by: claude-code/claude-opus-5
 Assisted-by: codex/gpt-5.6-terra
 Assisted-by: github-copilot/gpt-5.4

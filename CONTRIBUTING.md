@@ -55,7 +55,7 @@ ban would be dishonest. Three rules:
 line of the PR description. Use `Generated-by:` instead of `Assisted-by:` when
 the agent wrote a substantial portion rather than you editing its output:
 
-```
+```text
 Assisted-by: claude-code/claude-opus-5
 Generated-by: codex/gpt-5.6-terra
 ```
@@ -100,4 +100,5 @@ Security issues: don't open a public issue — see [SECURITY.md](SECURITY.md).
 
 Be decent, assume good faith, and take disagreements to the technical merits.
 What counts as a violation, and how to report one (including when the report
-concerns the maintainer), is the [Contributor Covenant 3.0](CODE_OF_CONDUCT.md).
+concerns the maintainer), are set out in the
+[Contributor Covenant 3.0](CODE_OF_CONDUCT.md).

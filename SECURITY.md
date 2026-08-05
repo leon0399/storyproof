@@ -27,7 +27,7 @@ In scope:
 
 - Escaping the artifact root — a story id, import path, or symlink that gets the
   addon to read or write outside the source-adjacent `__screenshots__` tree,
-  bypassing `assertPathConfined` in `src/node/paths.ts`.
+  bypassing `assertPathConfined` in `packages/storyproof/src/node/paths.ts`.
 - The artifact HTTP route serving a file outside that tree.
 - Containerized capture reaching past the loopback-published port it opens.
 - Command or code execution triggered by story metadata or configuration.

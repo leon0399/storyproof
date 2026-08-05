@@ -80,7 +80,8 @@ fresh clone: most **Passed**, Page **Changed**, one **New**.
 After changing demo components, re-approve against a running example — for
 **every** example, keeping the staged Page difference:
 
-```
+```bash
+# once per example, with that example's Storybook port from the table above
 STORYPROOF_CONTAINER=1 pnpm --filter ./examples/react-vite-sb10.5 run dev
 node scripts/example-states.mjs --port 6106 --mode approve   # from packages/storyproof
 ```
