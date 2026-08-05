@@ -43,9 +43,11 @@ local run predicts CI without guaranteeing it.
   Repo-only chores need none, and don't worry if you forget; a maintainer
   will add it. You do not need to understand the release process
   ([RELEASING.md](RELEASING.md) if you're curious).
-- **Rationale goes in the code.** This repository keeps no design docs: the
-  "why" behind a non-obvious decision belongs in a comment at the decision
-  site, where the next person to touch that line will actually read it.
+- **Rationale goes in the most local place that can hold it.** Usually a
+  comment at the decision site, where the next person to touch that line will
+  actually read it; the nearest `AGENTS.md` when the decision spans files or
+  the code it explains is gone. Forward-looking plans go in the issue tracker,
+  not the repository.
 - **Baselines are committed images.** Approving one writes a PNG into the
   repository, so it gets reviewed like any other file. That is the trust
   boundary — see [the package README](packages/storyproof/README.md) — and
@@ -66,12 +68,13 @@ AI assistance is **allowed and disclosed**, not banned and not invisible. This
 project is itself built with heavy agent use, so a ban would be dishonest.
 Three rules:
 
-**1. Disclose it, per commit.** Add an `Assisted-by:` trailer naming the tool
+**1. Disclose it, per commit.** Add an `Assisted-by: <harness>/<model>` trailer naming the tool
 and model:
 
 ```
 Assisted-by: claude-code/claude-opus-5
-Assisted-by: codex/gpt-5.4
+Assisted-by: codex/gpt-5.6-terra
+Assisted-by: github-copilot/gpt-4.1
 ```
 
 Use `Generated-by:` instead when a substantial portion of the diff was written
@@ -146,3 +149,8 @@ Security issues: please don't open a public issue. Use GitHub's
 
 Be decent. Assume good faith, accept that people are working with different
 context than you, and take disagreements to the technical merits.
+
+That covers how we argue. What counts as a violation, and how to report one —
+including when the report concerns the maintainer, which routes to GitHub
+rather than back to him — is the
+[Contributor Covenant 3.0](CODE_OF_CONDUCT.md).

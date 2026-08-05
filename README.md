@@ -7,9 +7,8 @@ story source — no cloud service, no accounts, reviewed like any other change
 in your repository.
 
 - **Package**: [`packages/storyproof`](packages/storyproof) — published to npm
-  as [`storyproof`](https://www.npmjs.com/package/storyproof) (public preview
-  in progress; the current registry version is a name-claim placeholder, not a
-  usable release)
+  as [`storyproof`](https://www.npmjs.com/package/storyproof) (public preview:
+  `0.1.0-next.x`)
 - **Website**: [storyproof.dev](https://storyproof.dev) (in progress —
   [`apps/website`](apps/website))
 - [Support target and trust boundary](packages/storyproof/README.md)
