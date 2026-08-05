@@ -15,8 +15,8 @@ import type {
   VisualResult,
 } from "../shared/results.js";
 
-// ponytail: hardcoded, add capture.timeout option if users need it
 export const CAPTURE_TIMEOUT_MS = 60_000;
+
 import {
   approveCandidate as approveCandidateDefault,
   type ApprovalRequest,
@@ -70,6 +70,8 @@ export interface VisualTestRunnerOptions {
   /** Resolved capture environment; defaults to local capture on this host. */
   environment?: ResolvedEnvironment;
   maxConcurrency?: number;
+  // ponytail: 60 s hardcoded default, expose as capture.timeout if users need it
+  captureTimeoutMs?: number;
   onState?: (state: InternalVisualRunState) => void;
   artifactRegistry?: ArtifactRegistrar;
   createCaptureSession?: () => Promise<CaptureSession>;
@@ -391,17 +393,29 @@ export class VisualTestRunner {
   ): Promise<void> {
     result.status = "running";
     this.publish(run);
+    const timeoutMs = this.options.captureTimeoutMs ?? CAPTURE_TIMEOUT_MS;
 
     try {
-      const signal = AbortSignal.any([
-        run.controller.signal,
-        AbortSignal.timeout(CAPTURE_TIMEOUT_MS),
-      ]);
-      const capture = await session.capture({
+      const capturePromise = session.capture({
         baseUrl: this.options.baseUrl,
         storyId: result.storyId,
-        signal,
+        signal: run.controller.signal,
       });
+      const capture = await Promise.race([
+        capturePromise,
+        new Promise<never>((_resolve, reject) =>
+          setTimeout(
+            () =>
+              reject(
+                new DOMException(
+                  `Capture timed out (${String(timeoutMs / 1000)} s). The browser or its transport may be unresponsive.`,
+                  "TimeoutError",
+                ),
+              ),
+            timeoutMs,
+          ),
+        ),
+      ]);
       if (capture.status !== "captured") {
         await this.finishCapture(run, result, undefined, capture);
         this.publish(run);
@@ -418,16 +432,13 @@ export class VisualTestRunner {
       await writeFile(paths.candidatePath, capture.image);
       await this.finishCapture(run, result, paths, capture);
     } catch (error) {
-      if (run.controller.signal.aborted) {
-        result.status = "cancelled";
-      } else if (error instanceof DOMException && error.name === "TimeoutError") {
-        result.status = "capture-error";
-        result.message =
-          "Capture timed out (60 s). The browser or its transport may be unresponsive.";
-      } else {
-        result.status = "capture-error";
-        result.message = `Visual capture failed: ${errorMessage(error)}`;
-      }
+      result.status = run.controller.signal.aborted
+        ? "cancelled"
+        : "capture-error";
+      result.message =
+        result.status === "cancelled"
+          ? undefined
+          : `Visual capture failed: ${errorMessage(error)}`;
     }
     this.publish(run);
   }
