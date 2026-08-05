@@ -1,175 +1,60 @@
 # Agent instructions — storyproof
 
-Storyproof is local visual regression testing for Storybook: capture Chromium
-screenshots, review baseline/candidate/diff images inside Storybook itself, and
-approve baselines as PNG files committed next to the story source. No cloud
-service. `CLAUDE.md` and `GEMINI.md` are symlinks to this file.
+Why the repository is shaped the way it is — the decisions that are expensive to rediscover. `CLAUDE.md` and `GEMINI.md` are symlinks to this file.
 
-**Setup, the checks to run, commit conventions, and the AI-assistance policy
-live in [CONTRIBUTING.md](CONTRIBUTING.md)** — one contract for humans and
-agents, not two that drift. It is imported here so it loads with this file:
+## Documentation
 
-@CONTRIBUTING.md
+- @README.md — what storyproof is, and where everything lives
+- @CONTRIBUTING.md — setup, the checks to run, commit and changeset conventions, the AI-assistance policy
+- [RELEASING.md](RELEASING.md) — the release process; maintainers only, nothing publishes from a developer machine
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — Contributor Covenant 3.0
 
-What follows is the engineering map: why the repository is shaped the way it
-is, and the decisions that are expensive to rediscover.
+## Where rationale lives
 
-Extracted from the llame monorepo on 2026-07-26 with history
-(`github.com/leon0399/llame`, `packages/storybook-addon-visual-tests`); llame's
-CHANGELOG holds the pre-extraction shipped record.
+The most local place that can hold it:
+
+1. **A comment at the decision site** — the default. The person about to break a decision is editing that line, not browsing documentation.
+2. **The nearest `AGENTS.md`** — when a decision is cross-cutting and no single file owns it, or when the code it explains no longer exists (a rejected approach, a negative result).
+3. **The issue tracker** — anything forward-looking. No roadmaps or release plans in the repository.
+
+Write the second tier as a present-day constraint, not a story: "no example pins Storybook 10.0.x, and none should — it never registers the `storyIndexGenerator` preset the addon requires" rather than "we tried 10.0.x and removed it."
 
 ## Layout
 
-pnpm workspace monorepo (Node >= 22.12 supported, development pinned by `.node-version`; pnpm 10)
-orchestrated by Turborepo. The graph is real, not ceremony: `examples/*` need
-`packages/storyproof` to have been **built**, not merely linked, and Storybook
-cannot hot-reload an addon (its manager bundle compiles once at startup) —
-so `turbo watch` is what rebuilds and restarts it.
+pnpm workspace monorepo (Node >= 22.12, development pin in `.node-version`; pnpm 10) on Turborepo.
 
-| Path                  | Role                                                                                |
-| --------------------- | ----------------------------------------------------------------------------------- |
-| `packages/storyproof` | The addon — the only published npm package (`storyproof`). Has its own `AGENTS.md`. |
-| `apps/website`        | storyproof.dev docs/marketing site (placeholder, private, framework not yet chosen) |
-| `examples/*`          | Storybook examples/quickstarts (workspace members); see below.                      |
+| Path                  | Role                                                             | Own instructions                           |
+| --------------------- | ---------------------------------------------------------------- | ------------------------------------------ |
+| `packages/storyproof` | The addon — the only published npm package (`storyproof`)        | [AGENTS.md](packages/storyproof/AGENTS.md) |
+| `examples/*`          | Storybook examples: the dev loop, and CI's acceptance fixture    | [AGENTS.md](examples/AGENTS.md)            |
+| `apps/website`        | storyproof.dev site (placeholder, private, framework not chosen) | —                                          |
+
+Those files are the authority for their areas — don't restate them here.
+
+**The task graph is real, not ceremony.** `examples/*` need `packages/storyproof` to have been **built**, not merely linked, and Storybook cannot hot-reload an addon (its manager bundle compiles once at startup) — `turbo watch` is what rebuilds and restarts it.
 
 ## Toolchain decisions
 
-The command list is in [CONTRIBUTING.md](CONTRIBUTING.md#the-loop); these are
-the parts of it that look wrong until you know why.
+The parts of the command list that look wrong until you know why.
 
-`turbo` is pinned to an exact version rather than a caret range: a
-`minimumReleaseAge` policy in the maintainer's pnpm config rejects
-freshly-published releases, so a caret resolving to a days-old turbo fails
-`pnpm install` outright.
+- **A 7-day release cooldown gates dependency resolution** (`minimumReleaseAge`, `pnpm-workspace.yaml`), so a compromised release has a detection window before it can enter the lockfile. Prefer ranges over exact pins: a range degrades to the newest mature version, an exact pin on a young release fails closed.
+- **`pnpm pack` always rebuilds first** (`prepack` lifecycle script), and `test/pack-inventory.test.ts` asserts the tarball allowlist and size budget.
+- **ESM-only is permanent product intent, not an accident.** No CJS build ships and none is planned unless a demonstrated consumer requires one. Hence `tsdown.config.ts` gating on attw's `esm-only` profile, and `exports: true`-derived subpaths as bare strings with no explicit `"types"` condition (TypeScript resolves the sibling `.d.ts`; attw passing is the authority). Do not "helpfully" add a CJS output without that evidence.
 
-`pnpm pack` always rebuilds first (via the `prepack` lifecycle script) and
-the tarball allowlist/size budget is asserted by
-`test/pack-inventory.test.ts` — see `packages/storyproof/AGENTS.md`.
+## AI assistance
 
-**ESM-only is permanent product intent, not an accident.** The addon ships
-no CJS build and none is planned unless a demonstrated consumer requires
-one. This is why `tsdown.config.ts` runs attw's `esm-only` profile as a
-build-time gate, why `exports: true`-derived subpaths are bare strings with
-no explicit `"types"` condition (TypeScript resolves the sibling `.d.ts`;
-attw passing is the authority), and why a CJS output should not be "helpfully" added later
-without that evidence.
+Allowed and disclosed. The short form, because it binds every commit you make here:
 
-## Examples
+- **Disclose per commit** with an `Assisted-by: <harness>/<model>` trailer — `Generated-by:` instead when the agent wrote a substantial portion of the diff.
+- **`Co-authored-by:` and `Signed-off-by:` are reserved for humans.** They carry authorship and legal attestation an agent cannot give. Do not add them for yourself.
+- **A human owns every line** and must be able to defend it in review without re-consulting you.
+- **Verify confident claims.** Check anything asserted about library behavior against the installed package, and anything about measurements by running the measurement.
 
-`examples/react-vite-sb10.5` and `examples/nextjs-vite-sb10.5` are two things
-at once, deliberately, and both matter — this is a two-tier design, not
-redundancy to simplify away (a third example pinning Storybook `~10.0.0` was
-tried and removed: 10.0.x never registers the `storyIndexGenerator` preset
-the addon requires, so it fails closed there by design):
-
-1. **A real dev loop.** Each is a genuine pnpm workspace member
-   (`examples/*` is in `pnpm-workspace.yaml`'s `packages:` list) depending on
-   `storyproof: workspace:*`. Run one locally:
-
-   ```bash
-   pnpm install               # from the repository root
-   pnpm dev                   # every example at once: 6006, 6007, …
-   ```
-
-   A contributor sees their own working tree, not a stale published build.
-
-   `pnpm dev` is `turbo watch dev`. Editing addon source rebuilds it **and
-   restarts every Storybook** — necessary because Storybook compiles its
-   manager bundle once at startup and never rebuilds it, so nothing about the
-   addon can hot-reload. Editing a story still hot-reloads normally; the `dev`
-   task's `inputs` are scoped to `.storybook/**` precisely so story edits don't
-   trigger restarts.
-
-   To run one example instead of all of them, note that `pnpm` swallows
-   `--filter` as its own flag — call turbo directly:
-
-   ```bash
-   pnpm turbo watch dev --filter=./examples/react-vite-sb10.5
-   ```
-
-   Running an example directly (`cd examples/… && pnpm dev`) works, because the
-   root `prepare` hook builds the addon at install time — but it is a
-   **frozen-addon mode**: no turbo, so no rebuild and no restart. Use it to look
-   at an example, never to develop the addon.
-
-   **Ports are assigned explicitly, and a new example must claim the next
-   free index in both blocks**: Storybooks at 6106+ (6106 react-vite, 6107
-   nextjs-vite, 6108 next) and the examples' real app servers at 6206+ (6206
-   react-vite's Vite app, 6207 nextjs-vite's Next app, 6208 next). `pnpm dev`
-   launches both blocks (`turbo watch dev dev:app`).
-
-   Two reasons they are pinned rather than left to Storybook: concurrent starts
-   race for an auto-selected port, and auto-restart would move the URL out from
-   under an open tab. The reason the block is **6106 and not Storybook's default
-   6006** is that 6006 is routinely occupied by another Storybook on a developer
-   machine (llame's, for instance) — and when the requested port is taken,
-   `storybook dev` does not quietly relocate, it asks an interactive
-   yes/no question (`build-dev.ts`, guarded by `!options.ci`). Under `turbo watch`
-   that prompt blocks a persistent task waiting on stdin. Staying off the default
-   means the question never gets asked.
-
-2. **The packed-artifact proof, separately.** A `workspace:*` link proves
-   nothing about the actual npm tarball. CI's `consumer` job copies an example directory _out_ of the
-   workspace (`cp -r`, before any `pnpm install` has populated
-   `node_modules` anywhere in the checkout) into a temporary directory,
-   points it at the exact tarball the `package` job built
-   (`pnpm pkg set dependencies.storyproof=file:<tarball>`), and installs it
-   there with `pnpm install --ignore-workspace`. Being outside the
-   repository (and thus outside the pnpm workspace) is what makes that
-   install meaningful — and `--ignore-workspace` is load-bearing even there:
-   without it, a plain install in a non-member directory under a workspace
-   silently no-ops, and `pnpm add` rewrites the ROOT lockfile.
-
-**Examples are documentation-by-example — that's the acceptance bar for what
-goes in one.** They exist to teach the addon by showing it; being CI's
-acceptance fixture is a consequence of that, not the purpose. Each carries
-the **Ledgerline** demo (Button/Header/Page, derived from Storybook's
-official scaffold, styled as a small invoicing dashboard) _and_ the same
-`visual-fixture`/`outside-fixture` scenario stories as
-`packages/storyproof/test/fixtures/project` (minus fault injection — see
-below), each with a short code comment describing what it demonstrates and
-what storyproof should do; `.storybook/preview.ts`'s `storySort` orders the
-sidebar so the demo reads first. **The two examples' demo sources are one
-design maintained as verbatim copies** (a shared workspace package would
-break the consumer job's out-of-workspace copy); the only sanctioned
-divergence is the framework type-import in `*.stories.tsx`, and CI's lint
-job diffs the trees to enforce it. Demo content must stay deterministic:
-system font stacks, no animation in captured states, fixed data. The bar for adding a new example or
-scenario story: **it earns its place by teaching something a real user would
-encounter** — changed pixels, a disabled story, viewport-vs-content framing,
-portal capture, a story outside `storyRoots`, stale-approval rejection,
-malformed baseline metadata. The one exclusion is fault injection: a story
-that hangs or fails its connection on command is harness machinery, not
-something a user hits, so it stays only in
-`packages/storyproof/test/fixtures/project`, exercised by CI's `visual` job.
-
-## Key documentation
-
-**User-facing docs only — by owner decision (2026-07-28).** No roadmaps,
-release plans, or design documents live in this repository: the "why" behind
-every non-obvious decision belongs in a code comment at the decision site,
-and git history is the archive (the deleted plans and design records last
-existed at the commits that removed them). Do not reintroduce the pattern.
-
-- [packages/storyproof/CHANGELOG.md](packages/storyproof/CHANGELOG.md) — the
-  package changelog, generated by Changesets from each PR's changeset body
-  (deliberately NOT the llame-style dated work-log)
-- [packages/storyproof/README.md](packages/storyproof/README.md) — the npm-published
-  README: support target, trust boundary, storage, capture contract links
-- [packages/storyproof/docs/configuration.md](packages/storyproof/docs/configuration.md)
-  and [packages/storyproof/docs/capture-contract.md](packages/storyproof/docs/capture-contract.md)
-  — the user-facing options reference and capture semantics
+Full policy, and the reasoning: [CONTRIBUTING.md § AI-assisted contributions](CONTRIBUTING.md#ai-assisted-contributions).
 
 ## Invariants
 
-Commit, changelog, and changeset conventions are in
-[CONTRIBUTING.md](CONTRIBUTING.md#conventions) (imported above). Two things
-are product invariants rather than conventions, and neither is negotiable in
-a routine change:
+Neither is negotiable in a routine change:
 
-- **The trust boundary.** Approval writes repository files; development
-  Storybook is a trusted local interface; Git/PR review is the authorization
-  path. Weigh any change touching the artifact route, the path guards
-  (`src/node/paths.ts`), or the approval flow accordingly.
-- **Nothing publishes from a developer machine.** Releases run from a tag
-  through an approval-gated workflow — [RELEASING.md](RELEASING.md).
+- **The trust boundary.** Approval writes repository files; development Storybook is a trusted local interface; Git/PR review is the authorization path. Weigh any change touching the artifact route, the path guards (`src/node/paths.ts`), or the approval flow accordingly.
+- **Nothing publishes from a developer machine.** Releases run from a tag through an approval-gated workflow.
