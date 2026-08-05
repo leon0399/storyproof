@@ -18,8 +18,8 @@ under your control.
 part of a baseline's identity. A baseline captured with a different one is
 refused with "Review and re-approve after the Playwright upgrade". While
 storyproof pinned Playwright, a storyproof release that happened to bump it
-would invalidate every baseline in your repository — a full visual re-review
-you never asked for, on storyproof's schedule. Now upgrading Playwright is your
+would invalidate every baseline in your repository — a full visual re-review you
+never asked for, on storyproof's schedule. Now upgrading Playwright is your
 decision, made when you have time to review what moved. It also means a single
 Playwright copy and a single browser download shared with any Playwright you
 already run for end-to-end tests.

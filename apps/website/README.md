@@ -7,5 +7,5 @@ eventually serve:
 - `https://storyproof.dev/icon.svg` — referenced by the package's Storybook
   catalog metadata; must exist before the public preview is published.
 - The docs content that makes `storyproof.js.org` claimable (js.org rejects
-  placeholder sites), if the js.org subdomain is still wanted once this site
-  is live.
+  placeholder sites), if the js.org subdomain is still wanted once this site is
+  live.
