@@ -3,9 +3,9 @@
 ## Capture origin
 
 Capture is zero-config because the origin is fixed, not discovered: the preset
-builds it from the development server's own port as
-`http://127.0.0.1:<port>`. Chromium therefore has to reach Storybook over
-**direct loopback HTTP in the same network namespace** as the Storybook process.
+builds it from the development server's own port as `http://127.0.0.1:<port>`.
+Chromium therefore has to reach Storybook over **direct loopback HTTP in the
+same network namespace** as the Storybook process.
 
 The origin is not configurable, so the following are unsupported — not merely
 untested. The current implementation cannot address them at all:
@@ -23,8 +23,8 @@ described in the [README](../README.md).
 
 ## Deterministic environment
 
-Each story runs in a fresh context from one Playwright process for the
-selected browser engine:
+Each story runs in a fresh context from one Playwright process for the selected
+browser engine:
 
 - viewport: `1280x720` CSS pixels;
 - device scale factor: `1`;
@@ -34,23 +34,21 @@ selected browser engine:
 
 The environment key is `<platform>-<engine>-1280x720@1x`, where the platform
 component describes where the **browser** renders: this host's platform for
-local capture (`linux`, `darwin`, `win32`), and the distinct token
-`container` for
-[container capture](configuration.md#container-capture-capturecontainer) —
-deliberately not `linux`, because bare Linux and the container render
-different pixels on the same machine and each mode must keep its own
-baselines. Different environments therefore coexist instead of overwriting
-one another. Architecture is deliberately
-absent from the key: amd64 and arm64 were measured rendering the identical
-probe image byte-for-byte in the capture container, for all three engines.
-Screenshot framing changes which pixels inside that environment become the
-candidate; it does not resize the browser.
+local capture (`linux`, `darwin`, `win32`), and the distinct token `container`
+for [container capture](configuration.md#container-capture-capturecontainer) —
+deliberately not `linux`, because bare Linux and the container render different
+pixels on the same machine and each mode must keep its own baselines. Different
+environments therefore coexist instead of overwriting one another. Architecture
+is deliberately absent from the key: amd64 and arm64 were measured rendering the
+identical probe image byte-for-byte in the capture container, for all three
+engines. Screenshot framing changes which pixels inside that environment become
+the candidate; it does not resize the browser.
 
-Each capture session also renders a fixed probe page and records its image
-hash as the **render fingerprint** in every candidate's metadata. The
-fingerprint is the catch-all for environment differences no attribute can
-name — two hosts with identical platform, browser build, and font metrics
-have been measured rasterizing differently.
+Each capture session also renders a fixed probe page and records its image hash
+as the **render fingerprint** in every candidate's metadata. The fingerprint is
+the catch-all for environment differences no attribute can name — two hosts with
+identical platform, browser build, and font metrics have been measured
+rasterizing differently.
 
 ## Readiness
 
@@ -91,8 +89,8 @@ diff engine pads both images to their maximum dimensions so the review remains
 inspectable rather than failing comparison.
 
 The current baseline metadata (schema 2) records browser, Playwright version,
-platform, render fingerprint, viewport, device scale factor, comparator
-policy, and the approved image hash. Future browser or viewport modes must use
+platform, render fingerprint, viewport, device scale factor, comparator policy,
+and the approved image hash. Future browser or viewport modes must use
 independent environment identities; they must not silently overwrite the
 existing baseline.
 
@@ -109,30 +107,29 @@ otherwise.
 ## Baseline compatibility
 
 A baseline is only comparable to a candidate when the recorded schema version,
-platform, browser name, browser version, Playwright version, render
-fingerprint, viewport, device scale factor, and comparator policy all match
-exactly. A mismatch — or missing or malformed metadata, or metadata whose hash
-does not match its image — is surfaced as a reviewable result with a message
-naming the specific difference, not as a silent pass, not as a false pixel
-diff, and not as a capture error.
+platform, browser name, browser version, Playwright version, render fingerprint,
+viewport, device scale factor, and comparator policy all match exactly. A
+mismatch — or missing or malformed metadata, or metadata whose hash does not
+match its image — is surfaced as a reviewable result with a message naming the
+specific difference, not as a silent pass, not as a false pixel diff, and not as
+a capture error.
 
 Consequences worth planning for:
 
-- **Upgrading Playwright or Chromium invalidates every baseline.** Both
-  versions are part of the compatibility check, so a Playwright bump makes
-  existing baselines incompatible and every affected story needs review and
-  re-approval. Treat a Playwright upgrade as a deliberate, reviewed
-  rebaseline.
+- **Upgrading Playwright or Chromium invalidates every baseline.** Both versions
+  are part of the compatibility check, so a Playwright bump makes existing
+  baselines incompatible and every affected story needs review and re-approval.
+  Treat a Playwright upgrade as a deliberate, reviewed rebaseline.
 - **Platform is compared, and same-platform machines can still differ.** A
   baseline captured on another OS reports a named platform mismatch. But the
   render fingerprint exists because even two same-platform machines have been
   measured rendering differently — a fingerprint mismatch means fonts or
-  rasterization differ despite every version matching. Teams on mixed
-  machines should either capture through
-  [the shared container](configuration.md#container-capture-capturecontainer)
-  or let each platform maintain its own baselines.
-- **Schema-1 baselines** (approved before environment identity existed)
-  report a migration message and need one re-approval.
+  rasterization differ despite every version matching. Teams on mixed machines
+  should either capture through
+  [the shared container](configuration.md#container-capture-capturecontainer) or
+  let each platform maintain its own baselines.
+- **Schema-1 baselines** (approved before environment identity existed) report a
+  migration message and need one re-approval.
 
 ## Failure behavior
 
@@ -144,8 +141,7 @@ a run:
   other Storybook test providers, such as accessibility results, do not turn a
   rendered story into a capture error.
 - **A disabled story** reports its own `disabled` status (not a pass — nothing
-  was captured or compared) with an explanatory message and
-  writes no candidate.
+  was captured or compared) with an explanatory message and writes no candidate.
 
 Two failures are run-wide rather than per story:
 

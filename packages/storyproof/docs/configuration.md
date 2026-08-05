@@ -35,8 +35,8 @@ cannot capture or approve repository files.
 ## Preset options
 
 Both options are optional. Storybook passes addon options through without
-validating them, so the preset validates them itself when the development
-server starts.
+validating them, so the preset validates them itself when the development server
+starts.
 
 | Option              | Type                                  | Default      | Constraint                                          |
 | ------------------- | ------------------------------------- | ------------ | --------------------------------------------------- |
@@ -57,10 +57,10 @@ so none is enforced.
 
 One engine per Storybook dev server. Baselines are keyed per engine
 (`linux-firefox-1280x720@1x`), so switching engines starts a separate baseline
-set rather than overwriting another engine's — and switching back loses
-nothing. Capturing one story across several engines in a single run is
-deliberately out of scope: it multiplies review (N candidates per story) and
-waits on a multi-candidate review UI design.
+set rather than overwriting another engine's — and switching back loses nothing.
+Capturing one story across several engines in a single run is deliberately out
+of scope: it multiplies review (N candidates per story) and waits on a
+multi-candidate review UI design.
 
 ```ts
 options: {
@@ -73,18 +73,17 @@ Firefox and WebKit need their browsers installed
 container ships all three engines.
 
 **Read this before selling WebKit results as Safari coverage:** Playwright's
-WebKit on Linux is the WebKit _engine_ built against a Linux graphics and
-font stack — it is not Safari, and container capture makes that gap wider,
-not narrower. It catches engine-level layout and rendering differences; it
-does not tell you what your UI looks like on a Mac. The same caveat applies
-to a lesser degree to any containerized engine: captures are regression
-evidence, not fidelity claims about real user rendering.
+WebKit on Linux is the WebKit _engine_ built against a Linux graphics and font
+stack — it is not Safari, and container capture makes that gap wider, not
+narrower. It catches engine-level layout and rendering differences; it does not
+tell you what your UI looks like on a Mac. The same caveat applies to a lesser
+degree to any containerized engine: captures are regression evidence, not
+fidelity claims about real user rendering.
 
 Engine determinism is measured separately per engine — the Chromium results
-(arch-independence in the container, host-dependence when bare) were
-re-measured for Firefox and WebKit rather than assumed, with the same
-result: identical in the container across architectures, divergent on bare
-hosts.
+(arch-independence in the container, host-dependence when bare) were re-measured
+for Firefox and WebKit rather than assumed, with the same result: identical in
+the container across architectures, divergent on bare hosts.
 
 ### Container capture (`capture.container`)
 
@@ -92,9 +91,9 @@ By default storyproof captures with a browser on your machine, and the
 baseline's environment key records your platform (for example
 `linux-chromium-1280x720@1x`). Two machines are not the same rendering
 environment even when they look identical — fonts, hinting, and antialiasing
-differ below anything version numbers can express — so a team on mixed
-machines either lets each platform keep its own baselines, or opts into
-capturing inside one shared container:
+differ below anything version numbers can express — so a team on mixed machines
+either lets each platform keep its own baselines, or opts into capturing inside
+one shared container:
 
 ```ts
 {
@@ -107,8 +106,8 @@ capturing inside one shared container:
 ```
 
 With `container: true` the image is derived from the installed Playwright
-version (`mcr.microsoft.com/playwright:v<version>-noble`); pass
-`{ image: "…" }` to override — e.g. a corporate registry mirror:
+version (`mcr.microsoft.com/playwright:v<version>-noble`); pass `{ image: "…" }`
+to override — e.g. a corporate registry mirror:
 
 ```ts
 capture: {
@@ -118,58 +117,56 @@ capture: {
 },
 ```
 
-The image's Playwright version tag must match the installed `playwright`
-package (the wire protocol is version-locked); a mismatched tag fails at
-dev-server startup with a named error, whatever the registry prefix, as
-long as the image is named `playwright` with a `v<semver>-` tag. A faithful
-mirror renders the same pixels as the official image, so its baselines carry
-the same render fingerprint and interoperate with ones captured from
-`mcr.microsoft.com` directly. Note the container still runs
-`npx playwright@<version> run-server` against the public npm registry — on a
-network that blocks npmjs.org, container capture currently fails there even
-with a mirrored image.
+The image's Playwright version tag must match the installed `playwright` package
+(the wire protocol is version-locked); a mismatched tag fails at dev-server
+startup with a named error, whatever the registry prefix, as long as the image
+is named `playwright` with a `v<semver>-` tag. A faithful mirror renders the
+same pixels as the official image, so its baselines carry the same render
+fingerprint and interoperate with ones captured from `mcr.microsoft.com`
+directly. Note the container still runs `npx playwright@<version> run-server`
+against the public npm registry — on a network that blocks npmjs.org, container
+capture currently fails there even with a mirrored image.
 
-Two notes for supply-chain-sensitive setups. The derived default is a
-_tag_, and tags are mutable: pass a digest instead
-(`{ image: "mcr.microsoft.com/playwright@sha256:…" }`) to pin the image
-itself. Storyproof skips its version check for a digest reference, since
-the version cannot be read from the name, so verify the digest matches
-your installed `playwright` yourself. The runtime `npx` install is pinned
-to that exact version and runs with lifecycle scripts disabled
-(`npm_config_ignore_scripts`), so a package fetched at capture time cannot
-execute install hooks. One consequence for custom images: Playwright's
-postinstall is what would otherwise download missing browsers, so a custom
-image must already ship the binaries for the engine you capture with,
-matching the pinned version. The official images do. An image without them
-starts the container and then fails when the browser launches.
+Two notes for supply-chain-sensitive setups. The derived default is a _tag_, and
+tags are mutable: pass a digest instead
+(`{ image: "mcr.microsoft.com/playwright@sha256:…" }`) to pin the image itself.
+Storyproof skips its version check for a digest reference, since the version
+cannot be read from the name, so verify the digest matches your installed
+`playwright` yourself. The runtime `npx` install is pinned to that exact version
+and runs with lifecycle scripts disabled (`npm_config_ignore_scripts`), so a
+package fetched at capture time cannot execute install hooks. One consequence
+for custom images: Playwright's postinstall is what would otherwise download
+missing browsers, so a custom image must already ship the binaries for the
+engine you capture with, matching the pinned version. The official images do. An
+image without them starts the container and then fails when the browser
+launches.
 
-Every machine then renders under the same
-`container-chromium-…` key (a distinct identity from bare-Linux capture,
-which renders differently even on the same machine) and produces identical
-pixels — measured, not
-assumed: hosts that render differently when capturing bare (including two
-Linux machines with identical font metrics) produce byte-identical output
-inside the same image, across amd64 and arm64, for all three engines.
+Every machine then renders under the same `container-chromium-…` key (a distinct
+identity from bare-Linux capture, which renders differently even on the same
+machine) and produces identical pixels — measured, not assumed: hosts that
+render differently when capturing bare (including two Linux machines with
+identical font metrics) produce byte-identical output inside the same image,
+across amd64 and arm64, for all three engines.
 
 Requirements and behavior:
 
 - The Docker CLI must be on `PATH`. Missing docker, a container that exits
-  early, and a readiness timeout each fail the run with a named error.
-  **Podman is untested**: its `podman-docker` shim makes the commands run,
-  but the container topology storyproof depends on (the containerized
-  browser reaching a host-loopback Storybook through the `host-gateway`
-  alias) is only verified for Docker and Docker Desktop, and rootless
-  podman's network stack restricts container-to-host-loopback access by
-  default. If the shim works for you, it works by luck, not by contract.
+  early, and a readiness timeout each fail the run with a named error. **Podman
+  is untested**: its `podman-docker` shim makes the commands run, but the
+  container topology storyproof depends on (the containerized browser reaching a
+  host-loopback Storybook through the `host-gateway` alias) is only verified for
+  Docker and Docker Desktop, and rootless podman's network stack restricts
+  container-to-host-loopback access by default. If the shim works for you, it
+  works by luck, not by contract.
 - First use pulls the image (~2 GB). Pre-pull with
   `docker pull mcr.microsoft.com/playwright:v<version>-noble` to skip the wait.
 - The container is started once per Storybook dev-server process and reused
   across runs; it is stopped on exit (best-effort — leftovers are visible via
   `docker ps --filter label=storyproof` and remove themselves once stopped).
 - Only the browser moves into the container. Approval still writes repository
-  files from the Storybook process on your machine, through the same path
-  guards — the trust boundary is unchanged. The browser server's WebSocket
-  port is published to `127.0.0.1` only.
+  files from the Storybook process on your machine, through the same path guards
+  — the trust boundary is unchanged. The browser server's WebSocket port is
+  published to `127.0.0.1` only.
 - Your Storybook preview still renders with _your_ fonts; captures use the
   container's. The panel labels where pixels came from
   (`linux · chromium … · container`), and a baseline captured in a different
@@ -215,8 +212,8 @@ not fail `storybook build` — it fails the next `storybook dev`.
 ## Run and review
 
 The Visual tests panel is scoped to the selected story. Both run controls in
-that panel capture only that story, so a small component does not wait behind the
-entire catalog. Storybook's testing widget owns the explicit run-all action.
+that panel capture only that story, so a small component does not wait behind
+the entire catalog. Storybook's testing widget owns the explicit run-all action.
 
 Results remain reviewable one story at a time. Accept promotes the exact
 candidate already displayed in the panel; it does not recapture.
@@ -259,9 +256,9 @@ write a candidate.
 
 ### Choose screenshot framing
 
-The default is `content`, except when the resolved Storybook
-`parameters.layout` is `fullscreen`; fullscreen stories default to `viewport`.
-Override either behavior at project, component, or story level:
+The default is `content`, except when the resolved Storybook `parameters.layout`
+is `fullscreen`; fullscreen stories default to `viewport`. Override either
+behavior at project, component, or story level:
 
 ```ts
 const meta = {
