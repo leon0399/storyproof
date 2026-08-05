@@ -14,6 +14,9 @@ import type {
   VisualEnvironment,
   VisualResult,
 } from "../shared/results.js";
+
+// ponytail: hardcoded, add capture.timeout option if users need it
+export const CAPTURE_TIMEOUT_MS = 60_000;
 import {
   approveCandidate as approveCandidateDefault,
   type ApprovalRequest,
@@ -390,10 +393,14 @@ export class VisualTestRunner {
     this.publish(run);
 
     try {
+      const signal = AbortSignal.any([
+        run.controller.signal,
+        AbortSignal.timeout(CAPTURE_TIMEOUT_MS),
+      ]);
       const capture = await session.capture({
         baseUrl: this.options.baseUrl,
         storyId: result.storyId,
-        signal: run.controller.signal,
+        signal,
       });
       if (capture.status !== "captured") {
         await this.finishCapture(run, result, undefined, capture);
@@ -411,13 +418,16 @@ export class VisualTestRunner {
       await writeFile(paths.candidatePath, capture.image);
       await this.finishCapture(run, result, paths, capture);
     } catch (error) {
-      result.status = run.controller.signal.aborted
-        ? "cancelled"
-        : "capture-error";
-      result.message =
-        result.status === "cancelled"
-          ? undefined
-          : `Visual capture failed: ${errorMessage(error)}`;
+      if (run.controller.signal.aborted) {
+        result.status = "cancelled";
+      } else if (error instanceof DOMException && error.name === "TimeoutError") {
+        result.status = "capture-error";
+        result.message =
+          "Capture timed out (60 s). The browser or its transport may be unresponsive.";
+      } else {
+        result.status = "capture-error";
+        result.message = `Visual capture failed: ${errorMessage(error)}`;
+      }
     }
     this.publish(run);
   }

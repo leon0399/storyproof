@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { PNG } from "pngjs";
 import type { StoryIndex } from "storybook/internal/types";
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { DEFAULT_ENVIRONMENT } from "../src/constants.js";
 import {
@@ -14,7 +14,10 @@ import {
   type ComparisonResult,
 } from "../src/node/compare.js";
 import { resolveEnvironment } from "../src/node/environment.js";
-import { VisualTestRunner } from "../src/node/runner.js";
+import {
+  CAPTURE_TIMEOUT_MS,
+  VisualTestRunner,
+} from "../src/node/runner.js";
 import { ArtifactRegistry } from "../src/node/server.js";
 
 // These tests capture with fakes on this host, so the expected key is the
@@ -775,6 +778,44 @@ describe("VisualTestRunner", () => {
       });
     } finally {
       await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("reports capture-error when a capture hangs past the timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      const root = path.join(process.cwd(), "test/.tmp/runner-timeout");
+      const runner = new VisualTestRunner({
+        baseUrl: "http://127.0.0.1:6006",
+        cwd: process.cwd(),
+        storyRoots: ["packages/ui/src"],
+        storyIndexGenerator: fakeStoryIndex(),
+        resolveArtifactPaths: async ({ storyId }) => pathsFor(root, storyId),
+        createCaptureSession: async () => ({
+          ...fakeSessionExtras(),
+          close: vi.fn(async () => undefined),
+          capture: vi.fn(
+            () => new Promise<never>(() => undefined), // never resolves
+          ),
+        }),
+      });
+
+      const runPromise = runner.run({ scope: "all" });
+      await vi.advanceTimersByTimeAsync(CAPTURE_TIMEOUT_MS + 1);
+      const state = await runPromise;
+
+      expect(state.running).toBe(false);
+      expect(state.results.length).toBeGreaterThan(0);
+      for (const result of state.results) {
+        expect(result.status).toBe("capture-error");
+        expect(result.message).toContain("timed out");
+      }
+    } finally {
+      vi.useRealTimers();
+      await rm(path.join(process.cwd(), "test/.tmp/runner-timeout"), {
+        recursive: true,
+        force: true,
+      });
     }
   });
 });
