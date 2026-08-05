@@ -94,8 +94,7 @@ Open an issue with the Storybook version, framework (`react-vite`,
 minimal reproduction on top of an [example](examples) is the fastest path to a
 fix.
 
-Security issues: don't open a public issue. Use
-[private vulnerability reporting](https://github.com/leon0399/storyproof/security/advisories/new).
+Security issues: don't open a public issue — see [SECURITY.md](SECURITY.md).
 
 ## Code of conduct
 

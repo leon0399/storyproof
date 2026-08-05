@@ -12,6 +12,8 @@ adds its own rules.
 - [RELEASING.md](RELEASING.md) — the release process; maintainers only, nothing
   publishes from a developer machine
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — Contributor Covenant 3.0
+- [SECURITY.md](SECURITY.md) — what counts as a vulnerability, and where to
+  report it
 
 ## Where rationale lives
 

@@ -48,7 +48,8 @@ against a 226-story Storybook.
 
 [CONTRIBUTING.md](CONTRIBUTING.md) covers setup, the checks to run, and the
 conventions; [RELEASING.md](RELEASING.md) is for maintainers. By participating
-you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
+you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). Security issues go
+through [SECURITY.md](SECURITY.md), never a public issue.
 
 ## License
 
