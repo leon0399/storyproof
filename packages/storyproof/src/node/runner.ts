@@ -300,10 +300,17 @@ export class VisualTestRunner {
       this.publish(run);
       await this.runPool(run, session);
     } finally {
-      await Promise.race([
-        session.close().catch(() => undefined),
-        new Promise((resolve) => setTimeout(resolve, 5_000)),
-      ]);
+      let closeTimer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          session.close().catch(() => undefined),
+          new Promise((resolve) => {
+            closeTimer = setTimeout(resolve, 5_000);
+          }),
+        ]);
+      } finally {
+        clearTimeout(closeTimer);
+      }
       run.state.running = false;
       this.publish(run);
     }
