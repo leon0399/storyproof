@@ -777,6 +777,39 @@ describe("VisualTestRunner", () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  test("reports capture-error when a capture hangs past the timeout", async () => {
+    const root = path.join(process.cwd(), "test/.tmp/runner-timeout");
+    const runner = new VisualTestRunner({
+      baseUrl: "http://127.0.0.1:6006",
+      cwd: process.cwd(),
+      storyRoots: ["packages/ui/src"],
+      storyIndexGenerator: fakeStoryIndex(),
+      captureTimeoutMs: 50,
+      resolveArtifactPaths: async ({ storyId }) => pathsFor(root, storyId),
+      createCaptureSession: async () => ({
+        ...fakeSessionExtras(),
+        close: vi.fn(async () => undefined),
+        capture: vi.fn(
+          () => new Promise<never>(() => undefined), // never resolves
+        ),
+      }),
+    });
+
+    try {
+      const state = await runner.run({
+        scope: "current",
+        storyId: "alpha--one",
+      });
+
+      expect(state.running).toBe(false);
+      expect(state.results).toHaveLength(1);
+      expect(state.results[0]!.status).toBe("capture-error");
+      expect(state.results[0]!.message).toContain("timed out");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 });
 
 function fakeStoryIndex(): ConstructorParameters<
