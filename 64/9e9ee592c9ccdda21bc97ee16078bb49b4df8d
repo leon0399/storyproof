@@ -1,0 +1,21 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.6",
+  "base_commit_sha": "649e9ee592c9ccdda21bc97ee16078bb49b4df8d",
+  "prompts": {
+    "9e3094a50ae1be15": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fe943565-0f01-47c2-a860-6273e0739532",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Leonid Meleshin <leon.03.99@gmail.com>",
+      "messages": [],
+      "total_additions": 67,
+      "total_deletions": 16,
+      "accepted_lines": 57,
+      "overriden_lines": 0
+    }
+  }
+}
