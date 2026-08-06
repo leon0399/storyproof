@@ -437,9 +437,10 @@ export class VisualTestRunner {
         new Promise<never>((_resolve, reject) => {
           signal.addEventListener(
             "abort",
-            () => {
-              if (timeoutController.signal.aborted) reject(timeoutError);
-            },
+            () =>
+              reject(
+                timeoutController.signal.aborted ? timeoutError : signal.reason,
+              ),
             { once: true },
           );
         }),
