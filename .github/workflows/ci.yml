@@ -90,7 +90,7 @@ jobs:
   # matrix-defined key create new jobs.
   acceptance:
     name: acceptance - node ${{ matrix.node }} - ${{ matrix.browser }} - ${{ matrix.topology }}${{ matrix.playwright != 'catalog' && format(' - pw {0}', matrix.playwright) || '' }}${{ matrix.storybook != 'catalog' && format(' - sb {0}', matrix.storybook) || '' }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os || 'ubuntu-latest' }}
     timeout-minutes: 30
     continue-on-error: ${{ matrix.storybook == 'latest' }}
     strategy:
@@ -102,10 +102,13 @@ jobs:
         playwright: [catalog]
         storybook: [catalog]
         include:
-          # Playwright floor: 1.45.0 is the oldest version whose browser
-          # binaries install on Ubuntu 24.04 (Noble). 1.44 and below fail
-          # at `playwright install` — OS compatibility, not API.
+          # Playwright floor on Noble (1.45.0 — OS compat boundary).
           - { node: 22, browser: chromium, topology: host, playwright: "1.45.0", storybook: catalog }
+          # Playwright API floor probes on Jammy (older OS can install
+          # older browser binaries — find where the code itself breaks).
+          - { node: 22, browser: chromium, topology: host, playwright: "1.40.0", storybook: catalog, os: ubuntu-22.04 }
+          - { node: 22, browser: chromium, topology: host, playwright: "1.35.0", storybook: catalog, os: ubuntu-22.04 }
+          - { node: 22, browser: chromium, topology: host, playwright: "1.30.0", storybook: catalog, os: ubuntu-22.04 }
           # Storybook latest: non-blocking (continue-on-error above).
           - { node: 22, browser: chromium, topology: host, playwright: catalog, storybook: latest }
     steps:
