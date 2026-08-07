@@ -102,35 +102,15 @@ jobs:
         playwright: [catalog]
         storybook: [catalog]
         include:
-          # Playwright peer-dep floor (1.38.0, on Jammy for older browsers).
+          # Playwright peer-dep floor (1.38.0, on Jammy — Noble can't
+          # install browsers below 1.45). Binary-searched: 1.37 fails.
           - { node: 22, browser: chromium, topology: host, playwright: "1.38.0", storybook: catalog, os: ubuntu-22.04 }
-          # Playwright deeper probes — 1.37 failed on test runner package
-          # structure; try 1.36 and 1.37 again to confirm the boundary.
-          - { node: 22, browser: chromium, topology: host, playwright: "1.36.0", storybook: catalog, os: ubuntu-22.04 }
-          - { node: 22, browser: chromium, topology: host, playwright: "1.37.0", storybook: catalog, os: ubuntu-22.04 }
-          # Node floor probes — AbortSignal.any() requires Node 20.3+.
-          # Also lower engines.node so tsdown targets the right baseline.
-          - { node: 20, browser: chromium, topology: host, playwright: catalog, storybook: catalog, engines-node: ">=20.3.0" }
-          - { node: 21, browser: chromium, topology: host, playwright: catalog, storybook: catalog, engines-node: ">=20.3.0" }
           # Storybook latest: non-blocking (continue-on-error above).
           - { node: 22, browser: chromium, topology: host, playwright: catalog, storybook: latest }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # Must run before setup's pnpm install, which enforces engines.
-      - name: Override engines.node for floor probes
-        if: matrix.engines-node
-        run: |
-          node -e '
-            const fs = require("fs");
-            const p = "packages/storyproof/package.json";
-            const j = JSON.parse(fs.readFileSync(p, "utf8"));
-            j.engines.node = process.env.ENGINES_NODE;
-            fs.writeFileSync(p, JSON.stringify(j, null, 2) + "\n");
-          '
-        env:
-          ENGINES_NODE: ${{ matrix.engines-node }}
       - uses: ./.github/actions/setup
         with:
           node-version: ${{ matrix.node }}
