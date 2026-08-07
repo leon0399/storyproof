@@ -104,9 +104,22 @@ jobs:
         include:
           # Playwright peer-dep floor (1.38.0, on Jammy — Noble can't
           # install browsers below 1.45). Binary-searched: 1.37 fails.
-          - { node: 22, browser: chromium, topology: host, playwright: "1.38.0", storybook: catalog, os: ubuntu-22.04 }
+          - {
+              node: 22,
+              browser: chromium,
+              topology: host,
+              playwright: "1.38.0",
+              storybook: catalog,
+              os: ubuntu-22.04,
+            }
           # Storybook latest: non-blocking (continue-on-error above).
-          - { node: 22, browser: chromium, topology: host, playwright: catalog, storybook: latest }
+          - {
+              node: 22,
+              browser: chromium,
+              topology: host,
+              playwright: catalog,
+              storybook: latest,
+            }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
