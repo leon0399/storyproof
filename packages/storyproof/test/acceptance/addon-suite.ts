@@ -421,6 +421,17 @@ export function registerAddonAcceptanceSuite({
       !(await hasControlFixture(projectRoot)),
       "requires the fault-injection control fixture (control/state.json + the Controlled story), which only test/fixtures/project carries",
     );
+    // Measured 2026-08-07: a webkit reached over `playwright run-server`
+    // reports neither `requestfailed` nor `framenavigated` for a refused
+    // navigation — the same webkit launched inside the same container reports
+    // both. The client is blind to the refusal there, so the addon has nothing
+    // to name and this contract cannot hold. Every other scenario passes on
+    // that pair; only this one depends on observing the failure.
+    test.skip(
+      process.env.STORYPROOF_CONTAINER === "1" &&
+        process.env.STORYPROOF_BROWSER === "webkit",
+      "webkit over run-server does not surface refused navigations to the client",
+    );
     const panel = await openVisualPanel({
       expect,
       page,

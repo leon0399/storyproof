@@ -33,6 +33,7 @@ interface CapturePage {
           failure(): { errorText: string } | null;
           isNavigationRequest(): boolean;
           url(): string;
+          frame?(): { parentFrame?(): unknown } | undefined;
         }) => void),
   ): void;
   addInitScript(script: () => void): Promise<unknown>;
@@ -196,11 +197,18 @@ class PlaywrightCaptureSession implements CaptureSession {
           failure(): { errorText: string } | null;
           isNavigationRequest(): boolean;
           url(): string;
+          frame?(): { parentFrame?(): unknown } | undefined;
         }) => {
           if (!request.isNavigationRequest()) return;
           navigationFailures.push(
             `${safeNavigationUrl(request.url())}: ${request.failure()?.errorText ?? "unknown browser error"}`,
           );
+          // `isNavigationRequest()` is also true for subframe and <object>
+          // navigations. A story whose iframe points somewhere unreachable
+          // still renders, so only a top-level navigation ends the capture —
+          // the rest stay diagnostics on the message.
+          const frame = request.frame?.();
+          if (frame && frame.parentFrame?.() != null) return;
           // The catch below appends every recorded failure, so this names the
           // class of failure only and never duplicates the detail.
           failNavigation?.(new Error("Capture navigation failed"));
