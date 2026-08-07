@@ -127,15 +127,27 @@ jobs:
       - name: Override playwright to floor version
         if: matrix.playwright != 'catalog'
         run: |
-          pnpm --filter storyproof pkg set "devDependencies.playwright=$PW_VERSION"
+          node -e '
+            const fs = require("fs");
+            const p = "packages/storyproof/package.json";
+            const j = JSON.parse(fs.readFileSync(p, "utf8"));
+            j.devDependencies.playwright = process.env.PW_VERSION;
+            fs.writeFileSync(p, JSON.stringify(j, null, 2) + "\n");
+          '
           pnpm install --no-frozen-lockfile
         env:
           PW_VERSION: ${{ matrix.playwright }}
       - name: Override storybook to latest
         if: matrix.storybook == 'latest'
         run: |
-          pnpm --filter storyproof pkg set "devDependencies.storybook=latest"
-          pnpm --filter storyproof pkg set "devDependencies.@storybook/react-vite=latest"
+          node -e '
+            const fs = require("fs");
+            const p = "packages/storyproof/package.json";
+            const j = JSON.parse(fs.readFileSync(p, "utf8"));
+            j.devDependencies.storybook = "latest";
+            j.devDependencies["@storybook/react-vite"] = "latest";
+            fs.writeFileSync(p, JSON.stringify(j, null, 2) + "\n");
+          '
           pnpm install --no-frozen-lockfile
       # Test driver is always chromium; matrix.browser is the addon's capture engine.
       - run: pnpm exec playwright install --with-deps chromium "$BROWSER"
