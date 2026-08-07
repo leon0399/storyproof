@@ -102,10 +102,16 @@ jobs:
         playwright: [catalog]
         storybook: [catalog]
         include:
-          # Playwright peer-dep floor: 1.38.0 is the oldest version the
-          # code works with (binary-searched down from 1.55.1). Tested on
-          # Jammy because Noble can't install browsers below 1.45.
+          # Playwright peer-dep floor (1.38.0, on Jammy for older browsers).
           - { node: 22, browser: chromium, topology: host, playwright: "1.38.0", storybook: catalog, os: ubuntu-22.04 }
+          # Playwright deeper probes — 1.37 failed on test runner package
+          # structure; try 1.36 and 1.37 again to confirm the boundary.
+          - { node: 22, browser: chromium, topology: host, playwright: "1.36.0", storybook: catalog, os: ubuntu-22.04 }
+          - { node: 22, browser: chromium, topology: host, playwright: "1.37.0", storybook: catalog, os: ubuntu-22.04 }
+          # Node floor probes — AbortSignal.any() requires Node 20.3+.
+          # Also lower engines.node so tsdown targets the right baseline.
+          - { node: 20, browser: chromium, topology: host, playwright: catalog, storybook: catalog, engines-node: ">=20.3.0" }
+          - { node: 21, browser: chromium, topology: host, playwright: catalog, storybook: catalog, engines-node: ">=20.3.0" }
           # Storybook latest: non-blocking (continue-on-error above).
           - { node: 22, browser: chromium, topology: host, playwright: catalog, storybook: latest }
     steps:
@@ -116,6 +122,19 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           turbo-cache-prefix: turbo-visual-node${{ matrix.node }}${{ matrix.playwright != 'catalog' && format('-pw{0}', matrix.playwright) || '' }}${{ matrix.storybook != 'catalog' && format('-sb{0}', matrix.storybook) || '' }}
+      - name: Override engines.node for floor probes
+        if: matrix.engines-node
+        run: |
+          node -e '
+            const fs = require("fs");
+            const p = "packages/storyproof/package.json";
+            const j = JSON.parse(fs.readFileSync(p, "utf8"));
+            j.engines.node = process.env.ENGINES_NODE;
+            fs.writeFileSync(p, JSON.stringify(j, null, 2) + "\n");
+          '
+          pnpm install --no-frozen-lockfile
+        env:
+          ENGINES_NODE: ${{ matrix.engines-node }}
       - name: Override playwright to floor version
         if: matrix.playwright != 'catalog'
         run: |
