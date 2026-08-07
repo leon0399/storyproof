@@ -132,6 +132,7 @@ jobs:
             const p = "packages/storyproof/package.json";
             const j = JSON.parse(fs.readFileSync(p, "utf8"));
             j.devDependencies.playwright = process.env.PW_VERSION;
+            j.devDependencies["@playwright/test"] = process.env.PW_VERSION;
             fs.writeFileSync(p, JSON.stringify(j, null, 2) + "\n");
           '
           pnpm install --no-frozen-lockfile
