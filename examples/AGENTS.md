@@ -24,11 +24,10 @@ A new example claims the next free index in **both** port blocks (6106+, 6206+).
 - `.storybook/preview.ts` — `storySort` puts the demo before the scenarios.
 
 **Every example renders the same pixels.** Demo sources are verbatim copies; the
-only sanctioned divergence is the framework type-import in `*.stories.tsx`. CI's
-`lint` job enforces this with `diff -r` over `src/` and `outside/`.
+only sanctioned divergence is the framework type-import in `*.stories.tsx`.
 
 **Do not factor the shared sources into a workspace package** — it would break
-the consumer job's out-of-workspace copy.
+the tarball-install job's out-of-workspace copy.
 
 ## Rules
 
@@ -53,8 +52,8 @@ the consumer job's out-of-workspace copy.
    contributor sees their own tree. `turbo watch` rebuilds the addon and
    restarts every Storybook on a source edit; Storybook compiles its manager
    bundle once at startup and cannot hot-reload an addon.
-2. **Packed-artifact proof** — CI's `consumer` job copies an example _out_ of
-   the workspace, installs the built tarball with
+2. **Packed-artifact proof** — CI's `tarball-install` job copies an example
+   _out_ of the workspace, installs the built tarball with
    `pnpm install --ignore-workspace`, and runs the acceptance suite there. A
    `workspace:*` link proves nothing about the tarball.
 

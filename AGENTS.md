@@ -81,10 +81,14 @@ Re-approve through a running example ([examples/AGENTS.md](examples/AGENTS.md)).
 Each of these cost real time at least once, because the symptom does not name
 the cause.
 
-**`visual smoke (webkit)` red, other engines green.** Not your diff: webkit
-fails on roughly half of all runs, while chromium and firefox have not failed
-once in the same window. It is a required check, so it blocks merges for no
-signal — worth fixing rather than waiting out.
+**A capture reports a readiness timeout where another engine names a network
+failure.** Engines disagree on what a refused navigation does to the document:
+chromium and firefox replace it, webkit keeps it. Anything that waits on the
+document being replaced therefore never fires on webkit and burns its whole
+budget instead — which is what made webkit, and only webkit, flake on the
+acceptance suite. `capture.ts` races the readiness wait against the
+failed-navigation event for exactly this reason; keep new waits keyed to events
+every engine reports, not to a destroyed execution context.
 
 **`ERR_PNPM_NO_MATURE_MATCHING_VERSION` naming a package you never touched.**
 The release cooldown re-validates the whole graph on any resolution, so the
