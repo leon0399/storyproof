@@ -6,20 +6,13 @@ export default defineConfig({
   testDir: "./test/smoke",
   timeout: 60_000,
   workers: 1,
-  // Retry in CI only. The engine matrix has a standing intermittent failure
-  // — measured 2026-08-03 across 25 runs, `visual - node 24 - webkit - host`
-  // failed 6 of them (~24%), always the same heaviest tests (the run-all, the
-  // approve flow, the forced connection failure), and firefox once burned
-  // its whole 25-minute budget then passed in 2m21s on a rerun of the
-  // identical tree. A 10x gap is a hang, not slowness, so there is a real
-  // defect here and this does NOT fix it.
-  //
-  // What it fixes is the cost of not fixing it: at ~24% on a required
-  // check, roughly one pull request in four was blocked by a failure that
-  // had nothing to do with its diff, and the habit that builds — press
-  // rerun, assume flake — is how a genuine regression gets waved through.
-  // A retried pass reports as "flaky" rather than green, so the signal
-  // survives instead of being laundered by a human clicking rerun.
+  // Retry in CI only, and now only as a backstop. The webkit failures these
+  // were added for — 6 of 25 runs (~24%), measured 2026-08-03, always the
+  // heaviest tests — came from the readiness wait burning its full budget on
+  // that engine, which capture.ts now fixes at the source: the slowest webkit
+  // test went 18.1s -> 2.7s. Kept because a retried pass reports as "flaky"
+  // rather than green, so a new intermittent failure stays visible instead of
+  // being laundered by a human clicking rerun.
   //
   // Safe because every test resets the fixture project in beforeEach, so a
   // retry starts from the same state the first attempt did.
