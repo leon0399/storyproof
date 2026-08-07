@@ -224,6 +224,73 @@ describe("Chromium capture", () => {
     expect(page.screenshot).not.toHaveBeenCalled();
   });
 
+  // The webkit shape: a refused navigation leaves the document (and so the
+  // readiness wait's context) alive, unlike chromium and firefox.
+  test("a refused navigation fails the capture even when the document survives", async () => {
+    const unavailableUrl = "http://127.0.0.1:43123/unavailable";
+    let requestFailed:
+      | ((request: {
+          failure(): { errorText: string } | null;
+          isNavigationRequest(): boolean;
+          url(): string;
+        }) => void)
+      | undefined;
+    const page = {
+      on: vi.fn((event: string, listener: unknown) => {
+        if (event === "requestfailed") {
+          requestFailed = listener as typeof requestFailed;
+        }
+      }),
+      addInitScript: vi.fn(async () => undefined),
+      goto: vi.fn(async () => undefined),
+      waitForLoadState: vi.fn(async () => undefined),
+      // The webkit shape: the navigation fails, but the context that the
+      // readiness wait runs in survives, so the wait never settles on its own.
+      evaluate: vi.fn(
+        () =>
+          new Promise<never>(() => {
+            requestFailed?.({
+              failure: () => ({
+                errorText: "Could not connect to 127.0.0.1: Connection refused",
+              }),
+              isNavigationRequest: () => true,
+              url: () => unavailableUrl,
+            });
+          }),
+      ),
+      screenshot: vi.fn(async () => Buffer.from("must-not-write")),
+    };
+    const launcher: BrowserLauncher = {
+      launch: vi.fn(async () => ({
+        version: () => "26.0",
+        close: vi.fn(async () => undefined),
+        newContext: vi.fn(async () => ({
+          close: vi.fn(async () => undefined),
+          newPage: vi.fn(async () => page),
+        })),
+      })),
+    };
+    const session = await createCaptureSession({ launcher });
+
+    const result = await session.capture({
+      baseUrl: "http://127.0.0.1:6006",
+      storyId: "visual-fixture--controlled",
+    });
+    await session.close();
+
+    expect(result).toMatchObject({
+      status: "capture-error",
+      message: expect.stringContaining("http://127.0.0.1:43123"),
+    });
+    expect(result).toMatchObject({
+      message: expect.stringMatching(/connection[ _]refused/i),
+    });
+    expect(result).toMatchObject({
+      message: expect.not.stringContaining("/unavailable"),
+    });
+    expect(page.screenshot).not.toHaveBeenCalled();
+  });
+
   test("cancellation never writes a late screenshot", async () => {
     const controller = new AbortController();
     const screenshot = vi.fn(async () => Buffer.from("must-not-write"));

@@ -33,6 +33,7 @@ interface CapturePage {
           failure(): { errorText: string } | null;
           isNavigationRequest(): boolean;
           url(): string;
+          frame?(): { parentFrame?(): unknown } | undefined;
         }) => void),
   ): void;
   addInitScript(script: () => void): Promise<unknown>;
@@ -175,17 +176,42 @@ class PlaywrightCaptureSession implements CaptureSession {
         if (message.type() === "error") consoleDiagnostics.push(message.text());
       });
       page.on?.("pageerror", (error: Error) => pageErrors.push(error.message));
+      // A failed document navigation ends the capture, and it is the only
+      // failure signal all three engines report alike. What they do to the
+      // document differs: chromium and firefox replace it (destroying the
+      // context the readiness wait runs in), webkit keeps it — so waiting on a
+      // destroyed context never returns there, and the wait burns its whole
+      // budget before reporting a timeout naming neither origin nor refusal.
+      // Measured 2026-08-07: event at 39/448/9ms, vs webkit's 15s timeout.
+      let failNavigation: ((error: Error) => void) | undefined;
+      const navigationFailed = new Promise<never>((_resolve, reject) => {
+        failNavigation = reject;
+      });
+      // A later failure (sub-frame during screenshot) has no awaiter; an extra
+      // handler keeps that from surfacing as an unhandled rejection without
+      // hiding it from the race.
+      navigationFailed.catch(() => undefined);
       page.on?.(
         "requestfailed",
         (request: {
           failure(): { errorText: string } | null;
           isNavigationRequest(): boolean;
           url(): string;
+          frame?(): { parentFrame?(): unknown } | undefined;
         }) => {
           if (!request.isNavigationRequest()) return;
           navigationFailures.push(
             `${safeNavigationUrl(request.url())}: ${request.failure()?.errorText ?? "unknown browser error"}`,
           );
+          // `isNavigationRequest()` is also true for subframe and <object>
+          // navigations. A story whose iframe points somewhere unreachable
+          // still renders, so only a top-level navigation ends the capture —
+          // the rest stay diagnostics on the message.
+          const frame = request.frame?.();
+          if (frame && frame.parentFrame?.() != null) return;
+          // The catch below appends every recorded failure, so this names the
+          // class of failure only and never duplicates the detail.
+          failNavigation?.(new Error("Capture navigation failed"));
         },
       );
       await page.addInitScript(installPreviewBridge);
@@ -195,7 +221,10 @@ class PlaywrightCaptureSession implements CaptureSession {
       await page.goto(storyUrl(baseUrl, request.storyId));
       if (request.signal?.aborted) return { status: "cancelled" };
 
-      const readiness = await waitForStoryAfterReload(page, request.storyId);
+      const readiness = await Promise.race([
+        waitForStoryAfterReload(page, request.storyId),
+        navigationFailed,
+      ]);
       if (request.signal?.aborted) return { status: "cancelled" };
       if (readiness.disabled) return { status: "disabled" };
       if (readiness.status !== "success") {
