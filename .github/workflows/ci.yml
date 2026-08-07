@@ -83,18 +83,39 @@ jobs:
           path: /tmp/storyproof-ci/package.tgz
           retention-days: 7
 
-  # Acceptance suite: full node × browser × topology cross-product.
-  # Turbo cache serves `^build` only — test:visual is uncached.
+  # Acceptance suite: full node × browser × topology cross-product, plus
+  # peer-dep boundary entries via `include`. Single-element dimensions
+  # (`playwright: [catalog]`, `storybook: [catalog]`) keep the base
+  # cross-product at 12; include entries whose value differs on a
+  # matrix-defined key create new jobs.
   acceptance:
-    name: acceptance - node ${{ matrix.node }} - ${{ matrix.browser }} - ${{ matrix.topology }}
+    name: acceptance - node ${{ matrix.node }} - ${{ matrix.browser }} - ${{ matrix.topology }}${{ matrix.playwright != 'catalog' && format(' - pw {0}', matrix.playwright) || '' }}${{ matrix.storybook != 'catalog' && format(' - sb {0}', matrix.storybook) || '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    continue-on-error: ${{ matrix.storybook == 'latest' }}
     strategy:
       fail-fast: false
       matrix:
         node: [22, 24]
         browser: [chromium, firefox, webkit]
         topology: [host, container]
+        playwright: [catalog]
+        storybook: [catalog]
+        include:
+          # Playwright peer-dep floor: one chromium/host job proves the
+          # declared ^1.55.1 floor still works.
+          - node: 22
+            browser: chromium
+            topology: host
+            playwright: "1.55.1"
+            storybook: catalog
+          # Storybook latest: proves the broad ^10.5.0 peer doesn't break
+          # on new minors. Non-blocking (continue-on-error above).
+          - node: 22
+            browser: chromium
+            topology: host
+            playwright: catalog
+            storybook: latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -102,7 +123,20 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           node-version: ${{ matrix.node }}
-          turbo-cache-prefix: turbo-visual-node${{ matrix.node }}
+          turbo-cache-prefix: turbo-visual-node${{ matrix.node }}${{ matrix.playwright != 'catalog' && format('-pw{0}', matrix.playwright) || '' }}${{ matrix.storybook != 'catalog' && format('-sb{0}', matrix.storybook) || '' }}
+      - name: Override playwright to floor version
+        if: matrix.playwright != 'catalog'
+        run: |
+          pnpm --filter storyproof pkg set "devDependencies.playwright=$PW_VERSION"
+          pnpm install --no-frozen-lockfile
+        env:
+          PW_VERSION: ${{ matrix.playwright }}
+      - name: Override storybook to latest
+        if: matrix.storybook == 'latest'
+        run: |
+          pnpm --filter storyproof pkg set "devDependencies.storybook=latest"
+          pnpm --filter storyproof pkg set "devDependencies.@storybook/react-vite=latest"
+          pnpm install --no-frozen-lockfile
       # Test driver is always chromium; matrix.browser is the addon's capture engine.
       - run: pnpm exec playwright install --with-deps chromium "$BROWSER"
         working-directory: packages/storyproof
@@ -120,7 +154,7 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
-          name: playwright-report-${{ matrix.node }}-${{ matrix.browser }}-${{ matrix.topology }}
+          name: playwright-report-${{ matrix.node }}-${{ matrix.browser }}-${{ matrix.topology }}${{ matrix.playwright != 'catalog' && format('-pw{0}', matrix.playwright) || '' }}${{ matrix.storybook != 'catalog' && format('-sb{0}', matrix.storybook) || '' }}
           path: packages/storyproof/test-results/
           retention-days: 7
 

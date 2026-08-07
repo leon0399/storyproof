@@ -1,6 +1,6 @@
 # Storyproof
 
-Local visual regression testing for Storybook. Storyproof captures Chromium
+Local visual regression testing for Storybook. Storyproof captures browser
 screenshots of your stories, shows baseline/candidate/diff images inside
 Storybook itself, and approves baselines as PNG files committed next to your
 story source — no cloud service, no accounts, reviewed like any other change in

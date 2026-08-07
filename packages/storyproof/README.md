@@ -1,6 +1,6 @@
 # Storyproof
 
-Local visual regression testing for Storybook. Storyproof captures Chromium
+Local visual regression testing for Storybook. Storyproof captures browser
 screenshots of your stories, shows baseline/candidate/diff images inside
 Storybook itself, and approves baselines as PNG files committed next to your
 story source — no cloud service, no accounts, reviewed like any other change in
@@ -40,16 +40,15 @@ you already run for end-to-end tests.
 
 | Dimension     | Supported                                             |
 | ------------- | ----------------------------------------------------- |
-| Node.js       | `>=22.12`                                             |
+| Node.js       | `>=22.12`; CI verifies 22 and 24                      |
 | Storybook     | `^10.5.0`                                             |
 | Framework     | `@storybook/react-vite`, `@storybook/nextjs-vite`     |
 | Playwright    | `^1.55.1`, a peer dependency you install              |
 | Browser       | Chromium (default), Firefox, WebKit                   |
-| React         | not required                                          |
+| React         | `^19.0.0`, a peer dependency                          |
 | Storybook run | local development server; static builds are read-only |
 
-Preview: the ranges in `package.json` are provisional. CI verifies on Ubuntu
-24.04 x64.
+CI verifies on Ubuntu 24.04 x64.
 
 ## Baselines carry an environment identity
 
@@ -118,7 +117,7 @@ button.stories.tsx
 __screenshots__/
   button.stories.tsx.visual/
     button--primary/
-      chromium-1280x720@1x/
+      linux-chromium-1280x720@1x/
         baseline.png
         baseline.json
         candidate.png
@@ -131,12 +130,13 @@ glob from mistaking an artifact directory for a story file.
 
 ## Capture contract
 
-The initial environment is fixed: Chromium from your own `playwright` install,
-`1280x720`, DPR 1, `en-US`, UTC, and reduced motion. Capture waits for
-Storybook's finished event, including the story `play` function. Normal
-component stories are cropped to their visible content, including body portals.
-Fullscreen stories retain the viewport. A story or component can override that
-choice or disable visual capture through `parameters.visualTests`.
+The initial environment is fixed: Chromium (default; Firefox and WebKit are
+configurable) from your own `playwright` install, `1280x720`, DPR 1, `en-US`,
+UTC, and reduced motion. Capture waits for Storybook's finished event, including
+the story `play` function. Normal component stories are cropped to their visible
+content, including body portals. Fullscreen stories retain the viewport. A story
+or component can override that choice or disable visual capture through
+`parameters.visualTests`.
 
 See the
 [capture contract](https://github.com/leon0399/storyproof/blob/main/packages/storyproof/docs/capture-contract.md)

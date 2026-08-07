@@ -145,10 +145,11 @@ a run:
 
 Two failures are run-wide rather than per story:
 
-- **Chromium cannot start** — for example, the Playwright browser binary was
-  never installed. The browser is launched once per run, so every story in that
-  run reports `Chromium could not start: <detail>`. Install the browser with
-  `pnpm exec playwright install chromium`.
+- **The capture browser cannot start** — for example, the Playwright browser
+  binary was never installed. The browser is launched once per run, so every
+  story in that run reports
+  `The <engine> capture browser could not start: <detail>`. Install the browser
+  with `pnpm exec playwright install <engine>`.
 - **A cancelled run** reports cancelled results; a cancelled story has no
   approvable candidate.
 
