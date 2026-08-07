@@ -104,11 +104,11 @@ jobs:
         include:
           # Playwright floor on Noble (1.45.0 — OS compat boundary).
           - { node: 22, browser: chromium, topology: host, playwright: "1.45.0", storybook: catalog }
-          # Playwright API floor probes on Jammy (older OS can install
-          # older browser binaries — find where the code itself breaks).
-          - { node: 22, browser: chromium, topology: host, playwright: "1.40.0", storybook: catalog, os: ubuntu-22.04 }
-          - { node: 22, browser: chromium, topology: host, playwright: "1.35.0", storybook: catalog, os: ubuntu-22.04 }
-          - { node: 22, browser: chromium, topology: host, playwright: "1.30.0", storybook: catalog, os: ubuntu-22.04 }
+          # Playwright API floor probes on Jammy: 1.40 passes, 1.35 fails
+          # (test runner package structure mismatch). Narrowing 1.37–1.39.
+          - { node: 22, browser: chromium, topology: host, playwright: "1.37.0", storybook: catalog, os: ubuntu-22.04 }
+          - { node: 22, browser: chromium, topology: host, playwright: "1.38.0", storybook: catalog, os: ubuntu-22.04 }
+          - { node: 22, browser: chromium, topology: host, playwright: "1.39.0", storybook: catalog, os: ubuntu-22.04 }
           # Storybook latest: non-blocking (continue-on-error above).
           - { node: 22, browser: chromium, topology: host, playwright: catalog, storybook: latest }
     steps:
