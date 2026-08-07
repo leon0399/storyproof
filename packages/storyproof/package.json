@@ -3,7 +3,7 @@
   "version": "0.1.0-next.3",
   "description": "Local visual regression testing for Storybook: capture Chromium screenshots, review diffs, and approve baselines committed next to your stories — no cloud service.",
   "keywords": [
-    "storybook-addons",
+    "storybook-addon",
     "storybook",
     "visual-testing",
     "visual-regression-testing",
@@ -35,7 +35,7 @@
   },
   "storybook": {
     "displayName": "Storyproof",
-    "icon": "https://storyproof.dev/icon.svg",
+    "icon": "https://storyproof.dev/icon.png",
     "supportedFrameworks": [
       "react"
     ]
