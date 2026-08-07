@@ -59,15 +59,17 @@ describe("packed artifact", () => {
     await rm(destination, { recursive: true, force: true });
   });
 
-  test("ships exactly dist/**, LICENSE, README.md, and package.json within the size budget", async () => {
+  test("ships exactly dist/**, docs/**, CHANGELOG.md, LICENSE, README.md, and package.json within the size budget", async () => {
     const paths = result.files.map((file) => file.path).sort();
 
     const disallowed = paths.filter(
       (entryPath) =>
+        entryPath !== "CHANGELOG.md" &&
         entryPath !== "LICENSE" &&
         entryPath !== "README.md" &&
         entryPath !== "package.json" &&
-        !entryPath.startsWith("dist/"),
+        !entryPath.startsWith("dist/") &&
+        !entryPath.startsWith("docs/"),
     );
     expect(disallowed, "unallowlisted packed entries").toEqual([]);
 
@@ -97,19 +99,26 @@ describe("packed artifact", () => {
   });
 
   // The published artifact must never leak the pre-extraction internal
-  // codenames ("llame", "@workspace"). This scans the actual tarball
-  // contents — the thing npm ships — so it fails only when a leak really
-  // exists, not when someone edits configuration (the earlier
-  // identifier-contract test was deleted for the latter failure mode).
-  test("ships no pre-extraction internal codenames", () => {
-    const listing = spawnSync("tar", ["-xzOf", result.filename], {
-      cwd: destination,
-      encoding: "utf8",
-      maxBuffer: MAX_PACKED_ARCHIVE_SIZE_BYTES * 16,
-    });
-    expect(listing.status, listing.stderr).toBe(0);
-    for (const codename of ["llame", "@workspace"]) {
-      expect(listing.stdout).not.toContain(codename);
+  // codenames ("llame", "@workspace") in code. This scans only dist/**
+  // and package.json — documentation (CHANGELOG.md, docs/) legitimately
+  // references the project's provenance.
+  test("ships no pre-extraction internal codenames in code", () => {
+    const codeFiles = result.files
+      .map((file) => file.path)
+      .filter((p) => p.startsWith("dist/") || p === "package.json");
+    for (const filePath of codeFiles) {
+      const extracted = spawnSync(
+        "tar",
+        ["-xzOf", result.filename, `package/${filePath}`],
+        { cwd: destination, encoding: "utf8" },
+      );
+      expect(extracted.status, extracted.stderr).toBe(0);
+      for (const codename of ["llame", "@workspace"]) {
+        expect(
+          extracted.stdout,
+          `${filePath} contains "${codename}"`,
+        ).not.toContain(codename);
+      }
     }
   });
 

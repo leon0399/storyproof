@@ -16,9 +16,9 @@ single story from its panel, then approve the exact captured candidate.
 **[storyproof.dev](https://storyproof.dev)** ·
 [Source](https://github.com/leon0399/storyproof)
 
-- [Configuration](https://github.com/leon0399/storyproof/blob/main/packages/storyproof/docs/configuration.md)
-- [Capture contract](https://github.com/leon0399/storyproof/blob/main/packages/storyproof/docs/capture-contract.md)
-- [Changelog](https://github.com/leon0399/storyproof/blob/main/packages/storyproof/CHANGELOG.md)
+- [Configuration](docs/configuration.md)
+- [Capture contract](docs/capture-contract.md)
+- [Changelog](CHANGELOG.md)
 
 ## Install
 
@@ -26,6 +26,34 @@ single story from its panel, then approve the exact captured candidate.
 pnpm add -D storyproof playwright
 pnpm exec playwright install chromium
 ```
+
+or with npm:
+
+```bash
+npm install -D storyproof playwright
+npx playwright install chromium
+```
+
+Add the preset to your `.storybook/main.ts`:
+
+```ts
+import type { StorybookConfig } from "@storybook/react-vite";
+
+const config: StorybookConfig = {
+  addons: [
+    {
+      name: "storyproof/preset",
+      options: {
+        storyRoots: ["src"],
+      },
+    },
+  ],
+};
+
+export default config;
+```
+
+Start Storybook, pick a story, and open the **Visual tests** panel.
 
 **You own the Playwright version.** It is a peer dependency, not something
 storyproof pins for you, because the Playwright version is part of a baseline's
@@ -55,8 +83,8 @@ A baseline is only valid for the environment that rendered it — measured, not
 assumed: bare macOS and bare Linux render different pixels, and even two Linux
 machines with identical platform, browser build, and font metrics have been
 measured rasterizing differently (see the
-[capture contract](https://github.com/leon0399/storyproof/blob/main/packages/storyproof/docs/capture-contract.md)).
-storyproof therefore records identity in two layers:
+[capture contract](docs/capture-contract.md)). storyproof therefore records
+identity in two layers:
 
 - **The environment key** (`linux-chromium-1280x720@1x`) leads with the platform
   the browser renders on, so different platforms keep coexisting baselines
@@ -69,7 +97,7 @@ storyproof therefore records identity in two layers:
 For one developer on one machine, none of this needs configuring. A team on
 mixed machines chooses between per-platform baselines (the default) and one
 shared baseline set captured
-[inside the version-matched Playwright container](https://github.com/leon0399/storyproof/blob/main/packages/storyproof/docs/configuration.md#container-capture-capturecontainer)
+[inside the version-matched Playwright container](docs/configuration.md#container-capture-capturecontainer)
 (`capture: { container: true }`, requires Docker) — every machine then captures
 under the shared `container-…` key and produces identical pixels, which was
 likewise measured rather than assumed.
@@ -79,10 +107,9 @@ likewise measured rather than assumed.
 - **Cannot work today.** HTTPS capture origins and reverse-proxy path prefixes:
   the capture origin is not configurable, so the addon must share a loopback
   interface with Storybook. The one exception is
-  [container capture](https://github.com/leon0399/storyproof/blob/main/packages/storyproof/docs/configuration.md#container-capture-capturecontainer),
+  [container capture](docs/configuration.md#container-capture-capturecontainer),
   whose topology the addon owns. The
-  [capture contract](https://github.com/leon0399/storyproof/blob/main/packages/storyproof/docs/capture-contract.md)
-  itemizes them.
+  [capture contract](docs/capture-contract.md) itemizes them.
 - **Deferred, not precluded.** Remote approval, several engines in one run,
   viewport and theme matrices, masking, and a CI runner. Each expands baseline
   identity, review semantics, or execution topology, so each needs its own
@@ -137,14 +164,43 @@ content, including body portals. Fullscreen stories retain the viewport. A story
 or component can override that choice or disable visual capture through
 `parameters.visualTests`.
 
-See the
-[capture contract](https://github.com/leon0399/storyproof/blob/main/packages/storyproof/docs/capture-contract.md)
-for exact framing semantics and
-[configuration](https://github.com/leon0399/storyproof/blob/main/packages/storyproof/docs/configuration.md)
-for component and story examples.
+See the [capture contract](docs/capture-contract.md) for exact framing semantics
+and [configuration](docs/configuration.md) for component and story examples.
 
 The addon is development-only because approval writes repository files. Static
-Storybook builds keep the panel visible but mark visual testing unavailable.
+Storybook builds keep the panel visible but mark visual testing unavailable —
+this is not yet a CI runner.
+
+## Troubleshooting
+
+**"The chromium capture browser could not start"** (or firefox, webkit) —
+Playwright's browser binary is not installed. Run
+`pnpm exec playwright install chromium` (or the engine you configured).
+
+**"Storybook does not expose this capability via storyIndexGenerator"** — your
+Storybook version is below 10.5. Upgrade to `storybook@^10.5.0`.
+
+**Every baseline reports "changed" after a Playwright upgrade, but PNGs look
+identical** — the environment identity moved, not the pixels. `baseline.json`
+records the Playwright version; a mismatch is reported rather than diffed.
+Re-approve through a running example.
+
+**Render-fingerprint mismatch between two machines on the same platform** —
+fonts or rasterization differ below what version numbers can express. Capture
+through the
+[shared container](docs/configuration.md#container-capture-capturecontainer) so
+every machine produces identical pixels, or let each platform keep its own
+baselines.
+
+**Container capture fails: "Docker CLI not found"** — the Docker CLI must be on
+`PATH`. Install Docker or Docker Desktop. Podman's `podman-docker` shim is
+untested; see
+[configuration](docs/configuration.md#container-capture-capturecontainer).
+
+**HTTPS origins or reverse-proxy path prefixes** — not supported. The capture
+origin is `http://127.0.0.1:<port>`, so the addon must share a loopback
+interface with Storybook. See the
+[capture contract](docs/capture-contract.md#capture-origin).
 
 ## Contributing
 
