@@ -102,20 +102,17 @@ jobs:
         playwright: [catalog]
         storybook: [catalog]
         include:
-          # Playwright peer-dep floor: one chromium/host job proves the
-          # declared ^1.55.1 floor still works.
-          - node: 22
-            browser: chromium
-            topology: host
-            playwright: "1.55.1"
-            storybook: catalog
-          # Storybook latest: proves the broad ^10.5.0 peer doesn't break
-          # on new minors. Non-blocking (continue-on-error above).
-          - node: 22
-            browser: chromium
-            topology: host
-            playwright: catalog
-            storybook: latest
+          # Playwright floor probes — binary search for the real minimum.
+          - { node: 22, browser: chromium, topology: host, playwright: "1.55.1", storybook: catalog }
+          - { node: 22, browser: chromium, topology: host, playwright: "1.50.0", storybook: catalog }
+          - { node: 22, browser: chromium, topology: host, playwright: "1.45.0", storybook: catalog }
+          - { node: 22, browser: chromium, topology: host, playwright: "1.40.0", storybook: catalog }
+          # Storybook probes — 10.0.x is known broken, 10.5.x works.
+          - { node: 22, browser: chromium, topology: host, playwright: catalog, storybook: "~10.4.0" }
+          - { node: 22, browser: chromium, topology: host, playwright: catalog, storybook: "~10.3.0" }
+          - { node: 22, browser: chromium, topology: host, playwright: catalog, storybook: "~10.1.0" }
+          # Storybook latest: non-blocking (continue-on-error above).
+          - { node: 22, browser: chromium, topology: host, playwright: catalog, storybook: latest }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -138,18 +135,20 @@ jobs:
           pnpm install --no-frozen-lockfile
         env:
           PW_VERSION: ${{ matrix.playwright }}
-      - name: Override storybook to latest
-        if: matrix.storybook == 'latest'
+      - name: Override storybook version
+        if: matrix.storybook != 'catalog'
         run: |
           node -e '
             const fs = require("fs");
             const p = "packages/storyproof/package.json";
             const j = JSON.parse(fs.readFileSync(p, "utf8"));
-            j.devDependencies.storybook = "latest";
-            j.devDependencies["@storybook/react-vite"] = "latest";
+            j.devDependencies.storybook = process.env.SB_VERSION;
+            j.devDependencies["@storybook/react-vite"] = process.env.SB_VERSION;
             fs.writeFileSync(p, JSON.stringify(j, null, 2) + "\n");
           '
           pnpm install --no-frozen-lockfile
+        env:
+          SB_VERSION: ${{ matrix.storybook }}
       # Test driver is always chromium; matrix.browser is the addon's capture engine.
       - run: pnpm exec playwright install --with-deps chromium "$BROWSER"
         working-directory: packages/storyproof
