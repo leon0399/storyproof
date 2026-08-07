@@ -102,12 +102,10 @@ jobs:
         playwright: [catalog]
         storybook: [catalog]
         include:
-          # Playwright floor probes — narrowing between 1.40 (fail: browser
-          # install on Noble) and 1.45 (pass).
-          - { node: 22, browser: chromium, topology: host, playwright: "1.42.0", storybook: catalog }
-          - { node: 22, browser: chromium, topology: host, playwright: "1.43.0", storybook: catalog }
-          - { node: 22, browser: chromium, topology: host, playwright: "1.44.0", storybook: catalog }
-          # Storybook: 10.5.x confirmed as floor (10.4.x fails functionally).
+          # Playwright floor: 1.45.0 is the oldest version whose browser
+          # binaries install on Ubuntu 24.04 (Noble). 1.44 and below fail
+          # at `playwright install` — OS compatibility, not API.
+          - { node: 22, browser: chromium, topology: host, playwright: "1.45.0", storybook: catalog }
           # Storybook latest: non-blocking (continue-on-error above).
           - { node: 22, browser: chromium, topology: host, playwright: catalog, storybook: latest }
     steps:

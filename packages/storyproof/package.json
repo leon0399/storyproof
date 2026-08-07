@@ -84,7 +84,7 @@
     "vitest": "^4.1.10"
   },
   "peerDependencies": {
-    "playwright": "^1.55.1",
+    "playwright": "^1.45.0",
     "react": "^19.0.0",
     "storybook": "^10.5.0"
   },
