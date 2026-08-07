@@ -1,0 +1,1789 @@
+.github/workflows/ci.yml
+  c7731443d3d9f245 135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.6",
+  "base_commit_sha": "276aba2ce0256b2515d745de65244592fad579f9",
+  "prompts": {
+    "c7731443d3d9f245": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "974a7763-79a2-469f-a1ff-4e049e8b9a78",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Leonid Meleshin <leon.03.99@gmail.com>",
+      "messages": [
+        {
+          "type": "user",
+          "text": "Freeze and reconcile the support contract\n\nSeveral current claims contradict one another.\n\nReact\n\nThe package README says “React: not required”, but:\n\nreact ^19.0.0 is a mandatory peer dependency;\nthe shipped manager directly imports react;\nthe only declared supported frameworks are React-Vite and Next.js-Vite.\n\nFor 0.1.0, the straightforward honest contract is:\n\nReact 19 is required by the currently supported React-based Storybook frameworks.\n\nLater, when Vue support exists, you can revisit whether React should be supplied through Storybook’s manager runtime, bundled, or represented as an optional peer. But the stable README must agree with the actual package manifest.\n\nStorybook\n\nstorybook ^10.5.0 promises compatibility with future Storybook 10.x minors, while Storyproof uses:\n\nstorybook/internal/*;\nexperimental_getStatusStore;\nexperimental_getTestProviderStore;\nexperimental_TEST_PROVIDER;\nthe undocumented/experimental storyIndexGenerator capability.\n\nThose APIs may be entirely appropriate for an addon, but their stability cannot merely be inferred from the public semver range. Storybook typically ships minors roughly every eight weeks and patches only the latest minor, so this compatibility boundary will be exercised soon.\n\nChoose one of these policies:\n\nConservative first-stable policy: use >=10.5.0 <10.6.0, test exact 10.5.0 plus the newest 10.5.x, and widen after proving the next minor.\nBroad policy: retain ^10.5.0, but add rolling CI against storybook@latest and treat a newly released minor failure as a release blocker.\n\nI prefer the first for 0.1.0. A minor-scoped compatibility line is normal for software built on experimental framework APIs.\n\nPlaywright\n\nThe package currently claims playwright ^1.55.1, but the pending prerelease notes explicitly say only 1.55.1 is exercised in CI.\n\nEither test:\n\nexact minimum 1.55.1;\nnewest currently supported Playwright;\n\nor describe other 1.x versions as best-effort. Because Storyproof derives its container image, browser identity, and baseline compatibility from the installed Playwright version, a floor-and-latest compatibility job would be valuable.\n\nNode\n\n>=22.12 also admits untested odd and future Node majors. The repository has already encountered a Node 24 patch-level Firefox/Playwright transport regression.\n\nFor stable, define the tested line explicitly—something like Node 22 LTS and a known-good Node 24 patch—and document any known-bad Node/Firefox combination until it has been revalidated. Do not let the engines field imply that arbitrary future Node majors are supported.\n\nPublic wording\n\nThe package and root descriptions still say Storyproof captures Chromium screenshots, even though Firefox and WebKit are now supported. The storage example also uses chromium-1280x720@1x, while the actual documented environment identity is platform-prefixed, such as linux-chromium-1280x720@1x.\n\nI would do a deliberate terminology sweep before stable:\n\n“browser screenshots, Chromium by default”;\n“WebKit,” never “Safari”;\nplatform-prefixed storage examples;\ncontainer versus host environment identities;\ncurrent schema and migration behavior.\n\nThese are contract bugs, not cosmetic wording.",
+          "timestamp": "2026-08-07T15:05:45.359Z"
+        },
+        {
+          "type": "assistant",
+          "text": "I'll start by loading the skills baseline, then orient in the actual manifests before committing to any wording.",
+          "timestamp": "2026-08-07T15:05:50.967Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Skill",
+          "input": {
+            "skill": "using-superpowers"
+          },
+          "timestamp": "2026-08-07T15:05:51.500Z"
+        },
+        {
+          "type": "user",
+          "text": "Base directory for this skill: /home/leon0399/.claude/plugins/cache/claude-plugins-official/superpowers/6.2.0/skills/using-superpowers\n\n<SUBAGENT-STOP>\nIf you were dispatched as a subagent to execute a specific task, ignore this skill.\n</SUBAGENT-STOP>\n\n<EXTREMELY-IMPORTANT>\nIf you think there is even a 1% chance a skill might apply to what you are doing, you ABSOLUTELY MUST invoke the skill.\n\nIF A SKILL APPLIES TO YOUR TASK, YOU DO NOT HAVE A CHOICE. YOU MUST USE IT.\n\nThis is not negotiable. You cannot rationalize your way out of this.\n</EXTREMELY-IMPORTANT>\n\n## The Rule\n\n**Invoke relevant or requested skills BEFORE any response or action** — including clarifying questions, exploring the codebase, or checking files. If it turns out wrong for the situation, you don't have to use it.\n\n**Before entering plan mode:** if you haven't already brainstormed, invoke the brainstorming skill first.\n\nThen announce \"Using [skill] to [purpose]\" and follow the skill exactly. If it has a checklist, create a todo per item.\n\n## Skill Priority\n\nWhen multiple skills apply, process skills come first — they set the approach, then implementation skills (frontend-design, etc.) carry it out. Brainstorming and systematic-debugging are Superpowers' most common process skills, but the rule holds for any of them.\n\n- \"Let's build X\" → superpowers:brainstorming first, then implementation skills.\n- \"Fix this bug\" → superpowers:systematic-debugging first, then domain skills.\n\n## Red Flags\n\nThese thoughts mean STOP—you're rationalizing:\n\n| Thought | Reality |\n|---------|---------|\n| \"This is just a simple question\" | Questions are tasks. Check for skills. |\n| \"I need more context first\" | Skill check comes BEFORE clarifying questions. |\n| \"Let me explore the codebase first\" | Skills tell you HOW to explore. Check first. |\n| \"I can check git/files quickly\" | Files lack conversation context. Check for skills. |\n| \"Let me gather information first\" | Skills tell you HOW to gather information. |\n| \"This doesn't need a formal skill\" | If a skill exists, use it. |\n| \"I remember this skill\" | Skills evolve. Read current version. |\n| \"This doesn't count as a task\" | Action = task. Check for skills. |\n| \"The skill is overkill\" | Simple things become complex. Use it. |\n| \"I'll just do this one thing first\" | Check BEFORE doing anything. |\n| \"This feels productive\" | Undisciplined action wastes time. Skills prevent this. |\n| \"I know what that means\" | Knowing the concept ≠ using the skill. Invoke it. |\n\n## Platform Adaptation\n\nIf your harness appears here, read its reference file for special instructions:\n\n- Codex: `references/codex-tools.md`\n- Pi: `references/pi-tools.md`\n- Antigravity: `references/antigravity-tools.md`\n\n## User Instructions\n\nUser instructions (CLAUDE.md, AGENTS.md, GEMINI.md, etc, direct requests) take precedence over skills, which in turn override default behavior. Only skip skill workflows or instructions when your human partner has explicitly told you to.\n",
+          "timestamp": "2026-08-07T15:05:51.823Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "pwd && git branch --show-current && git status --short",
+            "description": "Confirm working directory and branch"
+          },
+          "timestamp": "2026-08-07T15:05:57.588Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/package.json"
+          },
+          "timestamp": "2026-08-07T15:05:58.279Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/package.json"
+          },
+          "timestamp": "2026-08-07T15:05:58.286Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "git log --oneline main..HEAD && echo \"---catalog---\" && cat pnpm-workspace.yaml && echo \"---changesets---\" && ls -la .changeset/",
+            "description": "Inspect branch commits, catalog, changesets"
+          },
+          "timestamp": "2026-08-07T15:06:07.234Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "ls .github/workflows/ .github/actions/ 2>/dev/null && echo \"===\" && cat .node-version",
+            "description": "List CI workflows and node version"
+          },
+          "timestamp": "2026-08-07T15:06:08.124Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cat .github/workflows/ci.yml",
+            "description": "Read CI workflow"
+          },
+          "timestamp": "2026-08-07T15:06:12.311Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof/.changeset && for f in first-public-preview.md playwright-peer-dependency.md; do echo \"=== $f ===\"; cat \"$f\"; done",
+            "description": "Read the two key changesets"
+          },
+          "timestamp": "2026-08-07T15:06:12.800Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof/packages/storyproof && echo \"=== tsdown.config.ts ===\" && cat tsdown.config.ts && echo \"=== react imports in src ===\" && rg -n \"from ['\\\"]react\" src/ && echo \"=== jsx pragma/comments ===\" && rg -n \"jsx\" -i src/ tsdown.config.ts tsconfig.json 2>/dev/null | head -40",
+            "description": "Inspect build config and React imports"
+          },
+          "timestamp": "2026-08-07T15:06:29.731Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && echo \"=== node 24 / firefox regression mentions ===\" && rg -rn \"node 24|Node 24|node24|transport|24\\.1[0-9]\" --glob '!node_modules' --glob '!pnpm-lock.yaml' -i . | head -40",
+            "description": "Search for Node 24 Firefox regression notes"
+          },
+          "timestamp": "2026-08-07T15:06:31.183Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "git log --all --oneline --grep=\"firefox\" -i | head -20 && echo \"=== node grep ===\" && git log --all --oneline --grep=\"node 2\" -i | head -20 && echo \"=== manager.tsx head ===\" && sed -n '1,30p' packages/storyproof/src/manager.tsx",
+            "description": "Search git history for firefox/node regression"
+          },
+          "timestamp": "2026-08-07T15:06:37.926Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "echo \"=== storybook internal imports ===\" && rg -n \"storybook/internal|experimental_\" packages/storyproof/src/ | head -40 && echo \"=== storyIndexGenerator ===\" && rg -n \"storyIndexGenerator\" packages/storyproof/src/ examples/ 2>/dev/null | head",
+            "description": "Inventory Storybook internal/experimental API usage"
+          },
+          "timestamp": "2026-08-07T15:06:38.996Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "echo \"=== 'Chromium screenshots' / chromium-only wording ===\" && rg -n \"Chromium screenshot|Chromium screenshots|captures Chromium\" --glob '!node_modules' --glob '!pnpm-lock.yaml' . && echo; echo \"=== Safari mentions ===\" && rg -n \"Safari\" --glob '!node_modules' --glob '!pnpm-lock.yaml' . ; echo; echo \"=== non-platform-prefixed env key examples ===\" && rg -n \"chromium-1280x720@1x\" --glob '!node_modules' --glob '!pnpm-lock.yaml' .",
+            "description": "Find stale wording repo-wide"
+          },
+          "timestamp": "2026-08-07T15:07:03.156Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cat packages/storyproof/tsconfig.build.json && echo \"=== examples pkgs ===\" && for f in examples/*/package.json; do echo \"--- $f\"; cat \"$f\"; done",
+            "description": "Read build tsconfig and example manifests"
+          },
+          "timestamp": "2026-08-07T15:07:03.416Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cat /home/leon0399/.claude/projects/-home-leon0399-Projects-storyproof/memory/webkit-smoke-flaky-required-check.md 2>/dev/null; echo \"=== show c929cc7 ===\"; git show c929cc7 --stat --format=\"%s%n%n%b\"",
+            "description": "Read webkit flake memory and engine timeout commit"
+          },
+          "timestamp": "2026-08-07T15:07:16.312Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "rg -rn \"22\\.12|node-version|Node 22|Node ≥|Node >=\" --glob '!node_modules' --glob '!pnpm-lock.yaml' --glob '!*.log' . | head -30; echo \"=== setup action ===\"; cat .github/actions/setup/action.yml",
+            "description": "Find Node version claims and setup action"
+          },
+          "timestamp": "2026-08-07T15:07:17.969Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "gh issue list --state all --limit 50 --json number,title,state --template '{{range .}}#{{.number}} [{{.state}}] {{.title}}{{\"\\n\"}}{{end}}' 2>&1 | head -60",
+            "description": "List GitHub issues"
+          },
+          "timestamp": "2026-08-07T15:07:32.668Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "git log --all --oneline -S \"24.15\" -- .node-version | cat; echo \"=== .node-version history ===\"; git log --all --oneline --follow -p -- .node-version | head -60",
+            "description": "Trace .node-version history"
+          },
+          "timestamp": "2026-08-07T15:07:33.418Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "gh issue view 39 --json number,title,state,stateReason,body,comments --template '{{.number}} {{.title}} [{{.state}}/{{.stateReason}}]{{\"\\n\\n\"}}{{.body}}{{\"\\n\\n--- COMMENTS ---\\n\"}}{{range .comments}}{{.author.login}}: {{.body}}{{\"\\n\\n\"}}{{end}}'",
+            "description": "Read issue 39 in full"
+          },
+          "timestamp": "2026-08-07T15:07:43.312Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "gh issue view 39 --json closedAt,timelineItems 2>/dev/null | head -c 2000; echo; echo \"=== recent runs ===\"; gh run list --workflow=ci.yml --limit 8 --json conclusion,headBranch,event,createdAt,displayTitle --template '{{range .}}{{.conclusion}} | {{.headBranch}} | {{.displayTitle}}{{\"\\n\"}}{{end}}'",
+            "description": "Check issue 39 closure and recent CI runs"
+          },
+          "timestamp": "2026-08-07T15:07:56.403Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "rid=$(gh run list --workflow=ci.yml --branch main --limit 1 --json databaseId -q '.[0].databaseId'); echo \"run $rid\"; gh run view \"$rid\" --json jobs -q '.jobs[] | select(.name|test(\"firefox\")) | \"\\(.conclusion) | \\(.name)\"'",
+            "description": "Check firefox acceptance cells on latest main run"
+          },
+          "timestamp": "2026-08-07T15:08:09.313Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /tmp/claude-1000/-home-leon0399-Projects-storyproof/974a7763-79a2-469f-a1ff-4e049e8b9a78/scratchpad && jid=$(gh run view 31180443027 --json jobs -q '.jobs[] | select(.name==\"acceptance - node 24 - firefox - host\") | .databaseId'); echo \"job $jid\"; gh run view --job \"$jid\" --log > ff-node24.log 2>&1; grep -niE \"v24\\.|Attempting to download|node-version|Found in cache\" ff-node24.log | head -20",
+            "description": "Find the Node patch used in the passing firefox node24 job"
+          },
+          "timestamp": "2026-08-07T15:08:27.778Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "S=/tmp/claude-1000/-home-leon0399-Projects-storyproof/974a7763-79a2-469f-a1ff-4e049e8b9a78/scratchpad; jid=$(gh run view 31180443027 --json jobs -q '.jobs[] | select(.name==\"acceptance - node 24 - firefox - host\") | .databaseId'); echo \"job $jid\"; gh run view --job \"$jid\" --log > \"$S/ff-node24.log\" 2>&1; grep -niE \"v24\\.[0-9]+|node-version|flaky|passed|24 flaky\" \"$S/ff-node24.log\" | head -25",
+            "description": "Extract Node patch and test outcome from job log"
+          },
+          "timestamp": "2026-08-07T15:08:36.538Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "gh issue view 39 --json closedAt -q .closedAt; echo \"--- prs mentioning 39 ---\"; gh pr list --state all --limit 15 --json number,title,body -q '.[] | select(.body|test(\"#39\"; \"i\")) | \"#\\(.number) \\(.title)\"'; echo \"--- commits mentioning 39 ---\"; git log --all --oneline --grep=\"#39\" | cat",
+            "description": "Find what closed issue 39"
+          },
+          "timestamp": "2026-08-07T15:08:57.349Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "git show 582c23a --format=\"%s%n%n%b\" --stat | head -60",
+            "description": "Read the commit that closed issue 39"
+          },
+          "timestamp": "2026-08-07T15:09:04.020Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Substantial facts gathered. Let me read the remaining doc surfaces before committing to an approach.",
+          "timestamp": "2026-08-07T15:09:50.059Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/docs/configuration.md"
+          },
+          "timestamp": "2026-08-07T15:09:50.284Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/docs/capture-contract.md"
+          },
+          "timestamp": "2026-08-07T15:09:56.020Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "rg -n \"could not start|Chromium|chromium\" packages/storyproof/src/ --glob '!*.stories.tsx' | head -30",
+            "description": "Check engine-specific runtime strings in source"
+          },
+          "timestamp": "2026-08-07T15:10:04.875Z"
+        },
+        {
+          "type": "assistant",
+          "text": "I have the full picture, including several places where the user's brief is out of date with the repo. Let me get a review of my approach before writing.",
+          "timestamp": "2026-08-07T15:10:09.944Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Advisor confirmed my read and flagged additional sites. One thing to verify before writing: whether the addon actually needs a Playwright API newer than the declared floor.",
+          "timestamp": "2026-08-07T15:11:04.606Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd packages/storyproof && rg -n \"\\.(newContext|newPage|launch|connect|screenshot|evaluate|goto|waitFor[A-Za-z]*|addInitScript|route|close|setViewportSize)\\(\" src/node/*.ts | head -40; echo \"=== context options ===\"; sed -n '100,175p' src/node/capture.ts",
+            "description": "Inventory the Playwright API surface used"
+          },
+          "timestamp": "2026-08-07T15:11:06.693Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Facts confirmed: the Playwright API surface used (`launch`, `newContext` with `reducedMotion`, `addInitScript`, `screenshot({clip})`, `connect`, `run-server`) is all long-stable — nothing requires above the declared floor. Writing the changes now, manifest first.",
+          "timestamp": "2026-08-07T15:13:55.429Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/package.json",
+            "new_string": "  \"description\": \"Local visual regression testing for Storybook: capture browser screenshots, review diffs, and approve baselines committed next to your stories — no cloud service.\",\n  \"keywords\": [\n    \"storybook-addon\",\n    \"storybook\",\n    \"visual-testing\",\n    \"visual-regression-testing\",\n    \"screenshot-testing\",\n    \"snapshot-testing\",\n    \"regression-testing\",\n    \"visual-diff\",\n    \"playwright\",\n    \"chromium\",\n    \"firefox\",\n    \"webkit\",\n    \"testing\",\n    \"addon\"\n  ],",
+            "old_string": "  \"description\": \"Local visual regression testing for Storybook: capture Chromium screenshots, review diffs, and approve baselines committed next to your stories — no cloud service.\",\n  \"keywords\": [\n    \"storybook-addon\",\n    \"storybook\",\n    \"visual-testing\",\n    \"visual-regression-testing\",\n    \"screenshot-testing\",\n    \"snapshot-testing\",\n    \"regression-testing\",\n    \"visual-diff\",\n    \"playwright\",\n    \"chromium\",\n    \"testing\",\n    \"addon\"\n  ],",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:13:58.874Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/package.json",
+            "new_string": "  \"peerDependencies\": {\n    \"playwright\": \"^1.55.1\",\n    \"react\": \"^19.0.0\",\n    \"storybook\": \">=10.5.0 <10.6.0\"\n  },\n  \"engines\": {\n    \"node\": \"^22.12.0 || ^24.0.0\"\n  }",
+            "old_string": "  \"peerDependencies\": {\n    \"playwright\": \"^1.55.1\",\n    \"react\": \"^19.0.0\",\n    \"storybook\": \"^10.5.0\"\n  },\n  \"engines\": {\n    \"node\": \">=22.12\"\n  }",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:14:10.372Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Now the package README — the support table is the contract's public face.",
+          "timestamp": "2026-08-07T15:14:13.757Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/README.md",
+            "new_string": "Local visual regression testing for Storybook. Storyproof captures browser\nscreenshots of your stories — Chromium by default, Firefox and WebKit on request\n— shows baseline/candidate/diff images inside Storybook itself, and approves\nbaselines as PNG files committed next to your story source — no cloud service, no\naccounts, reviewed like any other change in your repository. Run the full visual\nsuite from Storybook's testing widget or a single story from its panel, then\napprove the exact captured candidate.",
+            "old_string": "Local visual regression testing for Storybook. Storyproof captures Chromium\nscreenshots of your stories, shows baseline/candidate/diff images inside\nStorybook itself, and approves baselines as PNG files committed next to your\nstory source — no cloud service, no accounts, reviewed like any other change in\nyour repository. Run the full visual suite from Storybook's testing widget or a\nsingle story from its panel, then approve the exact captured candidate.",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:14:17.029Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/README.md",
+            "new_string": "## Supported versions\n\nTwo columns, because they answer different questions: what the manifest accepts,\nand what is actually exercised. Where they differ, the right-hand column is the\nsupport you can rely on.\n\n| Dimension     | Declared range                                        | Exercised in CI                    |\n| ------------- | ----------------------------------------------------- | ---------------------------------- |\n| Node.js       | `^22.12.0 \\|\\| ^24.0.0`                               | latest 22.x and 24.x               |\n| Storybook     | `>=10.5.0 <10.6.0`                                    | 10.5.x                             |\n| Framework     | `@storybook/react-vite`, `@storybook/nextjs-vite`     | both                               |\n| React         | `^19.0.0`, **required**                               | 19.2.x                             |\n| Playwright    | `^1.55.1`, a peer dependency you install              | 1.62.0 only                        |\n| Browser       | Chromium (default), Firefox, WebKit                   | all three, host and container       |\n| OS            | not constrained                                       | Ubuntu 24.04 x64 (`ubuntu-latest`) |\n| Storybook run | local development server; static builds are read-only | both                               |\n\nEach of these is a deliberate line, not an inherited default:\n\n- **Storybook is pinned to one minor** because the addon builds on capabilities\n  Storybook does not cover by semver: `storybook/internal/*`,\n  `experimental_getStatusStore`, `experimental_getTestProviderStore`,\n  `experimental_TEST_PROVIDER`, and the `storyIndexGenerator` preset — which is\n  absent from 10.0.x's common preset and present from 10.5.x onward, a capability\n  that moved within a major. A published range wider than what a minor was tested\n  against would be a guess. The range widens after the next minor is verified,\n  not before it ships.\n- **React 19 is required**, and the peer dependency is not optional. Every\n  supported framework is React-based, and the manager UI renders through React.\n  It renders against Storybook's own React instance rather than bundling a second\n  copy, but that is an implementation detail of the build, not a reason to call\n  the dependency optional — nothing here has been tested without React present.\n- **Playwright's range is wider than its evidence.** `1.62.0` is the only version\n  CI exercises, and the version the committed example baselines were captured\n  with. The declared floor is where the API this addon uses (`launch`,\n  `newContext`, `addInitScript`, clipped `screenshot`, `connect`) has been stable\n  since, so lower 1.x releases are **best-effort**: they are expected to work and\n  are not verified. The range stays wide because you own this version — see\n  below.\n- **Node is bounded to the majors that are tested.** 22.12 is the floor; 24.x is\n  the other tested line and the development pin. Odd-numbered and future majors\n  are deliberately excluded rather than implied: non-Chromium capture is\n  sensitive to Node's socket and stream behavior, and a Node 24 patch release has\n  already broken Firefox capture once\n  ([#39](https://github.com/leon0399/storyproof/issues/39) — a Node core\n  regression in browser-context teardown, since resolved; a capture that hangs\n  now reports a timeout instead of freezing).\n\nThe OS row is the honest shape of a local development tool: nothing refuses to\nrun elsewhere, macOS and Windows are used in development, and only Linux x64 is\ncontinuously verified. Because baselines carry an environment identity, an\nunverified platform gets its own baseline set rather than silently comparing\nagainst someone else's pixels.",
+            "old_string": "## Supported versions\n\n| Dimension     | Supported                                             |\n| ------------- | ----------------------------------------------------- |\n| Node.js       | `>=22.12`                                             |\n| Storybook     | `^10.5.0`                                             |\n| Framework     | `@storybook/react-vite`, `@storybook/nextjs-vite`     |\n| Playwright    | `^1.55.1`, a peer dependency you install              |\n| Browser       | Chromium (default), Firefox, WebKit                   |\n| React         | not required                                          |\n| Storybook run | local development server; static builds are read-only |\n\nPreview: the ranges in `package.json` are provisional. CI verifies on Ubuntu\n24.04 x64.",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:14:47.610Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/README.md",
+            "new_string": "[![node](https://img.shields.io/node/v/storyproof)](#supported-versions)",
+            "old_string": "[![node](https://img.shields.io/node/v/storyproof)](https://github.com/leon0399/storyproof/blob/main/.node-version)",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:14:52.447Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Now the storage example (platform-prefixed) and the capture-contract summary in the same README.",
+          "timestamp": "2026-08-07T15:14:56.745Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/README.md",
+            "limit": 45,
+            "offset": 140
+          },
+          "timestamp": "2026-08-07T15:14:57.350Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/README.md",
+            "new_string": "```text\nbutton.stories.tsx\n__screenshots__/\n  button.stories.tsx.visual/\n    button--primary/\n      linux-chromium-1280x720@1x/     # host capture on Linux\n        baseline.png\n        baseline.json\n        candidate.png\n        diff.png\n      container-chromium-1280x720@1x/  # the same story, captured in the container\n        baseline.png\n        baseline.json\n```\n\nThe directory name is the environment key, and it always leads with where the\nbrowser rendered: your platform (`linux`, `darwin`, `win32`) for host capture, or\nthe literal `container` for container capture. Two environments therefore coexist\nas sibling directories instead of overwriting each other, which is why the\nexample above shows both.\n\nCommit `baseline.png` and `baseline.json`. Candidate, diff, result, and atomic\ntemporary files are gitignored. The `.visual` suffix prevents Storybook's story\nglob from mistaking an artifact directory for a story file.",
+            "old_string": "```text\nbutton.stories.tsx\n__screenshots__/\n  button.stories.tsx.visual/\n    button--primary/\n      chromium-1280x720@1x/\n        baseline.png\n        baseline.json\n        candidate.png\n        diff.png\n```\n\nCommit `baseline.png` and `baseline.json`. Candidate, diff, result, and atomic\ntemporary files are gitignored. The `.visual` suffix prevents Storybook's story\nglob from mistaking an artifact directory for a story file.",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:15:09.047Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/README.md",
+            "new_string": "The environment is fixed, and one engine is captured per Storybook development\nserver: a browser from your own `playwright` install — Chromium unless\n[`capture.browser`](https://github.com/leon0399/storyproof/blob/main/packages/storyproof/docs/configuration.md#capture-engine-capturebrowser)\nselects Firefox or WebKit — at `1280x720`, DPR 1, `en-US`, UTC, and reduced\nmotion. Capture waits for Storybook's finished event, including the story `play`\nfunction. Normal component stories are cropped to their visible content,\nincluding body portals. Fullscreen stories retain the viewport. A story or\ncomponent can override that choice or disable visual capture through\n`parameters.visualTests`.\n\n`baseline.json` is at **schema 2**, which records the browser name and version,\nPlaywright version, platform, render fingerprint, viewport, device scale factor,\ncomparator policy, and the approved image hash. Any of those differing from the\ncandidate is reported as a named incompatibility, never as a pixel diff. A\nschema-1 baseline — approved before environment identity existed — reports a\nmigration message and needs one re-approval; there is no in-place rewrite,\nbecause the fields it would need were never recorded.",
+            "old_string": "The initial environment is fixed: Chromium from your own `playwright` install,\n`1280x720`, DPR 1, `en-US`, UTC, and reduced motion. Capture waits for\nStorybook's finished event, including the story `play` function. Normal\ncomponent stories are cropped to their visible content, including body portals.\nFullscreen stories retain the viewport. A story or component can override that\nchoice or disable visual capture through `parameters.visualTests`.",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:15:21.914Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/README.md",
+            "limit": 40,
+            "offset": 18
+          },
+          "timestamp": "2026-08-07T15:15:29.359Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/README.md",
+            "new_string": "```bash\npnpm add -D storyproof playwright\npnpm exec playwright install chromium   # or: firefox, webkit\n```\n\nReact 19 is required, and it is already present in every supported framework's\nproject. Install only the engine you intend to capture with — Chromium is the\ndefault, and container capture ships all three regardless.\n\n**You own the Playwright version.**",
+            "old_string": "```bash\npnpm add -D storyproof playwright\npnpm exec playwright install chromium\n```\n\n**You own the Playwright version.**",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:15:36.124Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Now the root README.",
+          "timestamp": "2026-08-07T15:15:43.700Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/README.md",
+            "limit": 32,
+            "offset": 1
+          },
+          "timestamp": "2026-08-07T15:15:44.394Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/README.md",
+            "new_string": "Local visual regression testing for Storybook. Storyproof captures browser\nscreenshots of your stories — Chromium by default, Firefox and WebKit on request\n— shows baseline/candidate/diff images inside Storybook itself, and approves\nbaselines as PNG files committed next to your story source — no cloud service, no\naccounts, reviewed like any other change in your repository.",
+            "old_string": "Local visual regression testing for Storybook. Storyproof captures Chromium\nscreenshots of your stories, shows baseline/candidate/diff images inside\nStorybook itself, and approves baselines as PNG files committed next to your\nstory source — no cloud service, no accounts, reviewed like any other change in\nyour repository.",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:15:50.589Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/README.md",
+            "limit": 14,
+            "offset": 24
+          },
+          "timestamp": "2026-08-07T15:15:54.701Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/README.md",
+            "new_string": "```bash\npnpm add -D storyproof playwright\npnpm exec playwright install chromium   # or: firefox, webkit\n```\n\nStorybook 10.5.x, React 19, and Node 22.12+ or 24.x. You own the Playwright\nversion: it is a peer dependency, because it is part of a baseline's identity.\nSee\n[the package README](packages/storyproof/README.md#supported-versions) for the\nfrozen support contract, the trust boundary, and where baselines are stored.",
+            "old_string": "```bash\npnpm add -D storyproof playwright\npnpm exec playwright install chromium\n```\n\nYou own the Playwright version: it is a peer dependency, because it is part of a\nbaseline's identity. See [the package README](packages/storyproof/README.md) for\nthe support target, the trust boundary, and where baselines are stored.",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:16:02.153Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Now `docs/configuration.md` — the \"not verified support\" line that would undo the freeze, and the stale container tag.",
+          "timestamp": "2026-08-07T15:16:06.668Z"
+        },
+        {
+          "type": "user",
+          "text": "[Request interrupted by user]",
+          "timestamp": "2026-08-07T15:16:08.452Z"
+        },
+        {
+          "type": "user",
+          "text": "<local-command-caveat>Caveat: The messages below were generated by the user while running local commands. DO NOT respond to these messages or otherwise consider them in your response unless the user explicitly asks you to.</local-command-caveat>",
+          "timestamp": "2026-08-07T15:16:45.934Z"
+        },
+        {
+          "type": "user",
+          "text": "<command-name>/model</command-name>\n            <command-message>model</command-message>\n            <command-args>claude-opus-4-6[1m]</command-args>",
+          "timestamp": "2026-08-07T15:16:45.931Z"
+        },
+        {
+          "type": "user",
+          "text": "<local-command-stdout>Set model to \u001b[1mOpus 4.6 (1M context)\u001b[22m and saved as your default for new sessions</local-command-stdout>",
+          "timestamp": "2026-08-07T15:16:45.931Z"
+        },
+        {
+          "type": "user",
+          "text": "<command-message>ponytail</command-message>\n<command-name>/ponytail</command-name>\n<command-args>full</command-args>",
+          "timestamp": "2026-08-07T15:16:50.992Z"
+        },
+        {
+          "type": "user",
+          "text": "Base directory for this skill: /home/leon0399/.claude/skills/ponytail\n\n# Ponytail\n\nYou are a lazy senior developer. Lazy means efficient, not careless. You have\nseen every over-engineered codebase and been paged at 3am for one. The best\ncode is the code never written.\n\n## Persistence\n\nACTIVE EVERY RESPONSE. No drift back to over-building. Still active if\nunsure. Off only: \"stop ponytail\" / \"normal mode\". Default: **full**.\nSwitch: `/ponytail lite|full|ultra`.\n\n## The ladder\n\nStop at the first rung that holds:\n\n1. **Does this need to exist at all?** Speculative need = skip it, say so in one line. (YAGNI)\n2. **Already in this codebase?** A helper, util, type, or pattern that already lives here → reuse it. Look before you write; re-implementing what's a few files over is the most common slop.\n3. **Stdlib does it?** Use it.\n4. **Native platform feature covers it?** `<input type=\"date\">` over a picker lib, CSS over JS, DB constraint over app code.\n5. **Already-installed dependency solves it?** Use it. Never add a new one for what a few lines can do.\n6. **Can it be one line?** One line.\n7. **Only then:** the minimum code that works.\n\nThe ladder is a reflex, not a research project — but it runs *after* you\nunderstand the problem, not instead of it. Read the task and the code it\ntouches first, trace the real flow end to end, then climb. Two rungs work →\ntake the higher one and move on. The first lazy solution that works is the\nright one — once you actually know what the change has to touch.\n\n**Bug fix = root cause, not symptom.** A report names a symptom. Before you\nedit, grep every caller of the function you're about to touch. The lazy fix IS\nthe root-cause fix: one guard in the shared function is a smaller diff than a\nguard in every caller — and patching only the path the ticket names leaves\nevery sibling caller still broken. Fix it once, where all callers route through.\n\n## Rules\n\n- No unrequested abstractions: no interface with one implementation, no factory for one product, no config for a value that never changes.\n- No boilerplate, no scaffolding \"for later\", later can scaffold for itself.\n- Deletion over addition. Boring over clever, clever is what someone decodes at 3am.\n- Fewest files possible. Shortest working diff wins — but only once you understand the problem. The smallest change in the wrong place isn't lazy, it's a second bug.\n- Complex request? Ship the lazy version and question it in the same response, \"Did X; Y covers it. Need full X? Say so.\" Never stall on an answer you can default.\n- Two stdlib options, same size? Take the one that's correct on edge cases. Lazy means writing less code, not picking the flimsier algorithm.\n- Mark deliberate simplifications with a `ponytail:` comment (`// ponytail: this exists`), simple reads as intent, not ignorance. Shortcut with a known ceiling (global lock, O(n²) scan, naive heuristic)? The comment names the ceiling and the upgrade path: `# ponytail: global lock, per-account locks if throughput matters`.\n\n## Output\n\nCode first. Then at most three short lines: what was skipped, when to add it.\nNo essays, no feature tours, no design notes. If the explanation is longer\nthan the code, delete the explanation, every paragraph defending a\nsimplification is complexity smuggled back in as prose. Explanation the user\nexplicitly asked for (a report, a walkthrough, per-phase notes) is not debt,\ngive it in full, the rule is only against unrequested prose.\n\nPattern: `[code] → skipped: [X], add when [Y].`\n\n## Intensity\n\n| Level | What change |\n|-------|------------|\n| **lite** | Build what's asked, but name the lazier alternative in one line. User picks. |\n| **full** | The ladder enforced. Stdlib and native first. Shortest diff, shortest explanation. Default. |\n| **ultra** | YAGNI extremist. Deletion before addition. Ship the one-liner and challenge the rest of the requirement in the same breath. |\n\nExample: \"Add a cache for these API responses.\"\n- lite: \"Done, cache added. FYI: `functools.lru_cache` covers this in one line if you'd rather not own a cache class.\"\n- full: \"`@lru_cache(maxsize=1000)` on the fetch function. Skipped custom cache class, add when lru_cache measurably falls short.\"\n- ultra: \"No cache until a profiler says so. When it does: `@lru_cache`. A hand-rolled TTL cache class is a bug farm with a hit rate.\"\n\n## When NOT to be lazy\n\nNever simplify away: input validation at trust boundaries, error handling\nthat prevents data loss, security measures, accessibility basics, anything\nexplicitly requested. User insists on the full version → build it, no\nre-arguing.\n\nNever lazy about understanding the problem. The ladder shortens the\nsolution, never the reading. Trace the whole thing first — every file the\nchange touches, the actual flow — before picking a rung. Laziness that skips\ncomprehension to ship a small diff is the dangerous kind: it dresses up as\nefficiency and ships a confident wrong fix. Read fully, then be lazy.\n\nHardware is never the ideal on paper: a real clock drifts, a real sensor\nreads off, a PCA9685 runs a few percent fast. Leave the calibration knob, not\njust less code, the physical world needs tuning a minimal model can't see.\n\nLazy code without its check is unfinished. Non-trivial logic (a branch, a\nloop, a parser, a money/security path) leaves ONE runnable check behind, the\nsmallest thing that fails if the logic breaks: an `assert`-based\n`demo()`/`__main__` self-check or one small `test_*.py`. No frameworks, no\nfixtures, no per-function suites unless asked. Trivial one-liners need no\ntest, YAGNI applies to tests too.\n\n## Boundaries\n\nPonytail governs what you build, not how you talk (pair with Caveman for\nterse prose). \"stop ponytail\" / \"normal mode\": revert. Level persists until\nchanged or session end.\n\nThe shortest path to done is the right path.\n\n\nARGUMENTS: full",
+          "timestamp": "2026-08-07T15:16:50.992Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Ponytail full active. Ladder enforced, stdlib first, shortest diff wins.",
+          "timestamp": "2026-08-07T15:16:59.773Z"
+        },
+        {
+          "type": "user",
+          "text": "Freeze and reconcile the support contract\n\nSeveral current claims contradict one another.\n\nReact\n\nThe package README says “React: not required”, but:\n\nreact ^19.0.0 is a mandatory peer dependency;\nthe shipped manager directly imports react;\nthe only declared supported frameworks are React-Vite and Next.js-Vite.\n\nFor 0.1.0, the straightforward honest contract is:\n\nReact 19 is required by the currently supported React-based Storybook frameworks.\n\nLater, when Vue support exists, you can revisit whether React should be supplied through Storybook’s manager runtime, bundled, or represented as an optional peer. But the stable README must agree with the actual package manifest.\n\nStorybook\n\nstorybook ^10.5.0 promises compatibility with future Storybook 10.x minors, while Storyproof uses:\n\nstorybook/internal/*;\nexperimental_getStatusStore;\nexperimental_getTestProviderStore;\nexperimental_TEST_PROVIDER;\nthe undocumented/experimental storyIndexGenerator capability.\n\nThose APIs may be entirely appropriate for an addon, but their stability cannot merely be inferred from the public semver range. Storybook typically ships minors roughly every eight weeks and patches only the latest minor, so this compatibility boundary will be exercised soon.\n\nChoose one of these policies:\n\nConservative first-stable policy: use >=10.5.0 <10.6.0, test exact 10.5.0 plus the newest 10.5.x, and widen after proving the next minor.\nBroad policy: retain ^10.5.0, but add rolling CI against storybook@latest and treat a newly released minor failure as a release blocker.\n\nI prefer the first for 0.1.0. A minor-scoped compatibility line is normal for software built on experimental framework APIs.\n\nPlaywright\n\nThe package currently claims playwright ^1.55.1, but the pending prerelease notes explicitly say only 1.55.1 is exercised in CI.\n\nEither test:\n\nexact minimum 1.55.1;\nnewest currently supported Playwright;\n\nor describe other 1.x versions as best-effort. Because Storyproof derives its container image, browser identity, and baseline compatibility from the installed Playwright version, a floor-and-latest compatibility job would be valuable.\n\nNode\n\n>=22.12 also admits untested odd and future Node majors. The repository has already encountered a Node 24 patch-level Firefox/Playwright transport regression.\n\nFor stable, define the tested line explicitly—something like Node 22 LTS and a known-good Node 24 patch—and document any known-bad Node/Firefox combination until it has been revalidated. Do not let the engines field imply that arbitrary future Node majors are supported.\n\nPublic wording\n\nThe package and root descriptions still say Storyproof captures Chromium screenshots, even though Firefox and WebKit are now supported. The storage example also uses chromium-1280x720@1x, while the actual documented environment identity is platform-prefixed, such as linux-chromium-1280x720@1x.\n\nI would do a deliberate terminology sweep before stable:\n\n“browser screenshots, Chromium by default”;\n“WebKit,” never “Safari”;\nplatform-prefixed storage examples;\ncontainer versus host environment identities;\ncurrent schema and migration behavior.\n\nThese are contract bugs, not cosmetic wording.",
+          "timestamp": "2026-08-07T15:17:00.758Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Good analysis. These are real contract bugs — the kind that bite users who trust the README over the manifest. Let me read the current state of the files involved before making changes.",
+          "timestamp": "2026-08-07T15:17:06.341Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/package.json"
+          },
+          "timestamp": "2026-08-07T15:17:07.037Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/README.md"
+          },
+          "timestamp": "2026-08-07T15:17:07.574Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/README.md"
+          },
+          "timestamp": "2026-08-07T15:17:07.584Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/docs/capture-contract.md"
+          },
+          "timestamp": "2026-08-07T15:17:12.636Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/docs/configuration.md"
+          },
+          "timestamp": "2026-08-07T15:17:14.370Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/.github/workflows/ci.yml"
+          },
+          "timestamp": "2026-08-07T15:17:14.579Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Let me check the actual manager imports and one more file to verify the React usage.",
+          "timestamp": "2026-08-07T15:17:19.851Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "cd /home/leon0399/Projects/storyproof && rg 'from [\"\\x27]react' packages/storyproof/src/ --files-with-matches",
+            "description": "Find files importing from react"
+          },
+          "timestamp": "2026-08-07T15:17:21.223Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "rg 'from [\"\\x27]storybook/internal' packages/storyproof/src/ --files-with-matches",
+            "description": "Find files importing storybook internals"
+          },
+          "timestamp": "2026-08-07T15:17:21.920Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "rg 'experimental_' packages/storyproof/src/ -l",
+            "description": "Find files using experimental storybook APIs"
+          },
+          "timestamp": "2026-08-07T15:17:22.593Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "rg 'experimental_' packages/storyproof/src/manager.tsx packages/storyproof/src/preset.ts",
+            "description": "Show exact experimental API usage"
+          },
+          "timestamp": "2026-08-07T15:17:28.053Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "rg 'storyIndexGenerator' packages/storyproof/src/ -l",
+            "description": "Find storyIndexGenerator usage"
+          },
+          "timestamp": "2026-08-07T15:17:28.736Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "node -p \"require('./pnpm-workspace.yaml')\" 2>/dev/null || cat pnpm-workspace.yaml",
+            "description": "Check workspace catalog for playwright version"
+          },
+          "timestamp": "2026-08-07T15:17:29.511Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Now I have the full picture. Let me also check if there's a `peerDependenciesMeta` that could mark React optional.",
+          "timestamp": "2026-08-07T15:17:37.587Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "rg 'peerDependenciesMeta' packages/storyproof/package.json",
+            "description": "Check for peerDependenciesMeta"
+          },
+          "timestamp": "2026-08-07T15:17:37.759Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Good, none. Now I have a complete view of what's real vs. what's claimed. Let me call the advisor before writing anything — there are several judgment calls here.",
+          "timestamp": "2026-08-07T15:17:42.576Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Good catches from the advisor. Let me verify two things before writing.",
+          "timestamp": "2026-08-07T15:19:01.469Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "rg -n 'Chromium screenshots|chromium-1280|not required|\\^10\\.5|1\\.55\\.1|22\\.12|could not start' packages/storyproof/src/ examples/*/package.json",
+            "description": "Sweep for all contract-contradicting strings"
+          },
+          "timestamp": "2026-08-07T15:19:03.609Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "rg -n 'could not start' packages/storyproof/src/",
+            "description": "Check if browser-start error interpolates engine name"
+          },
+          "timestamp": "2026-08-07T15:19:03.978Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Good — the code already interpolates the engine name (`${this.environment.browserName}`), so capture-contract.md's hardcoded \"Chromium could not start\" is wrong. Also confirmed: the `1.55.1` references in src are example data in Panel stories and a historic comment — the actual catalog pins `1.62.0`.\n\nOne correction to your premise: the catalog has `playwright: 1.62.0`, not `1.55.1`. CI exercises `1.62.0`. The peer floor `^1.55.1` declares compatibility with versions that have never been tested. I'll note this and recommend the honest option.\n\nLet me also quickly check the examples' Storybook versions before narrowing.",
+          "timestamp": "2026-08-07T15:19:12.883Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "rg '\"storybook\"' examples/*/package.json",
+            "description": "Check Storybook versions in examples"
+          },
+          "timestamp": "2026-08-07T15:19:13.573Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "rg -n 'Node.*24|node.*24|firefox.*node|node.*firefox' packages/storyproof/ -l 2>/dev/null; git log --oneline --grep='node 24\\|Node 24\\|firefox.*regression\\|transport' -10 2>/dev/null",
+            "description": "Search for Node 24/Firefox regression documentation"
+          },
+          "timestamp": "2026-08-07T15:19:15.564Z"
+        },
+        {
+          "type": "assistant",
+          "text": "No record of a Node 24/Firefox regression in the repo. I won't fabricate one. Now I have everything I need. Let me make the edits.",
+          "timestamp": "2026-08-07T15:19:20.911Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "EnterPlanMode",
+          "input": {},
+          "timestamp": "2026-08-07T15:19:20.912Z"
+        },
+        {
+          "type": "user",
+          "text": "[Request interrupted by user]",
+          "timestamp": "2026-08-07T15:19:55.336Z"
+        },
+        {
+          "type": "user",
+          "text": "few things: \n1) about the playwright, we need to find a minimal supported version, and test it in the CI: smallest version, highest version\n2) for the \"Node 24/Firefox\" - it was already resolved now",
+          "timestamp": "2026-08-07T15:21:23.489Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Good corrections. Let me verify the Playwright floor — the peer says `^1.55.1` but catalog pins `1.62.0`. I need to find what actually determines the minimum.",
+          "timestamp": "2026-08-07T15:21:30.079Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "rg -n 'playwright' packages/storyproof/src/ --type ts --type tsx -l 2>/dev/null; rg -n 'playwright' packages/storyproof/src/ -l",
+            "description": "Find all source files that reference playwright"
+          },
+          "timestamp": "2026-08-07T15:21:32.255Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "rg -n 'from .playwright' packages/storyproof/src/",
+            "description": "Find playwright imports in source"
+          },
+          "timestamp": "2026-08-07T15:21:32.603Z"
+        },
+        {
+          "type": "user",
+          "text": "[Request interrupted by user]",
+          "timestamp": "2026-08-07T15:21:36.005Z"
+        },
+        {
+          "type": "user",
+          "text": "Let's do the same version I'm using in the @../whoard/package.json",
+          "timestamp": "2026-08-07T15:22:02.274Z"
+        },
+        {
+          "type": "user",
+          "text": "Let's check the same version I'm using in the @../whoard/package.json as the minimal or ^1.55.1 if it is higher",
+          "timestamp": "2026-08-07T15:22:20.861Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Whoard pins `playwright: ^1.56.1`. That's higher than the current `^1.55.1` peer floor. Let me check what Playwright APIs storyproof actually uses to see if there's a technical reason for a specific floor.",
+          "timestamp": "2026-08-07T15:22:32.591Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/src/node/capture.ts"
+          },
+          "timestamp": "2026-08-07T15:22:33.254Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/src/node/container.ts"
+          },
+          "timestamp": "2026-08-07T15:22:34.006Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/src/node/runner.ts"
+          },
+          "timestamp": "2026-08-07T15:22:34.125Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Whoard has `playwright: ^1.56.1`. Since `1.56.1 > 1.55.1`, the floor becomes `^1.56.1`. The APIs storyproof uses (`launch`, `connect`, `newContext`, `newPage`, `evaluate`, `screenshot`, `request.frame()`) are all stable since well before 1.56 — the CI floor job is the real proof.\n\nHere's what I'll do across all the files — straightforward, no judgment calls left:\n\n**Manifest:** peer `playwright ^1.56.1`, peer `storybook >=10.5.0 <10.6.0`, devDeps `storybook`/`@storybook/react-vite` narrowed to `~10.5.0`, `engines.node >=22.12 <25`, description/keywords fixed for multi-browser.\n\n**READMEs:** React = required peer, storage example platform-prefixed, \"Chromium screenshots\" → \"browser screenshots\", capture-contract engine name interpolated, \"provisional\" sentence removed.\n\n**CI:** one extra acceptance job testing playwright floor (`1.56.1`) on chromium/host.",
+          "timestamp": "2026-08-07T15:25:12.122Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/package.json",
+            "new_string": "  \"description\": \"Local visual regression testing for Storybook: capture browser screenshots, review diffs, and approve baselines committed next to your stories — no cloud service.\",",
+            "old_string": "  \"description\": \"Local visual regression testing for Storybook: capture Chromium screenshots, review diffs, and approve baselines committed next to your stories — no cloud service.\",",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:25:14.231Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/package.json",
+            "new_string": "    \"playwright\",\n    \"chromium\",\n    \"firefox\",\n    \"webkit\",\n    \"testing\",",
+            "old_string": "    \"playwright\",\n    \"chromium\",\n    \"testing\",",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:25:19.470Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/package.json",
+            "new_string": "    \"@storybook/react-vite\": \"~10.5.0\",",
+            "old_string": "    \"@storybook/react-vite\": \"^10.5.0\",",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:25:25.014Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/package.json",
+            "new_string": "    \"storybook\": \"~10.5.0\",\n    \"tsdown\":",
+            "old_string": "    \"storybook\": \"^10.5.0\",\n    \"tsdown\":",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:25:31.428Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/package.json",
+            "new_string": "    \"playwright\": \"^1.56.1\",",
+            "old_string": "    \"playwright\": \"^1.55.1\",",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:25:36.324Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/package.json",
+            "new_string": "    \"storybook\": \">=10.5.0 <10.6.0\"",
+            "old_string": "    \"storybook\": \"^10.5.0\"",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:25:42.286Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/package.json",
+            "new_string": "    \"node\": \">=22.12 <25\"",
+            "old_string": "    \"node\": \">=22.12\"",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:25:47.375Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Now the READMEs. Package README first:",
+          "timestamp": "2026-08-07T15:25:52.997Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/README.md",
+            "new_string": "Local visual regression testing for Storybook. Storyproof captures browser\nscreenshots of your stories, shows baseline/candidate/diff images inside",
+            "old_string": "Local visual regression testing for Storybook. Storyproof captures Chromium\nscreenshots of your stories, shows baseline/candidate/diff images inside",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:25:54.943Z"
+        },
+        {
+          "type": "user",
+          "text": "[Request interrupted by user]",
+          "timestamp": "2026-08-07T15:25:56.383Z"
+        },
+        {
+          "type": "user",
+          "text": "We did not discuss it yet, wouldn't these devDependencies changes block users of the package to upgrade to later versions of the storybook when it releases, if it is working correctly, even when we did not upgrade it locally, right? I do not want my package to be \"that annoying on, that doesn't let me upgrade\"",
+          "timestamp": "2026-08-07T15:28:09.020Z"
+        },
+        {
+          "type": "assistant",
+          "text": "You're right — I conflated two things. The `devDependencies` are **build-time only** and never reach consumers. They don't appear in the published tarball or affect peer resolution. The only thing consumers see is `peerDependencies`.\n\nSo narrowing the devDeps to `~10.5.0` just means *we* develop/test against 10.5.x — it doesn't block anyone from installing storyproof alongside Storybook 10.6.\n\nThe peer dep is the real question: `>=10.5.0 <10.6.0` vs `^10.5.0`.\n\nWith `^10.5.0`, a user on Storybook 10.6 installs cleanly. If the experimental APIs we use survive that minor, it works. If they don't, it breaks at runtime — no install-time signal.\n\nWith `>=10.5.0 <10.6.0`, a user on 10.6 gets a peer warning. They can still install (pnpm doesn't block by default), but they're told it's untested. When we verify 10.6 works, we widen.\n\nThe \"annoying package\" reputation comes from packages that block installs or that stay narrow long after the ecosystem moved. The honest",
+          "timestamp": "2026-08-07T15:28:21.569Z"
+        },
+        {
+          "type": "user",
+          "text": "[Request interrupted by user]",
+          "timestamp": "2026-08-07T15:28:21.571Z"
+        },
+        {
+          "type": "user",
+          "text": "We did not discuss it yet, wouldn't these devDependencies changes block users of the package to upgrade to later versions of the storybook when it releases, if it is working correctly, even when we did not upgrade it locally, right? I do not want my package to be \"that annoying on, that doesn't let me upgrade\". Also, by using whoard's or `1.55.1` I meant the minimal of them, the `1.55.1` was tested not so long ago and it should work fine, and if anything, we should try running even lower versions in the CI to find the minial one",
+          "timestamp": "2026-08-07T15:29:30.584Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Two things to correct:\n\n**devDeps don't affect users at all.** Only `peerDependencies` constrain consumers. Narrowing devDeps from `^10.5.0` to `~10.5.0` only changes what *we* resolve in our own workspace — npm/pnpm never sees them when someone installs `storyproof`. But you're right about the *peer* dep: I already changed it to `>=10.5.0 <10.6.0`, and that WOULD block users from upgrading. Let me revert that — keep the peer broad at `^10.5.0` and add rolling CI against latest so breakage is caught early, not pushed onto users.\n\n**Playwright floor:** understood — `min(1.56.1, 1.55.1) = 1.55.1`, and the real floor should be discovered by CI, not assumed.\n\nReverting the three wrong changes:",
+          "timestamp": "2026-08-07T15:30:20.199Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/package.json"
+          },
+          "timestamp": "2026-08-07T15:30:20.200Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/package.json",
+            "new_string": "    \"@storybook/react-vite\": \"^10.5.0\",",
+            "old_string": "    \"@storybook/react-vite\": \"~10.5.0\",",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:30:26.264Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/package.json",
+            "new_string": "    \"storybook\": \"^10.5.0\",",
+            "old_string": "    \"storybook\": \"~10.5.0\",",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:30:31.596Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/package.json",
+            "new_string": "    \"playwright\": \"^1.55.1\",",
+            "old_string": "    \"playwright\": \"^1.56.1\",",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:30:37.190Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/package.json",
+            "new_string": "    \"storybook\": \"^10.5.0\"",
+            "old_string": "    \"storybook\": \">=10.5.0 <10.6.0\"",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:30:43.732Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Good — peer deps restored to their original ranges. The only manifest changes that stick are: description (\"browser\" not \"Chromium\"), keywords (+firefox, +webkit), and `engines.node >=22.12 <25`.\n\nNow before I proceed with the rest of the edits — let me pause on two open decisions:",
+          "timestamp": "2026-08-07T15:30:50.962Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "AskUserQuestion",
+          "input": {
+            "questions": [
+              {
+                "header": "Node engines",
+                "multiSelect": false,
+                "options": [
+                  {
+                    "description": "Hard gate at Node 25. Users on future Node must wait for us to widen. The tested-range discipline you asked for.",
+                    "label": ">=22.12 <25"
+                  },
+                  {
+                    "description": "Don't block future Node users. The README documents CI tests 22 and 24, but the engines field only enforces the real technical floor.",
+                    "label": ">=22.12 (README only)"
+                  }
+                ],
+                "question": "For `engines.node`: I set `>=22.12 <25` — this blocks Node 25+ users until we widen it. Is that the behavior you want, or should engines stay `>=22.12` with the README just documenting that CI tests 22 and 24?"
+              },
+              {
+                "header": "SB latest CI",
+                "multiSelect": false,
+                "options": [
+                  {
+                    "description": "A non-blocking job that installs storybook@latest and runs the acceptance suite. Failures are signal, not blockers.",
+                    "label": "Yes, add rolling CI job"
+                  },
+                  {
+                    "description": "The devDep already floats within ^10.5.0 (modulo the 7-day cooldown), so CI naturally picks up new patch/minor releases.",
+                    "label": "No, current CI is enough"
+                  }
+                ],
+                "question": "For the Storybook peer with broad `^10.5.0`: should we add a CI job that tests against `storybook@latest` so we catch breakage from future 10.x minors early?"
+              }
+            ]
+          },
+          "timestamp": "2026-08-07T15:30:59.460Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/package.json",
+            "new_string": "    \"node\": \">=22.12\"",
+            "old_string": "    \"node\": \">=22.12 <25\"",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:31:50.685Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Good. So the manifest changes are now: description, keywords only. Peer deps unchanged. Now let me proceed with the README and docs terminology sweep, then CI.",
+          "timestamp": "2026-08-07T15:31:56.215Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/README.md",
+            "new_string": "| Node.js       | `>=22.12`; CI verifies 22 and 24                      |\n| Storybook     | `^10.5.0`                                             |\n| Framework     | `@storybook/react-vite`, `@storybook/nextjs-vite`     |\n| Playwright    | `^1.55.1`, a peer dependency you install              |\n| Browser       | Chromium (default), Firefox, WebKit                   |\n| React         | `^19.0.0`, a peer dependency                         |\n| Storybook run | local development server; static builds are read-only |\n\nCI verifies on Ubuntu 24.04 x64.",
+            "old_string": "| Node.js       | `>=22.12`                                             |\n| Storybook     | `^10.5.0`                                             |\n| Framework     | `@storybook/react-vite`, `@storybook/nextjs-vite`     |\n| Playwright    | `^1.55.1`, a peer dependency you install              |\n| Browser       | Chromium (default), Firefox, WebKit                   |\n| React         | not required                                          |\n| Storybook run | local development server; static builds are read-only |\n\nPreview: the ranges in `package.json` are provisional. CI verifies on Ubuntu\n24.04 x64.",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:32:01.722Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Now the storage example — needs platform prefix:",
+          "timestamp": "2026-08-07T15:32:06.416Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/README.md",
+            "new_string": "button.stories.tsx\n__screenshots__/\n  button.stories.tsx.visual/\n    button--primary/\n      linux-chromium-1280x720@1x/\n        baseline.png\n        baseline.json\n        candidate.png\n        diff.png",
+            "old_string": "button.stories.tsx\n__screenshots__/\n  button.stories.tsx.visual/\n    button--primary/\n      chromium-1280x720@1x/\n        baseline.png\n        baseline.json\n        candidate.png\n        diff.png",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:32:08.764Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Capture contract section — make it engine-generic:",
+          "timestamp": "2026-08-07T15:32:14.029Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/README.md",
+            "new_string": "The initial environment is fixed: Chromium (default; Firefox and WebKit are\nconfigurable) from your own `playwright` install, `1280x720`, DPR 1, `en-US`,\nUTC, and reduced motion.",
+            "old_string": "The initial environment is fixed: Chromium from your own `playwright` install,\n`1280x720`, DPR 1, `en-US`, UTC, and reduced motion.",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:32:17.312Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Root README:",
+          "timestamp": "2026-08-07T15:32:21.958Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/README.md",
+            "new_string": "Local visual regression testing for Storybook. Storyproof captures browser\nscreenshots of your stories, shows baseline/candidate/diff images inside",
+            "old_string": "Local visual regression testing for Storybook. Storyproof captures Chromium\nscreenshots of your stories, shows baseline/candidate/diff images inside",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:32:23.350Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Capture contract doc — the hardcoded \"Chromium could not start\" and install instructions:",
+          "timestamp": "2026-08-07T15:32:28.751Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/docs/capture-contract.md",
+            "new_string": "- **The capture browser cannot start** — for example, the Playwright browser\n  binary was never installed. The browser is launched once per run, so every\n  story in that run reports `The <engine> capture browser could not start:\n  <detail>`. Install the browser with\n  `pnpm exec playwright install <engine>`.",
+            "old_string": "- **Chromium cannot start** — for example, the Playwright browser binary was\n  never installed. The browser is launched once per run, so every story in that\n  run reports `Chromium could not start: <detail>`. Install the browser with\n  `pnpm exec playwright install chromium`.",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:32:32.977Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Preset error message with the hardcoded `v1.55.1` example image:",
+          "timestamp": "2026-08-07T15:32:38.811Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/src/preset.ts",
+            "limit": 10,
+            "offset": 145
+          },
+          "timestamp": "2026-08-07T15:32:39.135Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/packages/storyproof/src/preset.ts",
+            "new_string": "  'Set \"capture\" to an object like { browser: \"firefox\" }, { container: true }, or { container: { image: \"mcr.microsoft.com/playwright:v<version>-noble\" } }; omit it to capture with host chromium.';",
+            "old_string": "  'Set \"capture\" to an object like { browser: \"firefox\" }, { container: true }, or { container: { image: \"mcr.microsoft.com/playwright:v1.55.1-noble\" } }; omit it to capture with host chromium.';",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:32:44.407Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Now the CI. I need to add two things: (1) a Playwright floor test job, and (2) a Storybook latest rolling job. Let me also check how the setup composite action works.",
+          "timestamp": "2026-08-07T15:32:50.279Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/.github/actions/setup/action.yml"
+          },
+          "timestamp": "2026-08-07T15:32:50.293Z"
+        },
+        {
+          "type": "assistant",
+          "text": "The setup action runs `pnpm install --frozen-lockfile`. For the Playwright floor test, I need to override the playwright version AFTER install, or use a different approach. Let me think about the cleanest way.\n\nFor the **Playwright floor test**: the catalog pins `1.62.0`. To test `1.55.1`, I'll need to override the version in the workspace. The approach: after `pnpm install`, override playwright with `pnpm --filter storyproof add -D playwright@1.55.1 --save-peer=false` or similar. Actually, the cleanest: use pnpm overrides in the CI step.\n\nFor the **Storybook latest test**: similar — install normally, then override storybook to latest.\n\nBoth of these are \"does it still work with a different version\" tests, so they're inherently non-frozen-lockfile operations.",
+          "timestamp": "2026-08-07T15:32:58.644Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/.github/workflows/ci.yml",
+            "limit": 45,
+            "offset": 85
+          },
+          "timestamp": "2026-08-07T15:32:59.352Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Now let me add the two new jobs. I'll add them after the `acceptance` job block:",
+          "timestamp": "2026-08-07T15:33:03.896Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/.github/workflows/ci.yml",
+            "new_string": "  # Playwright peer-dep floor: proves the declared ^1.55.1 floor still works.\n  # Chromium-only, host-only — a single data point, not the full matrix.\n  acceptance-playwright-floor:\n    name: acceptance - playwright floor (${{ matrix.playwright }})\n    runs-on: ubuntu-latest\n    timeout-minutes: 30\n    strategy:\n      fail-fast: false\n      matrix:\n        playwright: [\"1.55.1\"]\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n        with:\n          persist-credentials: false\n      - uses: ./.github/actions/setup\n        with:\n          turbo-cache-prefix: turbo-pw-floor\n      - name: Override playwright to floor version\n        run: |\n          pnpm --filter storyproof pkg set \"devDependencies.playwright=$PW_VERSION\"\n          pnpm install --no-frozen-lockfile\n        env:\n          PW_VERSION: ${{ matrix.playwright }}\n      - run: pnpm exec playwright install --with-deps chromium\n        working-directory: packages/storyproof\n      - run: pnpm exec turbo run test:visual\n      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1\n        if: failure()\n        with:\n          name: playwright-report-pw${{ matrix.playwright }}\n          path: packages/storyproof/test-results/\n          retention-days: 7\n\n  # Storybook latest: proves the broad ^10.5.0 peer doesn't break on new minors.\n  # Non-blocking signal — failures here are investigated, not release blockers.\n  acceptance-storybook-latest:\n    name: acceptance - storybook@latest\n    runs-on: ubuntu-latest\n    timeout-minutes: 30\n    continue-on-error: true\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n        with:\n          persist-credentials: false\n      - uses: ./.github/actions/setup\n        with:\n          turbo-cache-prefix: turbo-sb-latest\n      - name: Override storybook to latest\n        run: |\n          pnpm --filter storyproof pkg set \"devDependencies.storybook=latest\"\n          pnpm --filter storyproof pkg set \"devDependencies.@storybook/react-vite=latest\"\n          pnpm install --no-frozen-lockfile\n      - run: pnpm exec playwright install --with-deps chromium\n        working-directory: packages/storyproof\n      - run: pnpm exec turbo run test:visual\n      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1\n        if: failure()\n        with:\n          name: playwright-report-sb-latest\n          path: packages/storyproof/test-results/\n          retention-days: 7\n\n  # Asserts committed baselines still produce the expected panel states.\n  # Uses the same script maintainers run to re-approve.\n  example-baselines:",
+            "old_string": "  # Asserts committed baselines still produce the expected panel states.\n  # Uses the same script maintainers run to re-approve.\n  example-baselines:",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:33:13.963Z"
+        },
+        {
+          "type": "assistant",
+          "text": "CI changes look safe — all `${{ }}` expressions use workflow-defined matrix values, not untrusted input.\n\nLet me validate the workflow and run the checks.",
+          "timestamp": "2026-08-07T15:33:28.218Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "actionlint .github/workflows/ci.yml 2>&1",
+            "description": "Lint the CI workflow"
+          },
+          "timestamp": "2026-08-07T15:33:28.917Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "pnpm format:check 2>&1 | head -30",
+            "description": "Check formatting"
+          },
+          "timestamp": "2026-08-07T15:33:28.977Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "pnpm format 2>&1",
+            "description": "Fix formatting"
+          },
+          "timestamp": "2026-08-07T15:33:38.689Z"
+        },
+        {
+          "type": "assistant",
+          "text": "actionlint clean, format fixed. Now run lint, typecheck, and tests.",
+          "timestamp": "2026-08-07T15:33:47.703Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "pnpm lint > /tmp/claude-1000/-home-leon0399-Projects-storyproof/974a7763-79a2-469f-a1ff-4e049e8b9a78/scratchpad/lint.log 2>&1; echo \"exit: $?\"",
+            "description": "Run linter"
+          },
+          "timestamp": "2026-08-07T15:33:50.455Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "pnpm typecheck > /tmp/claude-1000/-home-leon0399-Projects-storyproof/974a7763-79a2-469f-a1ff-4e049e8b9a78/scratchpad/typecheck.log 2>&1; echo \"exit: $?\"",
+            "description": "Run typecheck"
+          },
+          "timestamp": "2026-08-07T15:33:51.845Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "pnpm test > /tmp/claude-1000/-home-leon0399-Projects-storyproof/974a7763-79a2-469f-a1ff-4e049e8b9a78/scratchpad/test.log 2>&1; echo \"exit: $?\"",
+            "description": "Run unit tests"
+          },
+          "timestamp": "2026-08-07T15:33:52.419Z"
+        },
+        {
+          "type": "assistant",
+          "text": "All green. Let me also verify there's a test that checks the preset error message I changed — if so, it would have caught a mismatch.",
+          "timestamp": "2026-08-07T15:34:08.757Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "rg 'v1\\.55\\.1' packages/storyproof/test/",
+            "description": "Check if tests reference the old version string"
+          },
+          "timestamp": "2026-08-07T15:34:09.690Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Those are test fixtures for environment resolution, not for the preset error message — they use `1.55.1` as realistic test data, not as a contract claim. Tests passing confirms the preset hint change is safe.\n\nLet me do a final diff review.",
+          "timestamp": "2026-08-07T15:34:15.245Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "git diff --stat",
+            "description": "Show changed files"
+          },
+          "timestamp": "2026-08-07T15:34:15.260Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "git diff",
+            "description": "Full diff for review"
+          },
+          "timestamp": "2026-08-07T15:34:20.143Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Clean diff. Summary of what changed:\n\n**`package.json`** — description says \"browser\" not \"Chromium\"; keywords add `firefox`/`webkit`. Peer deps, engines unchanged.\n\n**Package README** — React row: `^19.0.0, a peer dependency` (was \"not required\"). Node row: adds \"CI verifies 22 and 24\". Storage example: `linux-chromium-…` (was `chromium-…`). Capture section: engine-generic. \"Provisional\" sentence removed.\n\n**Root README** — \"browser screenshots\" (was \"Chromium screenshots\").\n\n**capture-contract.md** — error message matches the code's interpolated `The <engine> capture browser could not start`.\n\n**preset.ts** — example image tag uses `v<version>-noble` placeholder instead of hardcoded `v1.55.1`.\n\n**CI** — two new jobs:\n- `acceptance-playwright-floor`: overrides playwright to `1.55.1`, runs chromium/host acceptance. Matrix so you can add more versions to probe the floor.\n- `acceptance-storybook-latest`: `continue-on-error: true`, overrides storybook+react-vite to `latest`, runs acceptance. Non-blocking signal.\n\nSkipped: no changeset yet — the peer deps and engines are unchanged, so the published package semantics didn't change. The description/keywords change is metadata-only; up to you whether that warrants one.",
+          "timestamp": "2026-08-07T15:34:34.167Z"
+        },
+        {
+          "type": "user",
+          "text": "can't we fold \"acceptance-playwright-*\" as one more paramtere for the acceptance matrix? I think we can and should, not rewrite the same jobs multiple times",
+          "timestamp": "2026-08-07T15:38:17.375Z"
+        },
+        {
+          "type": "assistant",
+          "text": "You're right — the acceptance job already has a matrix. Adding a `playwright` dimension is cleaner than a duplicate job.",
+          "timestamp": "2026-08-07T15:38:24.922Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/.github/workflows/ci.yml",
+            "limit": 85,
+            "offset": 85
+          },
+          "timestamp": "2026-08-07T15:38:25.040Z"
+        },
+        {
+          "type": "assistant",
+          "text": "The trick is `playwright: [catalog]` as a single-element matrix dimension (no extra cross-product), then `include` adds one floor entry whose `playwright` value differs — GitHub Actions creates a new job because the match fails on a matrix-defined key.",
+          "timestamp": "2026-08-07T15:40:02.846Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/.github/workflows/ci.yml",
+            "limit": 75,
+            "offset": 85
+          },
+          "timestamp": "2026-08-07T15:40:03.646Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/.github/workflows/ci.yml",
+            "new_string": "  # Acceptance suite: full node × browser × topology cross-product, plus\n  # peer-dep floor entries via `include`. `playwright: [catalog]` is a\n  # single-element dimension so the cross-product stays 12; include entries\n  # with a different playwright value create new jobs because the match\n  # fails on a matrix-defined key.\n  acceptance:\n    name: acceptance - node ${{ matrix.node }} - ${{ matrix.browser }} - ${{ matrix.topology }}${{ matrix.playwright != 'catalog' && format(' - pw {0}', matrix.playwright) || '' }}\n    runs-on: ubuntu-latest\n    timeout-minutes: 30\n    strategy:\n      fail-fast: false\n      matrix:\n        node: [22, 24]\n        browser: [chromium, firefox, webkit]\n        topology: [host, container]\n        playwright: [catalog]\n        include:\n          # Playwright peer-dep floor: one chromium/host job proves the\n          # declared ^1.55.1 floor still works.\n          - node: 22\n            browser: chromium\n            topology: host\n            playwright: \"1.55.1\"\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n        with:\n          persist-credentials: false\n      - uses: ./.github/actions/setup\n        with:\n          node-version: ${{ matrix.node }}\n          turbo-cache-prefix: turbo-visual-node${{ matrix.node }}${{ matrix.playwright != 'catalog' && format('-pw{0}', matrix.playwright) || '' }}\n      - name: Override playwright to floor version\n        if: matrix.playwright != 'catalog'\n        run: |\n          pnpm --filter storyproof pkg set \"devDependencies.playwright=$PW_VERSION\"\n          pnpm install --no-frozen-lockfile\n        env:\n          PW_VERSION: ${{ matrix.playwright }}\n      # Test driver is always chromium; matrix.browser is the addon's capture engine.\n      - run: pnpm exec playwright install --with-deps chromium \"$BROWSER\"\n        working-directory: packages/storyproof\n        env:\n          BROWSER: ${{ matrix.browser }}\n      - name: Pre-pull the capture container image\n        if: matrix.topology == 'container'\n        run: |\n          version=$(node -p \"require('./packages/storyproof/node_modules/playwright/package.json').version\")\n          docker pull \"mcr.microsoft.com/playwright:v${version}-noble\"\n      - run: pnpm exec turbo run test:visual\n        env:\n          STORYPROOF_BROWSER: ${{ matrix.browser }}\n          STORYPROOF_CONTAINER: ${{ matrix.topology == 'container' && '1' || '' }}\n      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1\n        if: failure()\n        with:\n          name: playwright-report-${{ matrix.node }}-${{ matrix.browser }}-${{ matrix.topology }}${{ matrix.playwright != 'catalog' && format('-pw{0}', matrix.playwright) || '' }}\n          path: packages/storyproof/test-results/\n          retention-days: 7",
+            "old_string": "  # Acceptance suite: full node × browser × topology cross-product.\n  # Turbo cache serves `^build` only — test:visual is uncached.\n  acceptance:\n    name: acceptance - node ${{ matrix.node }} - ${{ matrix.browser }} - ${{ matrix.topology }}\n    runs-on: ubuntu-latest\n    timeout-minutes: 30\n    strategy:\n      fail-fast: false\n      matrix:\n        node: [22, 24]\n        browser: [chromium, firefox, webkit]\n        topology: [host, container]\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n        with:\n          persist-credentials: false\n      - uses: ./.github/actions/setup\n        with:\n          node-version: ${{ matrix.node }}\n          turbo-cache-prefix: turbo-visual-node${{ matrix.node }}\n      # Test driver is always chromium; matrix.browser is the addon's capture engine.\n      - run: pnpm exec playwright install --with-deps chromium \"$BROWSER\"\n        working-directory: packages/storyproof\n        env:\n          BROWSER: ${{ matrix.browser }}\n      - name: Pre-pull the capture container image\n        if: matrix.topology == 'container'\n        run: |\n          version=$(node -p \"require('./packages/storyproof/node_modules/playwright/package.json').version\")\n          docker pull \"mcr.microsoft.com/playwright:v${version}-noble\"\n      - run: pnpm exec turbo run test:visual\n        env:\n          STORYPROOF_BROWSER: ${{ matrix.browser }}\n          STORYPROOF_CONTAINER: ${{ matrix.topology == 'container' && '1' || '' }}\n      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1\n        if: failure()\n        with:\n          name: playwright-report-${{ matrix.node }}-${{ matrix.browser }}-${{ matrix.topology }}\n          path: packages/storyproof/test-results/\n          retention-days: 7\n\n  # Playwright peer-dep floor: proves the declared ^1.55.1 floor still works.\n  # Chromium-only, host-only — a single data point, not the full matrix.\n  acceptance-playwright-floor:\n    name: acceptance - playwright floor (${{ matrix.playwright }})\n    runs-on: ubuntu-latest\n    timeout-minutes: 30\n    strategy:\n      fail-fast: false\n      matrix:\n        playwright: [\"1.55.1\"]\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n        with:\n          persist-credentials: false\n      - uses: ./.github/actions/setup\n        with:\n          turbo-cache-prefix: turbo-pw-floor\n      - name: Override playwright to floor version\n        run: |\n          pnpm --filter storyproof pkg set \"devDependencies.playwright=$PW_VERSION\"\n          pnpm install --no-frozen-lockfile\n        env:\n          PW_VERSION: ${{ matrix.playwright }}\n      - run: pnpm exec playwright install --with-deps chromium\n        working-directory: packages/storyproof\n      - run: pnpm exec turbo run test:visual\n      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1\n        if: failure()\n        with:\n          name: playwright-report-pw${{ matrix.playwright }}\n          path: packages/storyproof/test-results/\n          retention-days: 7",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:40:26.126Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Those `tarball_dir` warnings are pre-existing (the tarball-install job sets it via `GITHUB_ENV`), not from my changes. Let me validate and check the diff is clean.",
+          "timestamp": "2026-08-07T15:40:33.385Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "actionlint .github/workflows/ci.yml 2>&1",
+            "description": "Lint the CI workflow"
+          },
+          "timestamp": "2026-08-07T15:40:34.076Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "git diff --stat",
+            "description": "Final diff summary"
+          },
+          "timestamp": "2026-08-07T15:40:34.517Z"
+        },
+        {
+          "type": "assistant",
+          "text": "actionlint clean. One job, 13 matrix entries total (12 catalog + 1 floor). Adding another floor version to probe lower is just one more `include` entry.\n\nSummary of the final diff:\n\n**Manifest** (`package.json`): description \"browser screenshots\", keywords +firefox/+webkit. Peer deps and engines unchanged.\n\n**Docs** (READMEs, capture-contract): React = `^19.0.0` peer (was \"not required\"), storage example platform-prefixed, engine-generic error messages, \"provisional\" disclaimer removed, \"Chromium screenshots\" → \"browser screenshots\" everywhere.\n\n**Code** (`preset.ts`): error-message example image tag uses `v<version>-noble` placeholder.\n\n**CI**: acceptance matrix gains `playwright: [catalog]` dimension + one `include` entry for `1.55.1` floor (chromium/host/node22). Storybook-latest job is `continue-on-error: true`, non-blocking. To probe a lower Playwright floor, add another include entry.",
+          "timestamp": "2026-08-07T15:40:46.739Z"
+        },
+        {
+          "type": "user",
+          "text": "Why not do the same with latest???",
+          "timestamp": "2026-08-07T15:42:13.641Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/.github/workflows/ci.yml",
+            "limit": 35,
+            "offset": 140
+          },
+          "timestamp": "2026-08-07T15:42:19.020Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Right — same pattern. Fold storybook into another matrix dimension on the same job.",
+          "timestamp": "2026-08-07T15:42:26.105Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/.github/workflows/ci.yml",
+            "limit": 88,
+            "offset": 86
+          },
+          "timestamp": "2026-08-07T15:42:26.362Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/.github/workflows/ci.yml",
+            "new_string": "  # Acceptance suite: full node × browser × topology cross-product, plus\n  # peer-dep boundary entries via `include`. Single-element dimensions\n  # (`playwright: [catalog]`, `storybook: [catalog]`) keep the base\n  # cross-product at 12; include entries whose value differs on a\n  # matrix-defined key create new jobs.\n  acceptance:\n    name: acceptance - node ${{ matrix.node }} - ${{ matrix.browser }} - ${{ matrix.topology }}${{ matrix.playwright != 'catalog' && format(' - pw {0}', matrix.playwright) || '' }}${{ matrix.storybook != 'catalog' && format(' - sb {0}', matrix.storybook) || '' }}\n    runs-on: ubuntu-latest\n    timeout-minutes: 30\n    continue-on-error: ${{ matrix.storybook == 'latest' }}\n    strategy:\n      fail-fast: false\n      matrix:\n        node: [22, 24]\n        browser: [chromium, firefox, webkit]\n        topology: [host, container]\n        playwright: [catalog]\n        storybook: [catalog]\n        include:\n          # Playwright peer-dep floor: one chromium/host job proves the\n          # declared ^1.55.1 floor still works.\n          - node: 22\n            browser: chromium\n            topology: host\n            playwright: \"1.55.1\"\n            storybook: catalog\n          # Storybook latest: proves the broad ^10.5.0 peer doesn't break\n          # on new minors. Non-blocking (continue-on-error above).\n          - node: 22\n            browser: chromium\n            topology: host\n            playwright: catalog\n            storybook: latest\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n        with:\n          persist-credentials: false\n      - uses: ./.github/actions/setup\n        with:\n          node-version: ${{ matrix.node }}\n          turbo-cache-prefix: turbo-visual-node${{ matrix.node }}${{ matrix.playwright != 'catalog' && format('-pw{0}', matrix.playwright) || '' }}${{ matrix.storybook != 'catalog' && format('-sb{0}', matrix.storybook) || '' }}\n      - name: Override playwright to floor version\n        if: matrix.playwright != 'catalog'\n        run: |\n          pnpm --filter storyproof pkg set \"devDependencies.playwright=$PW_VERSION\"\n          pnpm install --no-frozen-lockfile\n        env:\n          PW_VERSION: ${{ matrix.playwright }}\n      - name: Override storybook to latest\n        if: matrix.storybook == 'latest'\n        run: |\n          pnpm --filter storyproof pkg set \"devDependencies.storybook=latest\"\n          pnpm --filter storyproof pkg set \"devDependencies.@storybook/react-vite=latest\"\n          pnpm install --no-frozen-lockfile\n      # Test driver is always chromium; matrix.browser is the addon's capture engine.\n      - run: pnpm exec playwright install --with-deps chromium \"$BROWSER\"\n        working-directory: packages/storyproof\n        env:\n          BROWSER: ${{ matrix.browser }}\n      - name: Pre-pull the capture container image\n        if: matrix.topology == 'container'\n        run: |\n          version=$(node -p \"require('./packages/storyproof/node_modules/playwright/package.json').version\")\n          docker pull \"mcr.microsoft.com/playwright:v${version}-noble\"\n      - run: pnpm exec turbo run test:visual\n        env:\n          STORYPROOF_BROWSER: ${{ matrix.browser }}\n          STORYPROOF_CONTAINER: ${{ matrix.topology == 'container' && '1' || '' }}\n      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1\n        if: failure()\n        with:\n          name: playwright-report-${{ matrix.node }}-${{ matrix.browser }}-${{ matrix.topology }}${{ matrix.playwright != 'catalog' && format('-pw{0}', matrix.playwright) || '' }}${{ matrix.storybook != 'catalog' && format('-sb{0}', matrix.storybook) || '' }}\n          path: packages/storyproof/test-results/\n          retention-days: 7",
+            "old_string": "  # Acceptance suite: full node × browser × topology cross-product, plus\n  # peer-dep floor entries via `include`. `playwright: [catalog]` is a\n  # single-element dimension so the cross-product stays 12; include entries\n  # with a different playwright value create new jobs because the match\n  # fails on a matrix-defined key.\n  acceptance:\n    name: acceptance - node ${{ matrix.node }} - ${{ matrix.browser }} - ${{ matrix.topology }}${{ matrix.playwright != 'catalog' && format(' - pw {0}', matrix.playwright) || '' }}\n    runs-on: ubuntu-latest\n    timeout-minutes: 30\n    strategy:\n      fail-fast: false\n      matrix:\n        node: [22, 24]\n        browser: [chromium, firefox, webkit]\n        topology: [host, container]\n        playwright: [catalog]\n        include:\n          # Playwright peer-dep floor: one chromium/host job proves the\n          # declared ^1.55.1 floor still works.\n          - node: 22\n            browser: chromium\n            topology: host\n            playwright: \"1.55.1\"\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n        with:\n          persist-credentials: false\n      - uses: ./.github/actions/setup\n        with:\n          node-version: ${{ matrix.node }}\n          turbo-cache-prefix: turbo-visual-node${{ matrix.node }}${{ matrix.playwright != 'catalog' && format('-pw{0}', matrix.playwright) || '' }}\n      - name: Override playwright to floor version\n        if: matrix.playwright != 'catalog'\n        run: |\n          pnpm --filter storyproof pkg set \"devDependencies.playwright=$PW_VERSION\"\n          pnpm install --no-frozen-lockfile\n        env:\n          PW_VERSION: ${{ matrix.playwright }}\n      # Test driver is always chromium; matrix.browser is the addon's capture engine.\n      - run: pnpm exec playwright install --with-deps chromium \"$BROWSER\"\n        working-directory: packages/storyproof\n        env:\n          BROWSER: ${{ matrix.browser }}\n      - name: Pre-pull the capture container image\n        if: matrix.topology == 'container'\n        run: |\n          version=$(node -p \"require('./packages/storyproof/node_modules/playwright/package.json').version\")\n          docker pull \"mcr.microsoft.com/playwright:v${version}-noble\"\n      - run: pnpm exec turbo run test:visual\n        env:\n          STORYPROOF_BROWSER: ${{ matrix.browser }}\n          STORYPROOF_CONTAINER: ${{ matrix.topology == 'container' && '1' || '' }}\n      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1\n        if: failure()\n        with:\n          name: playwright-report-${{ matrix.node }}-${{ matrix.browser }}-${{ matrix.topology }}${{ matrix.playwright != 'catalog' && format('-pw{0}', matrix.playwright) || '' }}\n          path: packages/storyproof/test-results/\n          retention-days: 7\n\n  # Storybook latest: proves the broad ^10.5.0 peer doesn't break on new minors.\n  # Non-blocking signal — failures here are investigated, not release blockers.\n  acceptance-storybook-latest:\n    name: acceptance - storybook@latest\n    runs-on: ubuntu-latest\n    timeout-minutes: 30\n    continue-on-error: true\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n        with:\n          persist-credentials: false\n      - uses: ./.github/actions/setup\n        with:\n          turbo-cache-prefix: turbo-sb-latest\n      - name: Override storybook to latest\n        run: |\n          pnpm --filter storyproof pkg set \"devDependencies.storybook=latest\"\n          pnpm --filter storyproof pkg set \"devDependencies.@storybook/react-vite=latest\"\n          pnpm install --no-frozen-lockfile\n      - run: pnpm exec playwright install --with-deps chromium\n        working-directory: packages/storyproof\n      - run: pnpm exec turbo run test:visual\n      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1\n        if: failure()\n        with:\n          name: playwright-report-sb-latest\n          path: packages/storyproof/test-results/\n          retention-days: 7",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:42:55.509Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "actionlint .github/workflows/ci.yml 2>&1",
+            "description": "Lint the CI workflow"
+          },
+          "timestamp": "2026-08-07T15:43:02.579Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Clean. One job, 14 matrix entries: 12 base (catalog/catalog) + 1 playwright floor + 1 storybook latest. `continue-on-error` is conditional on `matrix.storybook == 'latest'` so only the storybook-latest entry is non-blocking. Adding more floor or ceiling probes is one `include` line each.",
+          "timestamp": "2026-08-07T15:43:09.707Z"
+        },
+        {
+          "type": "user",
+          "text": "commit and open draft PR",
+          "timestamp": "2026-08-07T15:50:02.008Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "git status",
+            "description": "Show working tree status"
+          },
+          "timestamp": "2026-08-07T15:50:06.425Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "git diff --stat",
+            "description": "Show changed files summary"
+          },
+          "timestamp": "2026-08-07T15:50:06.953Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "git log --oneline -5",
+            "description": "Show recent commits for style"
+          },
+          "timestamp": "2026-08-07T15:50:06.997Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Already on a branch. Let me commit and push.",
+          "timestamp": "2026-08-07T15:50:11.161Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "git add .github/workflows/ci.yml README.md packages/storyproof/README.md packages/storyproof/docs/capture-contract.md packages/storyproof/package.json packages/storyproof/src/preset.ts",
+            "description": "Stage changed files"
+          },
+          "timestamp": "2026-08-07T15:50:11.900Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "git status",
+            "description": "Verify staging is correct"
+          },
+          "timestamp": "2026-08-07T15:50:15.726Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "git commit -m \"$(cat <<'EOF'\ndocs: reconcile support contract with actual manifest and CI\n\n- React: \"not required\" → `^19.0.0` peer dependency (matches manifest)\n- Node.js: document CI-verified versions (22, 24) in the table\n- Storage example: platform-prefixed (`linux-chromium-…`)\n- Capture-contract error message: engine-generic, matching the code\n- Description and keywords: \"browser screenshots\", add firefox/webkit\n- Preset hint: use `v<version>-noble` placeholder instead of hardcoded version\n- Remove \"provisional\" disclaimer from the version table\n\nci: add playwright floor and storybook-latest acceptance entries\n\nFold peer-dep boundary tests into the acceptance matrix via `include`:\n- Playwright floor (1.55.1): chromium/host/node22, blocking\n- Storybook latest: chromium/host/node22, continue-on-error\n\nAssisted-by: claude-code/claude-opus-4-6\nEOF\n)\"",
+            "description": "Commit changes"
+          },
+          "timestamp": "2026-08-07T15:50:26.943Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "git push -u origin chore/docs-pre-release-hardening",
+            "description": "Push branch to remote"
+          },
+          "timestamp": "2026-08-07T15:50:31.078Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "gh pr create --draft --title \"docs: reconcile support contract with actual manifest and CI\" --body \"$(cat <<'EOF'\n## Summary\n\n- **React**: README said \"not required\" while `package.json` declares `react ^19.0.0` as a mandatory peer — fixed the table to match the manifest.\n- **Node.js**: document CI-verified versions (22, 24) in the support table.\n- **Terminology sweep**: \"Chromium screenshots\" → \"browser screenshots\" everywhere, storage example uses platform-prefixed key (`linux-chromium-…`), capture-contract error message matches the code's interpolated engine name.\n- **CI**: fold playwright floor (1.55.1) and storybook-latest probes into the acceptance matrix via `include` — one extra blocking job for the playwright peer floor, one `continue-on-error` job for storybook@latest.\n- **Preset**: example image tag uses `v<version>-noble` placeholder instead of hardcoded `v1.55.1`.\n\nAssisted-by: claude-code/claude-opus-4-6\nEOF\n)\"",
+            "description": "Create draft PR"
+          },
+          "timestamp": "2026-08-07T15:50:45.501Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Draft PR opened: https://github.com/leon0399/storyproof/pull/45\n\nThe uncommitted change warning is the `.claude/` directory — not part of this PR.",
+          "timestamp": "2026-08-07T15:50:52.419Z"
+        },
+        {
+          "type": "user",
+          "text": "Already red for these jobs",
+          "timestamp": "2026-08-07T15:52:48.430Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Let me check the CI run.",
+          "timestamp": "2026-08-07T15:52:54.641Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "gh pr checks 45 --json name,bucket,detailsUrl 2>&1",
+            "description": "Check CI status for PR 45"
+          },
+          "timestamp": "2026-08-07T15:52:54.712Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "gh pr checks 45 --json name,bucket,link 2>&1",
+            "description": "Check CI status for PR 45"
+          },
+          "timestamp": "2026-08-07T15:53:01.053Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Both new jobs failed. Let me check the logs.",
+          "timestamp": "2026-08-07T15:53:06.866Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "gh run view 31194649748 --job 92919778648 --log-failed 2>&1 | tail -60",
+            "description": "Check playwright floor job failure"
+          },
+          "timestamp": "2026-08-07T15:53:07.556Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "gh run view 31194649748 --job 92919778838 --log-failed 2>&1 | tail -60",
+            "description": "Check storybook latest job failure"
+          },
+          "timestamp": "2026-08-07T15:53:08.007Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Run still in progress, can't fetch logs for failed jobs yet. Let me try the API directly.",
+          "timestamp": "2026-08-07T15:53:16.135Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "gh api repos/leon0399/storyproof/actions/jobs/92919778648/logs 2>&1 > /tmp/claude-1000/-home-leon0399-Projects-storyproof/974a7763-79a2-469f-a1ff-4e049e8b9a78/scratchpad/pw-floor.log; tail -80 /tmp/claude-1000/-home-leon0399-Projects-storyproof/974a7763-79a2-469f-a1ff-4e049e8b9a78/scratchpad/pw-floor.log",
+            "description": "Fetch playwright floor job logs"
+          },
+          "timestamp": "2026-08-07T15:53:19.376Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "gh api repos/leon0399/storyproof/actions/jobs/92919778838/logs 2>&1 > /tmp/claude-1000/-home-leon0399-Projects-storyproof/974a7763-79a2-469f-a1ff-4e049e8b9a78/scratchpad/sb-latest.log; tail -80 /tmp/claude-1000/-home-leon0399-Projects-storyproof/974a7763-79a2-469f-a1ff-4e049e8b9a78/scratchpad/sb-latest.log",
+            "description": "Fetch storybook latest job logs"
+          },
+          "timestamp": "2026-08-07T15:53:20.311Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "gh api repos/leon0399/storyproof/actions/jobs/92919778648/logs --allow-escape-sequences 2>&1 > /tmp/claude-1000/-home-leon0399-Projects-storyproof/974a7763-79a2-469f-a1ff-4e049e8b9a78/scratchpad/pw-floor.log; tail -100 /tmp/claude-1000/-home-leon0399-Projects-storyproof/974a7763-79a2-469f-a1ff-4e049e8b9a78/scratchpad/pw-floor.log",
+            "description": "Fetch playwright floor job logs"
+          },
+          "timestamp": "2026-08-07T15:53:27.196Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "gh api repos/leon0399/storyproof/actions/jobs/92919778838/logs --allow-escape-sequences 2>&1 > /tmp/claude-1000/-home-leon0399-Projects-storyproof/974a7763-79a2-469f-a1ff-4e049e8b9a78/scratchpad/sb-latest.log; tail -100 /tmp/claude-1000/-home-leon0399-Projects-storyproof/974a7763-79a2-469f-a1ff-4e049e8b9a78/scratchpad/sb-latest.log",
+            "description": "Fetch storybook latest job logs"
+          },
+          "timestamp": "2026-08-07T15:53:28.663Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Same root cause for both: `ERR_PNPM_RECURSIVE_RUN_NO_SCRIPT  None of the selected packages has a \"pkg\" script`. \n\n`pnpm --filter storyproof pkg set ...` — pnpm interprets `pkg` as a script to run, not the built-in `npm pkg` subcommand. Need to use `npm pkg set` or edit `package.json` directly via `node -e`.",
+          "timestamp": "2026-08-07T15:53:37.192Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/.github/workflows/ci.yml",
+            "limit": 20,
+            "offset": 117
+          },
+          "timestamp": "2026-08-07T15:53:38.055Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/.github/workflows/ci.yml",
+            "limit": 10,
+            "offset": 134
+          },
+          "timestamp": "2026-08-07T15:53:42.101Z"
+        },
+        {
+          "type": "assistant",
+          "text": "`pnpm --filter` treats the next word as a script name. Fix: use `node -e` with `JSON` to edit package.json in place — no pnpm/npm quirks.",
+          "timestamp": "2026-08-07T15:53:48.533Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/.github/workflows/ci.yml",
+            "new_string": "      - name: Override playwright to floor version\n        if: matrix.playwright != 'catalog'\n        run: |\n          node -e '\n            const fs = require(\"fs\");\n            const p = \"packages/storyproof/package.json\";\n            const j = JSON.parse(fs.readFileSync(p, \"utf8\"));\n            j.devDependencies.playwright = process.env.PW_VERSION;\n            fs.writeFileSync(p, JSON.stringify(j, null, 2) + \"\\n\");\n          '\n          pnpm install --no-frozen-lockfile\n        env:\n          PW_VERSION: ${{ matrix.playwright }}\n      - name: Override storybook to latest\n        if: matrix.storybook == 'latest'\n        run: |\n          node -e '\n            const fs = require(\"fs\");\n            const p = \"packages/storyproof/package.json\";\n            const j = JSON.parse(fs.readFileSync(p, \"utf8\"));\n            j.devDependencies.storybook = \"latest\";\n            j.devDependencies[\"@storybook/react-vite\"] = \"latest\";\n            fs.writeFileSync(p, JSON.stringify(j, null, 2) + \"\\n\");\n          '\n          pnpm install --no-frozen-lockfile",
+            "old_string": "      - name: Override playwright to floor version\n        if: matrix.playwright != 'catalog'\n        run: |\n          pnpm --filter storyproof pkg set \"devDependencies.playwright=$PW_VERSION\"\n          pnpm install --no-frozen-lockfile\n        env:\n          PW_VERSION: ${{ matrix.playwright }}\n      - name: Override storybook to latest\n        if: matrix.storybook == 'latest'\n        run: |\n          pnpm --filter storyproof pkg set \"devDependencies.storybook=latest\"\n          pnpm --filter storyproof pkg set \"devDependencies.@storybook/react-vite=latest\"\n          pnpm install --no-frozen-lockfile",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T15:53:53.124Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "actionlint .github/workflows/ci.yml 2>&1",
+            "description": "Lint the CI workflow"
+          },
+          "timestamp": "2026-08-07T15:53:57.634Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Clean (those `tarball_dir` warnings are pre-existing). Let me commit and push the fix.",
+          "timestamp": "2026-08-07T15:54:02.837Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "git add .github/workflows/ci.yml",
+            "description": "Stage CI fix"
+          },
+          "timestamp": "2026-08-07T15:54:02.965Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "git commit -m \"$(cat <<'EOF'\nci: fix pnpm pkg set — pnpm treats `pkg` as a script name\n\nUse `node -e` to edit package.json directly instead of\n`pnpm --filter ... pkg set`, which pnpm interprets as\n\"run the 'pkg' script\" and fails with ERR_PNPM_RECURSIVE_RUN_NO_SCRIPT.\n\nAssisted-by: claude-code/claude-opus-4-6\nEOF\n)\"",
+            "description": "Commit the CI fix"
+          },
+          "timestamp": "2026-08-07T15:54:09.633Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "git push",
+            "description": "Push the fix"
+          },
+          "timestamp": "2026-08-07T15:54:13.981Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Pushed. The issue was `pnpm --filter storyproof pkg set` — pnpm interprets `pkg` as a script to run, not the `npm pkg` subcommand. Fixed by using `node -e` to edit the JSON directly.",
+          "timestamp": "2026-08-07T15:54:21.953Z"
+        },
+        {
+          "type": "user",
+          "text": "Still red",
+          "timestamp": "2026-08-07T16:11:56.303Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "gh run list --branch chore/docs-pre-release-hardening --limit 1 --json databaseId,status --jq '.[0]'",
+            "description": "Get latest run ID"
+          },
+          "timestamp": "2026-08-07T16:12:02.569Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "gh run view 31194938313 --json jobs --jq '.jobs[] | select(.conclusion == \"failure\") | {name, conclusion}' 2>&1",
+            "description": "Find failed jobs in latest run"
+          },
+          "timestamp": "2026-08-07T16:12:10.051Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "gh run view 31194938313 --json jobs --jq '.jobs[] | {name, conclusion, status}' 2>&1",
+            "description": "Show all job statuses"
+          },
+          "timestamp": "2026-08-07T16:12:21.040Z"
+        },
+        {
+          "type": "assistant",
+          "text": "That run is the workflow-lint workflow, not CI. Let me find the CI run.",
+          "timestamp": "2026-08-07T16:12:28.465Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "gh run list --branch chore/docs-pre-release-hardening --limit 5 --json databaseId,status,name,conclusion --jq '.[] | {databaseId, name, status, conclusion}'",
+            "description": "List all recent runs on this branch"
+          },
+          "timestamp": "2026-08-07T16:12:29.473Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "gh run view 31194938122 --json jobs --jq '.jobs[] | select(.conclusion == \"failure\") | .name' 2>&1",
+            "description": "Find failed jobs in CI run"
+          },
+          "timestamp": "2026-08-07T16:12:35.911Z"
+        },
+        {
+          "type": "assistant",
+          "text": "Only the playwright floor job failed (storybook-latest passed now). Let me get the logs.",
+          "timestamp": "2026-08-07T16:12:43.691Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "gh run view 31194938122 --json jobs --jq '.jobs[] | select(.conclusion == \"failure\") | .databaseId'",
+            "description": "Get failed job ID"
+          },
+          "timestamp": "2026-08-07T16:12:43.850Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "gh run view 31194938122 --job 92920737521 --log-failed 2>&1 > /tmp/claude-1000/-home-leon0399-Projects-storyproof/974a7763-79a2-469f-a1ff-4e049e8b9a78/scratchpad/pw-floor2.log; cat /tmp/claude-1000/-home-leon0399-Projects-storyproof/974a7763-79a2-469f-a1ff-4e049e8b9a78/scratchpad/pw-floor2.log",
+            "description": "Get playwright floor failure logs"
+          },
+          "timestamp": "2026-08-07T16:12:53.079Z"
+        },
+        {
+          "type": "assistant",
+          "text": "The real error: **two different versions of `@playwright/test`**. The override only changed `playwright` (the browser library), but `@playwright/test` stayed at `catalog:` → `1.62.0`. The test runner is `@playwright/test@1.62.0` loading code that imports `playwright@1.55.1` — version mismatch.\n\nThe override step needs to also set `@playwright/test` to the same version.",
+          "timestamp": "2026-08-07T16:13:08.172Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Read",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/.github/workflows/ci.yml",
+            "limit": 12,
+            "offset": 127
+          },
+          "timestamp": "2026-08-07T16:13:08.698Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Edit",
+          "input": {
+            "file_path": "/home/leon0399/Projects/storyproof/.github/workflows/ci.yml",
+            "new_string": "            j.devDependencies.playwright = process.env.PW_VERSION;\n            j.devDependencies[\"@playwright/test\"] = process.env.PW_VERSION;\n            fs.writeFileSync(p, JSON.stringify(j, null, 2) + \"\\n\");",
+            "old_string": "            j.devDependencies.playwright = process.env.PW_VERSION;\n            fs.writeFileSync(p, JSON.stringify(j, null, 2) + \"\\n\");",
+            "replace_all": false
+          },
+          "timestamp": "2026-08-07T16:13:19.746Z"
+        },
+        {
+          "type": "tool_use",
+          "name": "Bash",
+          "input": {
+            "command": "actionlint .github/workflows/ci.yml 2>&1",
+            "description": "Lint CI workflow"
+          },
+          "timestamp": "2026-08-07T16:13:24.568Z"
+        }
+      ],
+      "total_additions": 1,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    }
+  }
+}
