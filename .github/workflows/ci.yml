@@ -118,10 +118,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup
-        with:
-          node-version: ${{ matrix.node }}
-          turbo-cache-prefix: turbo-visual-node${{ matrix.node }}${{ matrix.playwright != 'catalog' && format('-pw{0}', matrix.playwright) || '' }}${{ matrix.storybook != 'catalog' && format('-sb{0}', matrix.storybook) || '' }}
+      # Must run before setup's pnpm install, which enforces engines.
       - name: Override engines.node for floor probes
         if: matrix.engines-node
         run: |
@@ -132,9 +129,12 @@ jobs:
             j.engines.node = process.env.ENGINES_NODE;
             fs.writeFileSync(p, JSON.stringify(j, null, 2) + "\n");
           '
-          pnpm install --no-frozen-lockfile
         env:
           ENGINES_NODE: ${{ matrix.engines-node }}
+      - uses: ./.github/actions/setup
+        with:
+          node-version: ${{ matrix.node }}
+          turbo-cache-prefix: turbo-visual-node${{ matrix.node }}${{ matrix.playwright != 'catalog' && format('-pw{0}', matrix.playwright) || '' }}${{ matrix.storybook != 'catalog' && format('-sb{0}', matrix.storybook) || '' }}
       - name: Override playwright to floor version
         if: matrix.playwright != 'catalog'
         run: |
