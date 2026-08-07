@@ -85,10 +85,12 @@
   },
   "peerDependencies": {
     "playwright": "^1.38.0",
-    "react": "^19.0.0",
     "storybook": "^10.5.0"
   },
   "engines": {
     "node": ">=22"
+  },
+  "inlinedDependencies": {
+    "react": "19.2.8"
   }
 }

@@ -45,7 +45,6 @@ you already run for end-to-end tests.
 | Framework     | `@storybook/react-vite`, `@storybook/nextjs-vite`     |
 | Playwright    | `^1.38.0`, a peer dependency you install              |
 | Browser       | Chromium (default), Firefox, WebKit                   |
-| React         | `^19.0.0`, a peer dependency                          |
 | Storybook run | local development server; static builds are read-only |
 
 CI verifies on Ubuntu 24.04 x64.
