@@ -253,7 +253,7 @@ export const Animated: Story = {
 };
 ```
 
-Disabled stories report a passing result with an explanatory message and do not
+Disabled stories report a disabled result with an explanatory message and do not
 write a candidate.
 
 ### Choose screenshot framing

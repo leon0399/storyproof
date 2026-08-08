@@ -19,6 +19,7 @@ import type {
   VisualResult,
   VisualRunState,
 } from "../shared/results.js";
+import { currentStoryPresentation } from "./state.js";
 
 type ImageKind = "baseline" | "candidate" | "diff";
 type DisplayStatus = VisualResult["status"] | "not-run";
@@ -46,9 +47,9 @@ export function PanelView({
   ready = true,
   onCommand,
 }: PanelViewProps) {
-  const result = useMemo(
-    () => state.results.find((item) => item.storyId === currentStoryId),
-    [currentStoryId, state.results],
+  const presentation = useMemo(
+    () => currentStoryPresentation(state, currentStoryId),
+    [currentStoryId, state],
   );
   const runCurrent = () => {
     if (!currentStoryId) return;
@@ -72,12 +73,13 @@ export function PanelView({
     <PanelRoot aria-label="Visual tests">
       {currentStoryId ? (
         <Summary
-          result={result}
+          result={presentation.result}
+          status={presentation.status}
+          active={presentation.active}
           storyId={currentStoryId}
           storyTitle={currentStoryTitle}
           environment={state.environment}
           ready={ready}
-          running={state.running}
           onRun={runCurrent}
           onCancel={() => onCommand({ type: "cancel" })}
           onCommand={onCommand}
@@ -92,9 +94,9 @@ export function PanelView({
         {currentStoryId ? (
           <Review
             key={currentStoryId}
-            result={result}
+            result={presentation.result}
             baseline={baseline}
-            running={state.running}
+            capturing={presentation.active}
           />
         ) : (
           <Fill>
@@ -111,36 +113,28 @@ export function PanelView({
 
 function Summary({
   result,
+  status,
+  active,
   storyId,
   storyTitle,
   environment,
   ready,
-  running,
   onRun,
   onCancel,
   onCommand,
 }: {
   result: VisualResult | undefined;
+  status: DisplayStatus;
+  active: boolean;
   storyId: string;
   storyTitle: string | undefined;
   environment: VisualEnvironment | undefined;
   ready: boolean;
-  running: boolean;
   onRun: () => void;
   onCancel: () => void;
   onCommand: (command: VisualCommand) => void;
 }) {
   const title = result?.title ?? storyTitle;
-  const status: DisplayStatus = result
-    ? result.status
-    : running
-      ? "running"
-      : "not-run";
-  // Whether *this* story is mid-capture — drives Stop vs Run, independent of
-  // whether some other story in a "run all" is still going.
-  const active = result
-    ? result.status === "running" || result.status === "queued"
-    : running;
   const reviewable =
     result &&
     (result.status === "new" || result.status === "changed") &&
@@ -226,11 +220,11 @@ function Summary({
 function Review({
   result,
   baseline,
-  running,
+  capturing,
 }: {
   result: VisualResult | undefined;
   baseline?: BaselinePreview;
-  running: boolean;
+  capturing: boolean;
 }) {
   // With no local run, fall back to the committed baseline so it stays
   // reviewable; a run supplies the full baseline/candidate/diff set.
@@ -259,10 +253,6 @@ function Review({
   const artifactId = artifacts?.[imageKind];
   const isError = result?.status === "capture-error";
 
-  // Keyed to THIS story, not the suite: a finished story showed "Capturing
-  // this story…" for as long as any other story was still running.
-  const capturing =
-    result?.status === "running" || result?.status === "queued" || !result;
   const placeholder = artifactId
     ? undefined
     : isError
@@ -273,9 +263,7 @@ function Review({
           : result.status === "disabled"
             ? "Visual tests are disabled for this story."
             : "No image for this view."
-        : running
-          ? "Capturing this story…"
-          : "Run the visual test to capture this story and compare it with its baseline.";
+        : "Run the visual test to capture this story and compare it with its baseline.";
 
   return (
     <>
