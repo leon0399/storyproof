@@ -146,7 +146,7 @@ function resolveStoryRoots(value: unknown): string[] {
 }
 
 const CAPTURE_HINT =
-  'Set "capture" to an object like { browser: "firefox" }, { container: true }, or { container: { image: "mcr.microsoft.com/playwright:v1.55.1-noble" } }; omit it to capture with host chromium.';
+  'Set "capture" to an object like { browser: "firefox" }, { container: true }, or { container: { image: "mcr.microsoft.com/playwright:v<version>-noble" } }; omit it to capture with host chromium.';
 
 // Exported for direct unit coverage; not part of the package's public API
 // (only ./index, ./manager, ./preset, ./preview are exported subpaths).

@@ -2,20 +2,26 @@
 
 ## Capture origin
 
-Capture is zero-config because the origin is fixed, not discovered: the preset
-builds it from the development server's own port as `http://127.0.0.1:<port>`.
-Chromium therefore has to reach Storybook over **direct loopback HTTP in the
-same network namespace** as the Storybook process.
+Capture supports two topologies:
 
-The origin is not configurable, so the following are unsupported — not merely
-untested. The current implementation cannot address them at all:
+- **Host capture** (default): the selected browser and Storybook server share
+  the host network namespace. The origin is `http://127.0.0.1:<port>`, built
+  from the development server's own port.
+- **Managed container capture** (`capture: { container: true }`): storyproof
+  owns the split topology — a Docker container runs the browser, and the addon
+  rewrites the loopback origin through the Docker host gateway so the
+  containerized browser reaches the host Storybook. See
+  [configuration](configuration.md#container-capture-capturecontainer).
+
+The following are unsupported — not merely untested:
 
 - **HTTPS origins.** The scheme is hard-coded to `http`.
 - **Reverse-proxy path prefixes.** The story iframe is resolved against the
   server root, so a Storybook mounted under a path prefix is unreachable.
-- **Split capture.** Running the browser in a separate container, VM, or host
-  from the Storybook server breaks the loopback assumption; `127.0.0.1` in the
-  browser's namespace is not the Storybook server.
+- **Arbitrary split capture.** Running the browser in a separately managed
+  container, VM, or remote host (as opposed to the managed container above)
+  breaks the loopback assumption; `127.0.0.1` in the browser's namespace is not
+  the Storybook server.
 
 Adding a configurable origin is deliberately deferred until a real consumer
 needs one, because each of those topologies also changes the trust boundary
@@ -116,10 +122,11 @@ a capture error.
 
 Consequences worth planning for:
 
-- **Upgrading Playwright or Chromium invalidates every baseline.** Both versions
-  are part of the compatibility check, so a Playwright bump makes existing
-  baselines incompatible and every affected story needs review and re-approval.
-  Treat a Playwright upgrade as a deliberate, reviewed rebaseline.
+- **Upgrading Playwright or the browser build invalidates affected baselines.**
+  Both versions are part of the per-engine compatibility check. A Playwright
+  bump invalidates baselines for every engine; a browser-build change only
+  affects the engine whose build changed. Treat either upgrade as a deliberate,
+  reviewed rebaseline.
 - **Platform is compared, and same-platform machines can still differ.** A
   baseline captured on another OS reports a named platform mismatch. But the
   render fingerprint exists because even two same-platform machines have been
@@ -145,10 +152,11 @@ a run:
 
 Two failures are run-wide rather than per story:
 
-- **Chromium cannot start** — for example, the Playwright browser binary was
-  never installed. The browser is launched once per run, so every story in that
-  run reports `Chromium could not start: <detail>`. Install the browser with
-  `pnpm exec playwright install chromium`.
+- **The capture browser cannot start** — for example, the Playwright browser
+  binary was never installed. The browser is launched once per run, so every
+  story in that run reports
+  `The <engine> capture browser could not start: <detail>`. Install the browser
+  with `pnpm exec playwright install <engine>`.
 - **A cancelled run** reports cancelled results; a cancelled story has no
   approvable candidate.
 

@@ -1,6 +1,6 @@
 # Storyproof
 
-Local visual regression testing for Storybook. Storyproof captures Chromium
+Local visual regression testing for Storybook. Storyproof captures browser
 screenshots of your stories, shows baseline/candidate/diff images inside
 Storybook itself, and approves baselines as PNG files committed next to your
 story source — no cloud service, no accounts, reviewed like any other change in
@@ -28,6 +28,34 @@ pnpm add -D storyproof playwright
 pnpm exec playwright install chromium
 ```
 
+or with npm:
+
+```bash
+npm install -D storyproof playwright
+npx playwright install chromium
+```
+
+Add the preset to your `.storybook/main.ts`:
+
+```ts
+import type { StorybookConfig } from "@storybook/react-vite";
+
+const config: StorybookConfig = {
+  addons: [
+    {
+      name: "storyproof/preset",
+      options: {
+        storyRoots: ["src"],
+      },
+    },
+  ],
+};
+
+export default config;
+```
+
+Start Storybook, pick a story, and open the **Visual tests** panel.
+
 You own the Playwright version: it is a peer dependency, because it is part of a
 baseline's identity. See [the package README](packages/storyproof/README.md) for
 the support target, the trust boundary, and where baselines are stored.
@@ -39,10 +67,6 @@ the support target, the trust boundary, and where baselines are stored.
 | [`packages/storyproof`](packages/storyproof) | The addon, published to npm as `storyproof`    |
 | [`examples`](examples)                       | Runnable Storybook examples, one per framework |
 | [`apps/website`](apps/website)               | storyproof.dev (in progress)                   |
-
-Public preview, `0.1.0-next.x`. Extracted with history from
-[llame](https://github.com/leon0399/llame), where it was built and is dogfooded
-against a 226-story Storybook.
 
 ## Contributing
 

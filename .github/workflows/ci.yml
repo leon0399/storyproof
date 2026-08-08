@@ -83,18 +83,44 @@ jobs:
           path: /tmp/storyproof-ci/package.tgz
           retention-days: 7
 
-  # Acceptance suite: full node × browser × topology cross-product.
-  # Turbo cache serves `^build` only — test:visual is uncached.
+  # Acceptance suite: full node × browser × topology cross-product, plus
+  # peer-dep boundary entries via `include`. Single-element dimensions
+  # (`playwright: [catalog]`, `storybook: [catalog]`) keep the base
+  # cross-product at 12; include entries whose value differs on a
+  # matrix-defined key create new jobs.
   acceptance:
-    name: acceptance - node ${{ matrix.node }} - ${{ matrix.browser }} - ${{ matrix.topology }}
+    name: acceptance - node ${{ matrix.node }} - ${{ matrix.browser }} - ${{ matrix.topology }}${{ matrix.playwright != 'catalog' && format(' - pw {0}', matrix.playwright) || '' }}${{ matrix.storybook != 'catalog' && format(' - sb {0}', matrix.storybook) || '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    continue-on-error: ${{ matrix.storybook == 'latest' }}
     strategy:
       fail-fast: false
       matrix:
         node: [22, 24]
         browser: [chromium, firefox, webkit]
         topology: [host, container]
+        playwright: [catalog]
+        storybook: [catalog]
+        include:
+          # Playwright peer-dep floor: 1.45.0 is the oldest version with
+          # Noble container images and `run-server --host`. Container
+          # topology exercises the full contract (host-only would miss
+          # image derivation and the run-server CLI).
+          - {
+              node: 22,
+              browser: chromium,
+              topology: container,
+              playwright: "1.45.0",
+              storybook: catalog,
+            }
+          # Storybook latest: non-blocking (continue-on-error above).
+          - {
+              node: 22,
+              browser: chromium,
+              topology: host,
+              playwright: catalog,
+              storybook: latest,
+            }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -102,7 +128,35 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           node-version: ${{ matrix.node }}
-          turbo-cache-prefix: turbo-visual-node${{ matrix.node }}
+          turbo-cache-prefix: turbo-visual-node${{ matrix.node }}${{ matrix.playwright != 'catalog' && format('-pw{0}', matrix.playwright) || '' }}${{ matrix.storybook != 'catalog' && format('-sb{0}', matrix.storybook) || '' }}
+      - name: Override playwright to floor version
+        if: matrix.playwright != 'catalog'
+        run: |
+          node -e '
+            const fs = require("fs");
+            const p = "packages/storyproof/package.json";
+            const j = JSON.parse(fs.readFileSync(p, "utf8"));
+            j.devDependencies.playwright = process.env.PW_VERSION;
+            j.devDependencies["@playwright/test"] = process.env.PW_VERSION;
+            fs.writeFileSync(p, JSON.stringify(j, null, 2) + "\n");
+          '
+          pnpm install --no-frozen-lockfile
+        env:
+          PW_VERSION: ${{ matrix.playwright }}
+      - name: Override storybook version
+        if: matrix.storybook != 'catalog'
+        run: |
+          node -e '
+            const fs = require("fs");
+            const p = "packages/storyproof/package.json";
+            const j = JSON.parse(fs.readFileSync(p, "utf8"));
+            j.devDependencies.storybook = process.env.SB_VERSION;
+            j.devDependencies["@storybook/react-vite"] = process.env.SB_VERSION;
+            fs.writeFileSync(p, JSON.stringify(j, null, 2) + "\n");
+          '
+          pnpm install --no-frozen-lockfile
+        env:
+          SB_VERSION: ${{ matrix.storybook }}
       # Test driver is always chromium; matrix.browser is the addon's capture engine.
       - run: pnpm exec playwright install --with-deps chromium "$BROWSER"
         working-directory: packages/storyproof
@@ -120,7 +174,7 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
-          name: playwright-report-${{ matrix.node }}-${{ matrix.browser }}-${{ matrix.topology }}
+          name: playwright-report-${{ matrix.node }}-${{ matrix.browser }}-${{ matrix.topology }}${{ matrix.playwright != 'catalog' && format('-pw{0}', matrix.playwright) || '' }}${{ matrix.storybook != 'catalog' && format('-sb{0}', matrix.storybook) || '' }}
           path: packages/storyproof/test-results/
           retention-days: 7
 
@@ -237,3 +291,36 @@ jobs:
           name: playwright-report-tarball-${{ matrix.example }}
           path: packages/storyproof/test-results/
           retention-days: 7
+
+  # Single stable context for jobs in this CI workflow. Branch protection
+  # should require this context instead of its individual matrix contexts;
+  # checks from separate workflows (actionlint, pinact) remain separately
+  # protected.
+  required-ci:
+    name: required CI
+    if: always()
+    needs:
+      - lint
+      - typecheck
+      - format
+      - test
+      - package
+      - acceptance
+      - example-baselines
+      - tarball-install
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every blocking job
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          node <<'SCRIPT'
+          const needs = JSON.parse(process.env.NEEDS);
+          const failed = Object.entries(needs)
+            .filter(([, job]) => job.result !== "success")
+            .map(([name, job]) => `${name}: ${job.result}`);
+          if (failed.length) {
+            console.error(failed.join("\n"));
+            process.exit(1);
+          }
+          SCRIPT

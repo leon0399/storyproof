@@ -18,6 +18,9 @@ export default defineConfig({
   // defaults; internal modules (src/node, src/manager, src/shared) are
   // bundled per entry, with chunks shared across entries where reachable
   // from more than one (e.g. src/shared) split out automatically.
+  // React is used only by the manager entry and resolved by Storybook's
+  // own bundler at manager compile time — it is not a consumer dependency.
+  external: ["react"],
   publint: true,
   attw: {
     profile: "esm-only",

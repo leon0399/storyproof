@@ -14,8 +14,8 @@ rather not be.
 
 ## Supported versions
 
-Public preview: only the latest published version gets fixes. There are no
-maintained release branches.
+Only the latest published `0.x` version gets fixes. There are no maintained
+release branches.
 
 ## Scope
 

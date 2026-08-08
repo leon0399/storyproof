@@ -60,8 +60,9 @@ Entry points are `index.ts`, `manager.tsx`, `preset.ts`, `preview.ts` — see th
   Storybook's story glob from mistaking an artifact dir for a story file.
 - **`pnpm pack` always rebuilds** via `prepack`, so a stale `dist` can never be
   packed. `test/pack-inventory.test.ts` packs the package and asserts the
-  tarball ships only `dist/**`, `LICENSE`, `README.md`, and `package.json`
-  within a 150 KiB budget — there is no separate inventory script.
+  tarball ships only `dist/**`, `docs/**`, `CHANGELOG.md`, `LICENSE`,
+  `README.md`, and `package.json` within a 150 KiB budget — there is no separate
+  inventory script.
 
 ## Acceptance suite
 

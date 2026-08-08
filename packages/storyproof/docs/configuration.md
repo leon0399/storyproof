@@ -4,9 +4,11 @@ The addon is a Storybook-first development tool. Capture, review, and approval
 start inside Storybook; the package does not require a separate local CLI
 workflow.
 
-Before configuring it, read the preview support target and the trust boundary in
-the [README](../README.md): the supported combinations are release targets, not
-verified support, and anyone who can reach the development manager channel can
+Before configuring it, read the support target and trust boundary in the
+[README](../README.md): CI exercises the Playwright peer-dep floor, the
+repository-pinned dependency versions, all supported browser/topology
+combinations at the pinned Playwright version, and a non-blocking
+Storybook-latest probe. Anyone who can reach the development manager channel can
 approve baselines into your repository.
 
 ## Add the preset

@@ -14,3 +14,4 @@ packages/storyproof/test/.tmp/
 # Next.js dev/build output for the nextjs example's app server.
 .next/
 *.tsbuildinfo
+**/CLAUDE.local.md
