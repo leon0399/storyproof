@@ -8,7 +8,13 @@
     "storyproof": "0.0.1-alpha.1"
   },
   "changesets": [
+    "capture-timeout",
+    "container-cache-version-key",
     "first-public-preview",
-    "panel-migration-states"
+    "panel-migration-states",
+    "playwright-peer-dependency",
+    "stable-contract-hardening",
+    "webkit-navigation-failure",
+    "widen-storybook-icons-range"
   ]
 }
