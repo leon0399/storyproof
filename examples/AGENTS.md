@@ -76,14 +76,36 @@ fails closed there by design.
 Container-captured and committed, staged so the panel shows every state on a
 fresh clone: most **Passed**, Page **Changed**, one **New**.
 
-After changing demo components, re-approve against a running example — for
-**every** example, keeping the staged Page difference:
+**One committed set per engine** — `container-{chromium,firefox,webkit}`. They
+coexist rather than overwrite, which is the point: a fresh clone demonstrates
+per-environment baselines, and opening an example in host mode shows the panel
+naming the environments a baseline _does_ exist for.
+
+**Container keys only, and that is not arbitrary.** A `linux-…` key is valid
+only on machines matching its render fingerprint — two Linux hosts with
+identical platform, browser build, and font metrics have been measured
+rasterizing differently (`src/node/environment.ts`). Committing host keys would
+show most contributors an incompatibility notice instead of the staged states.
+Container keys reproduce anywhere, which is what makes them worth committing.
+
+After changing demo components, re-approve for **every** engine and **every**
+example, keeping the staged Page difference:
 
 ```bash
-# once per example, with that example's Storybook port from the table above
-STORYPROOF_CONTAINER=1 pnpm --filter ./examples/react-vite-sb10.5 run dev
+# per engine × example, with that example's Storybook port from the table above
+STORYPROOF_CONTAINER=1 STORYPROOF_BROWSER=firefox \
+  pnpm --filter ./examples/react-vite-sb10.5 run dev
 node scripts/example-states.mjs --port 6106 --mode approve   # from packages/storyproof
 ```
 
-CI runs the same script with `--mode verify`; drift between demo sources and
-committed baselines fails the build.
+The script reads the environment key off the live run, so it needs no engine
+argument — start the Storybook with the engine you are approving for.
+
+**Staging the Changed state.** `approve` covers the Page stories too, so it
+leaves them Passed. The committed Page baseline has to predate the source edit
+(`Page.tsx`: baseline shows INV-1042 paid, source says overdue). Reproducing it
+for a new engine means approving with the source reverted to `paid`, then
+restoring `overdue`.
+
+CI runs the same script with `--mode verify` across all six combinations; drift
+between demo sources and committed baselines fails the build.

@@ -178,15 +178,22 @@ jobs:
           path: packages/storyproof/test-results/
           retention-days: 7
 
-  # Asserts committed baselines still produce the expected panel states.
-  # Uses the same script maintainers run to re-approve.
+  # Asserts committed baselines still produce the expected panel states, per
+  # engine. Baselines are keyed by environment, so each engine has its own
+  # committed set and they must all stay in step with the demo sources.
+  # Container topology only: those keys are reproducible on any machine,
+  # which is what makes them worth committing (see examples/AGENTS.md).
+  # The driver browser stays chromium — the engine under test runs inside
+  # the capture container, not here.
   example-baselines:
-    name: example baselines (${{ matrix.example }})
+    name: example baselines (${{ matrix.example }} - ${{ matrix.browser }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
+        browser: [chromium, firefox, webkit]
+        example: [react-vite-sb10.5, nextjs-vite-sb10.5]
         include:
           - { example: react-vite-sb10.5, port: 6106 }
           - { example: nextjs-vite-sb10.5, port: 6107 }
@@ -212,6 +219,7 @@ jobs:
         env:
           EXAMPLE: ${{ matrix.example }}
           PORT: ${{ matrix.port }}
+          STORYPROOF_BROWSER: ${{ matrix.browser }}
           STORYPROOF_CONTAINER: "1"
       - name: Storybook logs
         if: failure()

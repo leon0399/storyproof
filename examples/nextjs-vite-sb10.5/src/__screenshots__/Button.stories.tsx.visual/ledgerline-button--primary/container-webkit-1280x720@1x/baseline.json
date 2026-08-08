@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 2,
+  "baselineSha256": "cfcd65e86359d9ff0424b46c4f7f443ce11ae92871e57802fa9ebe3d3e145b55",
+  "browser": {
+    "name": "webkit",
+    "version": "26.5",
+    "playwrightVersion": "1.62.0"
+  },
+  "platform": "container",
+  "renderFingerprint": "5640f4b9519114099fb52523cadbadd7878cfcbbb348bf0eed18392052f222ea",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "deviceScaleFactor": 1,
+  "comparator": {
+    "name": "pixelmatch",
+    "threshold": 0.1,
+    "includeAA": false
+  }
+}
