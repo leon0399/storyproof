@@ -5,7 +5,7 @@ start inside Storybook; the package does not require a separate local CLI
 workflow.
 
 Before configuring it, read the support target and trust boundary in the
-[README](../README.md): CI exercises the documented minimums, the
+[README](../README.md): CI exercises the Playwright peer-dep floor, the
 repository-pinned dependency versions, all supported browser/topology
 combinations at the pinned Playwright version, and a non-blocking
 Storybook-latest probe. Anyone who can reach the development manager channel can

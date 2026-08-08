@@ -75,7 +75,8 @@ you already run for end-to-end tests.
 | Browser       | Chromium (default), Firefox, WebKit                   |
 | Storybook run | local development server; static builds are read-only |
 
-CI verifies on Ubuntu 24.04 x64.
+CI verifies on the `ubuntu-latest` GitHub Actions runner (currently Ubuntu 24.04
+x64).
 
 ## Baselines carry an environment identity
 

@@ -122,11 +122,11 @@ a capture error.
 
 Consequences worth planning for:
 
-- **Upgrading Playwright or the selected browser build invalidates every
-  baseline.** Both versions are part of the compatibility check, so a Playwright
-  bump makes existing baselines incompatible and every affected story needs
-  review and re-approval. Treat a Playwright upgrade as a deliberate, reviewed
-  rebaseline.
+- **Upgrading Playwright or the browser build invalidates affected baselines.**
+  Both versions are part of the per-engine compatibility check. A Playwright
+  bump invalidates baselines for every engine; a browser-build change only
+  affects the engine whose build changed. Treat either upgrade as a deliberate,
+  reviewed rebaseline.
 - **Platform is compared, and same-platform machines can still differ.** A
   baseline captured on another OS reports a named platform mismatch. But the
   render fingerprint exists because even two same-platform machines have been
