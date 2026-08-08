@@ -16,6 +16,48 @@ type RetryingProjection<T> = {
   project: (value: T) => void;
 };
 
+function emitClearVisualTests(channel: Pick<StateChannel, "emit">): void {
+  channel.emit(COMMAND_EVENT, { type: "clear" } satisfies VisualCommand);
+}
+
+export function registerTestProviderCommands(
+  testProviderStore: {
+    onClearAll: (clear: () => void) => unknown;
+    onRunAll: (runAll: () => void) => unknown;
+  },
+  channel: Pick<StateChannel, "emit">,
+): {
+  clear: () => void;
+  requestRunAll: () => void;
+  stateSynced: () => void;
+} {
+  let ready = false;
+  let pendingRunAll = false;
+  const requestRunAll = () => {
+    if (ready) {
+      channel.emit(COMMAND_EVENT, {
+        type: "run",
+        scope: "all",
+      } satisfies VisualCommand);
+    } else {
+      pendingRunAll = true;
+    }
+  };
+  const stateSynced = () => {
+    ready = true;
+    if (!pendingRunAll) return;
+    pendingRunAll = false;
+    requestRunAll();
+  };
+  const clear = () => {
+    pendingRunAll = false;
+    emitClearVisualTests(channel);
+  };
+  testProviderStore.onRunAll(requestRunAll);
+  testProviderStore.onClearAll(clear);
+  return { clear, requestRunAll, stateSynced };
+}
+
 export function createRetryingProjection<T>(
   projectValue: (value: T) => void,
   isRetryable: (error: unknown) => boolean,

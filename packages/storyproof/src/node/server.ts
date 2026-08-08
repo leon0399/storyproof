@@ -70,7 +70,13 @@ export function registerArtifactRoute(
 
 interface RuntimeRunner extends Pick<
   VisualTestRunner,
-  "approve" | "cancel" | "getState" | "loadBaseline" | "run" | "setOnState"
+  | "approve"
+  | "cancel"
+  | "clear"
+  | "getState"
+  | "loadBaseline"
+  | "run"
+  | "setOnState"
 > {}
 
 interface RuntimeChannel extends Pick<Channel, "emit" | "on"> {}
@@ -96,6 +102,10 @@ export function installCommandHandlers(
         runner.cancel();
         return;
       }
+      if (command.type === "clear") {
+        runner.clear();
+        return;
+      }
       if (command.type === "load-baseline") {
         channel.emit(
           BASELINE_EVENT,
@@ -110,7 +120,7 @@ export function installCommandHandlers(
       await runner.run(command);
     } catch (error) {
       const storyId =
-        command.type === "approve"
+        command.type === "approve" || command.type === "load-baseline"
           ? command.storyId
           : command.type === "run" && command.scope === "current"
             ? command.storyId

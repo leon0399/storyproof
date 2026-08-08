@@ -37,9 +37,7 @@ npx playwright install chromium
 Add the preset to your `.storybook/main.ts`:
 
 ```ts
-import type { StorybookConfig } from "@storybook/react-vite";
-
-const config: StorybookConfig = {
+const config = {
   addons: [
     {
       name: "storyproof/preset",
@@ -52,6 +50,10 @@ const config: StorybookConfig = {
 
 export default config;
 ```
+
+If you use TypeScript, import `StorybookConfig` from your framework package only
+if you want the annotation: `@storybook/react-vite` for React/Vite,
+`@storybook/nextjs-vite` for Next.js/Vite.
 
 Start Storybook, pick a story, and open the **Visual tests** panel.
 

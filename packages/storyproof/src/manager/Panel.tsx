@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useReducer, useState } from "react";
 import {
   addons,
   useStorybookApi,
@@ -14,6 +14,7 @@ import type { VisualCommand, VisualCommandError } from "../shared/protocol.js";
 import type { BaselinePreview, VisualRunState } from "../shared/results.js";
 import { subscribeToVisualState } from "./channel.js";
 import { PanelView } from "./PanelView.js";
+import { commandErrorReducer, visibleCommandError } from "./state.js";
 
 const EMPTY_STATE: VisualRunState = { running: false, results: [] };
 
@@ -29,7 +30,9 @@ export function Panel() {
       : undefined;
   const [state, setState] = useState<VisualRunState>(EMPTY_STATE);
   const [baseline, setBaseline] = useState<BaselinePreview>();
-  const [commandError, setCommandError] = useState<string>();
+  const [commandError, dispatchCommandError] = useReducer(commandErrorReducer, {
+    storyId,
+  });
   const [ready, setReady] = useState(false);
   const available =
     (globalThis as typeof globalThis & { CONFIG_TYPE?: string }).CONFIG_TYPE ===
@@ -44,7 +47,11 @@ export function Panel() {
     });
     channel.on(BASELINE_EVENT, setBaseline);
     const onCommandError = (error: VisualCommandError) =>
-      setCommandError(error.message);
+      dispatchCommandError({
+        type: "failed",
+        ...(error.storyId !== undefined ? { storyId: error.storyId } : {}),
+        message: error.message,
+      });
     channel.on(COMMAND_ERROR_EVENT, onCommandError);
     return () => {
       unsubscribeState();
@@ -52,6 +59,10 @@ export function Panel() {
       channel.off(COMMAND_ERROR_EVENT, onCommandError);
     };
   }, [available]);
+
+  useEffect(() => {
+    dispatchCommandError({ type: "story-changed", storyId });
+  }, [storyId]);
 
   // Ask the server for the selected story's committed baseline so it can be
   // reviewed even before a local run captures anything.
@@ -65,7 +76,7 @@ export function Panel() {
   }, [available, ready, storyId]);
 
   const send = (command: VisualCommand) => {
-    setCommandError(undefined);
+    dispatchCommandError({ type: "cleared" });
     addons.getChannel().emit(COMMAND_EVENT, command);
   };
 
@@ -75,7 +86,7 @@ export function Panel() {
       currentStoryId={storyId}
       currentStoryTitle={currentStoryTitle}
       baseline={baseline?.storyId === storyId ? baseline : undefined}
-      commandError={commandError}
+      commandError={visibleCommandError(commandError, storyId)}
       available={available}
       ready={ready}
       onCommand={send}

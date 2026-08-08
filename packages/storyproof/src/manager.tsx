@@ -12,7 +12,6 @@ import {
 
 import {
   ADDON_ID,
-  COMMAND_EVENT,
   PANEL_ID,
   STATUS_TYPE_ID,
   TEST_PROVIDER_ID,
@@ -21,6 +20,7 @@ import { Panel } from "./manager/Panel.js";
 import { statusValueFor } from "./manager/state.js";
 import {
   createRetryingProjection,
+  registerTestProviderCommands,
   subscribeToVisualState,
 } from "./manager/channel.js";
 import { TestProviderRow } from "./manager/TestProviderRow.js";
@@ -43,8 +43,7 @@ addons.register(ADDON_ID, (api) => {
   if (!isDevelopment) return;
 
   const channel = addons.getChannel();
-  let ready = false;
-  let pendingRunAll = false;
+  const commands = registerTestProviderCommands(testProviderStore, channel);
   const statusProjection = createRetryingProjection<VisualRunState>(
     (state) => {
       statusStore.unset();
@@ -63,7 +62,6 @@ addons.register(ADDON_ID, (api) => {
       error.message.includes("Cannot set state before store is ready"),
   );
   subscribeToVisualState(channel, (state: VisualRunState) => {
-    ready = true;
     testProviderStore.setState(
       state.running
         ? "test-provider-state:running"
@@ -72,28 +70,16 @@ addons.register(ADDON_ID, (api) => {
           ? "test-provider-state:succeeded"
           : "test-provider-state:pending",
     );
-    if (pendingRunAll) {
-      pendingRunAll = false;
-      channel.emit(COMMAND_EVENT, { type: "run", scope: "all" });
-    }
+    commands.stateSynced();
     statusProjection.project(state);
   });
   statusStore.onSelect(() => {
     api.setSelectedPanel(PANEL_ID);
     api.togglePanel(true);
   });
-  testProviderStore.onRunAll(() => {
-    if (ready) {
-      channel.emit(COMMAND_EVENT, { type: "run", scope: "all" });
-    } else {
-      pendingRunAll = true;
-    }
-  });
-  testProviderStore.onClearAll(() => statusStore.unset());
-
   addons.add(TEST_PROVIDER_ID, {
     type: types.experimental_TEST_PROVIDER,
-    clear: () => statusStore.unset(),
+    clear: commands.clear,
     render: () => <TestProviderRow />,
   });
 });

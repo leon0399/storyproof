@@ -86,8 +86,8 @@ baselines fails the build.
 ## Stories
 
 Open the **Visual tests** panel or the testing widget on any story and click
-**Run visual tests** to capture a baseline, review it, and approve it. Approved
-baselines are written next to the story as
+**Run visual tests** to capture a baseline, review it, and approve it. For
+stories inside `src`, approved baselines are written next to the story as
 `src/__screenshots__/<story file>.visual/**`.
 
 - **Ledgerline** — a small invoicing dashboard derived from Storybook's official
@@ -103,7 +103,8 @@ baselines are written next to the story as
   rejection, malformed baseline metadata) with a short description in its source
   of what it shows and what storyproof should do. Read
   `src/visual-fixture.stories.tsx` and `outside/outside-fixture.stories.tsx`
-  directly — that's the documentation.
+  directly — that's the documentation. `Outside Fixture` must fail closed and
+  write no screenshots anywhere.
 
 ## Files
 

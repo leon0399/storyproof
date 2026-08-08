@@ -3,6 +3,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { COMMAND_EVENT, STATE_EVENT } from "../src/constants.js";
 import {
   createRetryingProjection,
+  registerTestProviderCommands,
   subscribeToVisualState,
 } from "../src/manager/channel.js";
 import type { VisualRunState } from "../src/shared/results.js";
@@ -10,6 +11,88 @@ import type { VisualRunState } from "../src/shared/results.js";
 describe("manager state channel", () => {
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  test("registers and returns clear callbacks that emit the authoritative command", () => {
+    let registered: (() => void) | undefined;
+    const testProviderStore = {
+      onRunAll: vi.fn(),
+      onClearAll: vi.fn((clear: () => void) => {
+        registered = clear;
+      }),
+    };
+    const channel = { emit: vi.fn() };
+
+    const commands = registerTestProviderCommands(testProviderStore, channel);
+
+    expect(registered).toBe(commands.clear);
+    registered!();
+
+    expect(channel.emit).toHaveBeenCalledOnce();
+    expect(channel.emit).toHaveBeenCalledWith(COMMAND_EVENT, { type: "clear" });
+
+    channel.emit.mockClear();
+    commands.clear();
+
+    expect(channel.emit).toHaveBeenCalledOnce();
+    expect(channel.emit).toHaveBeenCalledWith(COMMAND_EVENT, { type: "clear" });
+  });
+
+  test("clear discards a run-all request queued before state sync", () => {
+    let requestRunAll: (() => void) | undefined;
+    let clear: (() => void) | undefined;
+    const testProviderStore = {
+      onRunAll: vi.fn((handler: () => void) => {
+        requestRunAll = handler;
+      }),
+      onClearAll: vi.fn((handler: () => void) => {
+        clear = handler;
+      }),
+    };
+    const channel = { emit: vi.fn() };
+    const commands = registerTestProviderCommands(testProviderStore, channel);
+
+    requestRunAll!();
+    expect(channel.emit).not.toHaveBeenCalled();
+
+    clear!();
+    commands.stateSynced();
+
+    expect(channel.emit.mock.calls).toEqual([
+      [COMMAND_EVENT, { type: "clear" }],
+    ]);
+  });
+
+  test("runs a queued request on first sync and later requests immediately", () => {
+    let requestRunAll: (() => void) | undefined;
+    const testProviderStore = {
+      onRunAll: vi.fn((handler: () => void) => {
+        requestRunAll = handler;
+      }),
+      onClearAll: vi.fn(),
+    };
+    const channel = { emit: vi.fn() };
+    const commands = registerTestProviderCommands(testProviderStore, channel);
+
+    requestRunAll!();
+    expect(channel.emit).not.toHaveBeenCalled();
+    commands.stateSynced();
+
+    expect(channel.emit).toHaveBeenCalledOnce();
+    expect(channel.emit).toHaveBeenLastCalledWith(COMMAND_EVENT, {
+      type: "run",
+      scope: "all",
+    });
+
+    commands.stateSynced();
+    expect(channel.emit).toHaveBeenCalledOnce();
+
+    requestRunAll!();
+    expect(channel.emit).toHaveBeenCalledTimes(2);
+    expect(channel.emit).toHaveBeenLastCalledWith(COMMAND_EVENT, {
+      type: "run",
+      scope: "all",
+    });
   });
 
   test("retries dropped state requests until connected, then stops", () => {

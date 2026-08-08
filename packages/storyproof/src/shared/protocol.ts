@@ -2,6 +2,7 @@ export type VisualCommand =
   | { type: "get-state" }
   | { type: "run"; scope: "all" | "current"; storyId?: string }
   | { type: "cancel" }
+  | { type: "clear" }
   | { type: "load-baseline"; storyId: string }
   | {
       type: "approve";
@@ -22,7 +23,11 @@ const SHA_256 = /^[a-f0-9]{64}$/;
 export function parseCommand(value: unknown): VisualCommand | undefined {
   if (!isRecord(value) || typeof value.type !== "string") return undefined;
 
-  if (value.type === "get-state" || value.type === "cancel") {
+  if (
+    value.type === "get-state" ||
+    value.type === "cancel" ||
+    value.type === "clear"
+  ) {
     return Object.keys(value).length === 1 ? { type: value.type } : undefined;
   }
 
