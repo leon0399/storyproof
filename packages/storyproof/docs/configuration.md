@@ -4,10 +4,10 @@ The addon is a Storybook-first development tool. Capture, review, and approval
 start inside Storybook; the package does not require a separate local CLI
 workflow.
 
-Before configuring it, read the preview support target and the trust boundary in
-the [README](../README.md): the supported combinations are release targets, not
-verified support, and anyone who can reach the development manager channel can
-approve baselines into your repository.
+Before configuring it, read the support target and trust boundary in the
+[README](../README.md): CI verifies the declared version ranges, and anyone who
+can reach the development manager channel can approve baselines into your
+repository.
 
 ## Add the preset
 

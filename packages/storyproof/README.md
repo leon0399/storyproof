@@ -68,10 +68,10 @@ you already run for end-to-end tests.
 
 | Dimension     | Supported                                             |
 | ------------- | ----------------------------------------------------- |
-| Node.js       | `>=22`; CI verifies 22 and 24                         |
+| Node.js       | `>=22.12`; CI verifies 22 and 24                      |
 | Storybook     | `^10.5.0`                                             |
 | Framework     | `@storybook/react-vite`, `@storybook/nextjs-vite`     |
-| Playwright    | `^1.38.0`, a peer dependency you install              |
+| Playwright    | `>=1.45.0 <2`, a peer dependency you install          |
 | Browser       | Chromium (default), Firefox, WebKit                   |
 | Storybook run | local development server; static builds are read-only |
 

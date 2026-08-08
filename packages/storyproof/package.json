@@ -4,6 +4,7 @@
   "description": "Local visual regression testing for Storybook: capture browser screenshots, review diffs, and approve baselines committed next to your stories — no cloud service.",
   "keywords": [
     "storybook-addon",
+    "test",
     "storybook",
     "visual-testing",
     "visual-regression-testing",
@@ -14,9 +15,7 @@
     "playwright",
     "chromium",
     "firefox",
-    "webkit",
-    "testing",
-    "addon"
+    "webkit"
   ],
   "homepage": "https://storyproof.dev",
   "repository": {
@@ -86,10 +85,10 @@
     "vitest": "^4.1.10"
   },
   "peerDependencies": {
-    "playwright": "^1.38.0",
+    "playwright": ">=1.45.0 <2",
     "storybook": "^10.5.0"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12"
   }
 }

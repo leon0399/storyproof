@@ -26,6 +26,6 @@
     "@vitejs/plugin-react": "^6.0.4"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12"
   }
 }

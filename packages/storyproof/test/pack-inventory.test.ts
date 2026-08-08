@@ -79,9 +79,12 @@ describe("packed artifact", () => {
     // exact full-list snapshot.
     expect(paths).toEqual(
       expect.arrayContaining([
+        "CHANGELOG.md",
         "LICENSE",
         "README.md",
         "package.json",
+        "docs/capture-contract.md",
+        "docs/configuration.md",
         "dist/index.js",
         "dist/index.d.ts",
         "dist/manager.js",
