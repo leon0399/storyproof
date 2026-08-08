@@ -292,8 +292,10 @@ jobs:
           path: packages/storyproof/test-results/
           retention-days: 7
 
-  # Single stable context for branch-protection rulesets. Protects only
-  # this name instead of manually tracking every matrix entry.
+  # Single stable context for jobs in this CI workflow. Branch protection
+  # should require this context instead of its individual matrix contexts;
+  # checks from separate workflows (actionlint, pinact) remain separately
+  # protected.
   required-ci:
     name: required CI
     if: always()

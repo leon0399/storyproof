@@ -5,9 +5,11 @@ start inside Storybook; the package does not require a separate local CLI
 workflow.
 
 Before configuring it, read the support target and trust boundary in the
-[README](../README.md): CI verifies the declared version ranges, and anyone who
-can reach the development manager channel can approve baselines into your
-repository.
+[README](../README.md): CI exercises the documented minimums, the
+repository-pinned dependency versions, all supported browser/topology
+combinations at the pinned Playwright version, and a non-blocking
+Storybook-latest probe. Anyone who can reach the development manager channel can
+approve baselines into your repository.
 
 ## Add the preset
 
