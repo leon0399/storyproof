@@ -17,6 +17,7 @@ describe("visual result boundaries", () => {
 
 describe("parseCommand", () => {
   test("accepts run commands and exact approvals", () => {
+    expect(parseCommand({ type: "clear" })).toEqual({ type: "clear" });
     expect(parseCommand({ type: "run", scope: "all" })).toEqual({
       type: "run",
       scope: "all",
@@ -36,6 +37,7 @@ describe("parseCommand", () => {
   });
 
   test("rejects malformed and path-bearing commands", () => {
+    expect(parseCommand({ type: "clear", extra: true })).toBeUndefined();
     expect(parseCommand({ type: "run", scope: "current" })).toBeUndefined();
     expect(
       parseCommand({ type: "get-state", path: "/tmp/baseline.png" }),

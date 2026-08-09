@@ -15,7 +15,7 @@ const config: StorybookConfig = {
         // different engine:
         //   STORYPROOF_CONTAINER=1 pnpm dev
         //   STORYPROOF_BROWSER=firefox pnpm dev
-        // Container capture keys baselines `linux-<engine>-…` so every
+        // Container capture keys baselines `container-<engine>-…` so every
         // machine produces identical pixels; engines keep separate baselines.
         ...(process.env.STORYPROOF_CONTAINER === "1" ||
         process.env.STORYPROOF_BROWSER

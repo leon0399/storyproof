@@ -4,6 +4,7 @@ import {
   mkdir,
   readdir,
   readFile,
+  rename,
   rm,
   writeFile,
 } from "node:fs/promises";
@@ -34,6 +35,7 @@ import {
 } from "./capture.js";
 import { resolveEnvironment, type ResolvedEnvironment } from "./environment.js";
 import {
+  assertPathConfined,
   isMissingPathError,
   resolveArtifactPaths as resolveArtifactPathsDefault,
   type ArtifactPaths,
@@ -98,6 +100,7 @@ interface ActiveRun {
 export class VisualTestRunner {
   private state: InternalVisualRunState = { running: false, results: [] };
   private activeRun: ActiveRun | undefined;
+  private detachedCompletion: Promise<void> | undefined;
   private runGeneration = 0;
   private onState: ((state: InternalVisualRunState) => void) | undefined;
   private readonly environment: ResolvedEnvironment;
@@ -175,7 +178,10 @@ export class VisualTestRunner {
       if (availableEnvironmentKeys.length > 0) {
         preview.availableEnvironmentKeys = availableEnvironmentKeys;
       }
-      const baseline = await readFileIfPresent(paths.baselinePath);
+      const baseline = await readArtifactFileIfPresent(
+        paths.artifactRoot,
+        paths.baselinePath,
+      );
       if (!baseline || !this.options.artifactRegistry) return preview;
       return {
         ...preview,
@@ -188,7 +194,8 @@ export class VisualTestRunner {
 
   async run(selection: StorySelection): Promise<InternalVisualRunState> {
     const generation = ++this.runGeneration;
-    const previousCompletion = this.activeRun?.completion;
+    const previousCompletion =
+      this.activeRun?.completion ?? this.detachedCompletion;
     // A run we supersede while it is still in flight is discarded wholesale;
     // a run that already finished is the incremental base for this one.
     const supersededInFlight = this.activeRun?.state.running === true;
@@ -242,13 +249,16 @@ export class VisualTestRunner {
     if (generation !== this.runGeneration) {
       return cancelledState(run.state);
     }
+    if (this.detachedCompletion === previousCompletion) {
+      this.detachedCompletion = undefined;
+    }
 
     this.activeRun = run;
     this.state = run.state;
-    this.publish(run);
-
     const completion = this.executeRun(run);
     run.completion = completion;
+    this.publish(run);
+
     await completion;
     return structuredClone(run.state);
   }
@@ -256,6 +266,19 @@ export class VisualTestRunner {
   cancel(): void {
     this.runGeneration += 1;
     this.cancelActiveRun();
+  }
+
+  clear(): void {
+    this.runGeneration += 1;
+    const run = this.activeRun;
+    run?.controller.abort();
+    // Drop presentation ownership below so this run cannot republish, but keep
+    // its completion as a barrier: aborted artifact work can still be settling.
+    if (run?.completion) this.detachedCompletion = run.completion;
+    this.activeRun = undefined;
+    this.completed.clear();
+    this.state = { running: false, results: [] };
+    this.onState?.(this.getState());
   }
 
   private async executeRun(run: ActiveRun): Promise<void> {
@@ -465,7 +488,7 @@ export class VisualTestRunner {
         environmentKey: result.environmentKey,
       });
       await mkdir(path.dirname(paths.candidatePath), { recursive: true });
-      await writeFile(paths.candidatePath, capture.image);
+      await writeArtifactFile(paths.candidatePath, capture.image);
       await this.finishCapture(run, result, paths, capture);
     } catch (error) {
       if (run.controller.signal.aborted) {
@@ -526,8 +549,8 @@ export class VisualTestRunner {
       comparator: COMPARATOR_POLICY,
     };
     const [baseline, baselineMetadata] = await Promise.all([
-      readFileIfPresent(paths.baselinePath),
-      readJsonIfPresent(paths.baselineMetadataPath),
+      readArtifactFileIfPresent(paths.artifactRoot, paths.baselinePath),
+      readJsonIfPresent(paths.artifactRoot, paths.baselineMetadataPath),
     ]);
     if (run.controller.signal.aborted) {
       result.status = "cancelled";
@@ -545,7 +568,7 @@ export class VisualTestRunner {
     // that is missing or stale.
     if (comparison.diff) {
       await mkdir(path.dirname(paths.diffPath), { recursive: true });
-      await writeFile(paths.diffPath, comparison.diff);
+      await writeArtifactFile(paths.diffPath, comparison.diff);
     } else {
       // Removing an earlier run's diff is best effort. It matters because the
       // artifact registry hands out one stable id per path for the process
@@ -657,6 +680,7 @@ async function listBaselineEnvironmentKeys(
             // Existence check only — never read the image here; the panel
             // fetches whichever baseline it displays through the artifact
             // route, and this runs on every story navigation.
+            await assertPathConfined(paths.artifactRoot, paths.baselinePath);
             await access(paths.baselinePath);
             return entry.name;
           } catch {
@@ -667,6 +691,35 @@ async function listBaselineEnvironmentKeys(
     return keys.filter((key) => key !== undefined).sort();
   } catch {
     return [];
+  }
+}
+
+async function readArtifactFileIfPresent(
+  artifactRoot: string,
+  filePath: string,
+): Promise<Buffer | undefined> {
+  // Path resolution validates the directory before its leaves exist; validate
+  // the actual leaf now so a committed symlink cannot redirect this read.
+  await assertPathConfined(artifactRoot, filePath);
+  return readFileIfPresent(filePath);
+}
+
+async function writeArtifactFile(
+  filePath: string,
+  value: Buffer,
+): Promise<void> {
+  const temporaryPath = path.join(
+    path.dirname(filePath),
+    `.${path.basename(filePath)}.${randomUUID()}.tmp`,
+  );
+  try {
+    // Renaming a sibling over the destination replaces a committed leaf
+    // symlink instead of following it to a target outside the artifact root.
+    await writeFile(temporaryPath, value, { flag: "wx" });
+    await rename(temporaryPath, filePath);
+  } catch (error) {
+    await rm(temporaryPath, { force: true }).catch(() => undefined);
+    throw error;
   }
 }
 
@@ -681,8 +734,11 @@ async function readFileIfPresent(
   }
 }
 
-async function readJsonIfPresent(filePath: string): Promise<unknown> {
-  const value = await readFileIfPresent(filePath);
+async function readJsonIfPresent(
+  artifactRoot: string,
+  filePath: string,
+): Promise<unknown> {
+  const value = await readArtifactFileIfPresent(artifactRoot, filePath);
   if (!value) return undefined;
   try {
     return JSON.parse(value.toString("utf8"));

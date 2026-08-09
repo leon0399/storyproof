@@ -1,4 +1,12 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -364,6 +372,199 @@ describe("VisualTestRunner", () => {
     expect(approveCandidate).not.toHaveBeenCalled();
   });
 
+  test("clear removes results and approval candidates without touching artifacts", async () => {
+    const workspace = await mkdtemp(path.join(tmpdir(), "visual-clear-"));
+    try {
+      const root = path.join(workspace, "artifacts");
+      const paths = pathsFor(root, "alpha--one");
+      const approveCandidate = vi.fn(async (_options: unknown) => ({
+        baselineSha256: "a".repeat(64),
+      }));
+      const states: Array<ReturnType<VisualTestRunner["getState"]>> = [];
+      const runner = minimalRunner({
+        captured: [],
+        approveCandidate,
+        onState: (state) => states.push(structuredClone(state)),
+        resolveArtifactPaths: async ({ storyId }) => pathsFor(root, storyId),
+      });
+      const state = await runner.run({
+        scope: "current",
+        storyId: "alpha--one",
+      });
+      const result = state.results[0]!;
+      await writeFile(paths.baselinePath, Buffer.from("baseline"));
+      await writeFile(paths.diffPath, Buffer.from("diff"));
+      const candidate = await readFile(paths.candidatePath);
+
+      runner.clear();
+
+      expect(runner.getState()).toEqual({ running: false, results: [] });
+      expect(states.at(-1)).toEqual({ running: false, results: [] });
+      await expect(
+        runner.approve({
+          runId: result.runId,
+          storyId: result.storyId,
+          environmentKey: result.environmentKey,
+          candidateSha256: result.candidateSha256!,
+        }),
+      ).rejects.toThrow("Stale visual approval");
+      expect(approveCandidate).not.toHaveBeenCalled();
+      await expect(readFile(paths.baselinePath)).resolves.toEqual(
+        Buffer.from("baseline"),
+      );
+      await expect(readFile(paths.candidatePath)).resolves.toEqual(candidate);
+      await expect(readFile(paths.diffPath)).resolves.toEqual(
+        Buffer.from("diff"),
+      );
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+
+  test("clear prevents an in-flight run from republishing", async () => {
+    let releaseCapture!: () => void;
+    const blockedCapture = new Promise<void>((resolve) => {
+      releaseCapture = resolve;
+    });
+    const states: Array<ReturnType<VisualTestRunner["getState"]>> = [];
+    const runner = minimalRunner({
+      captured: [],
+      onState: (state) => states.push(structuredClone(state)),
+      capture: async ({ signal }) => {
+        await blockedCapture;
+        return signal?.aborted
+          ? { status: "cancelled" as const }
+          : {
+              status: "captured" as const,
+              image: Buffer.from("alpha--one"),
+              browserVersion: "136.0",
+              playwrightVersion: "1.53.2",
+            };
+      },
+    });
+
+    const run = runner.run({ scope: "current", storyId: "alpha--one" });
+    await vi.waitFor(() =>
+      expect(runner.getState().results[0]?.status).toBe("running"),
+    );
+
+    runner.clear();
+    releaseCapture();
+    await run;
+
+    expect(runner.getState()).toEqual({ running: false, results: [] });
+    expect(states.at(-1)).toEqual({ running: false, results: [] });
+  });
+
+  test("a run started after clear waits for the cleared run to settle", async () => {
+    const workspace = await mkdtemp(path.join(tmpdir(), "visual-clear-rerun-"));
+    try {
+      const paths = pathsFor(path.join(workspace, "artifacts"), "alpha--one");
+      let releaseFirstPaths!: () => void;
+      const firstPathsBlocked = new Promise<void>((resolve) => {
+        releaseFirstPaths = resolve;
+      });
+      let pathCalls = 0;
+      let captureCalls = 0;
+      const runner = minimalRunner({
+        captured: [],
+        capture: async () => {
+          captureCalls += 1;
+          return {
+            status: "captured" as const,
+            image: Buffer.from(captureCalls === 1 ? "old" : "new"),
+            browserVersion: "136.0",
+            playwrightVersion: "1.53.2",
+          };
+        },
+        resolveArtifactPaths: async () => {
+          pathCalls += 1;
+          if (pathCalls === 1) await firstPathsBlocked;
+          return paths;
+        },
+      });
+
+      const first = runner.run({
+        scope: "current",
+        storyId: "alpha--one",
+      });
+      await vi.waitFor(() => expect(pathCalls).toBe(1));
+
+      runner.clear();
+      const second = runner.run({
+        scope: "current",
+        storyId: "alpha--one",
+      });
+      await new Promise((resolve) => setImmediate(resolve));
+      const pathCallsBeforeRelease = pathCalls;
+
+      releaseFirstPaths();
+      await Promise.all([first, second]);
+
+      expect(pathCallsBeforeRelease).toBe(1);
+      await expect(readFile(paths.candidatePath)).resolves.toEqual(
+        Buffer.from("new"),
+      );
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+
+  test("a re-entrant clear retains the run completion before publishing", async () => {
+    let releaseFirstFingerprint!: () => void;
+    const firstFingerprintBlocked = new Promise<void>((resolve) => {
+      releaseFirstFingerprint = resolve;
+    });
+    let sessionCalls = 0;
+    let reentered = false;
+    let second!: Promise<ReturnType<VisualTestRunner["getState"]>>;
+    let runner!: VisualTestRunner;
+    runner = minimalRunner({
+      captured: [],
+      onState: (state) => {
+        if (
+          !reentered &&
+          state.running &&
+          state.results[0]?.status === "queued"
+        ) {
+          reentered = true;
+          runner.clear();
+          second = runner.run({
+            scope: "current",
+            storyId: "alpha--one",
+          });
+        }
+      },
+      createCaptureSession: async () => {
+        sessionCalls += 1;
+        const call = sessionCalls;
+        return {
+          ...fakeSessionExtras(),
+          fingerprint: async () => {
+            if (call === 1) await firstFingerprintBlocked;
+            return FAKE_FINGERPRINT;
+          },
+          close: vi.fn(async () => undefined),
+          capture: vi.fn(async () => ({ status: "cancelled" as const })),
+        };
+      },
+    });
+
+    const first = runner.run({
+      scope: "current",
+      storyId: "alpha--one",
+    });
+    await vi.waitFor(() => expect(reentered).toBe(true));
+    await new Promise((resolve) => setImmediate(resolve));
+    const sessionCallsBeforeRelease = sessionCalls;
+
+    releaseFirstFingerprint();
+    await Promise.all([first, second]);
+
+    expect(sessionCallsBeforeRelease).toBe(1);
+    expect(sessionCalls).toBe(2);
+  });
+
   test("approves only the exact completed candidate without recapturing", async () => {
     const approveCandidate = vi.fn(async (_options: unknown) => ({
       baselineSha256: "a".repeat(64),
@@ -417,6 +618,117 @@ describe("VisualTestRunner", () => {
       expect(state.results[0]).toMatchObject({ status: "new" });
     } finally {
       await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("capture refuses an outside-root baseline leaf symlink", async () => {
+    const workspace = await mkdtemp(
+      path.join(tmpdir(), "visual-baseline-link-"),
+    );
+    try {
+      const root = path.join(workspace, "artifacts");
+      const paths = pathsFor(root, "alpha--one");
+      const outsideBaseline = path.join(workspace, "outside-baseline.png");
+      await mkdir(paths.directory, { recursive: true });
+      await writeFile(outsideBaseline, Buffer.from("outside-baseline-png"));
+      await symlink(outsideBaseline, paths.baselinePath);
+
+      const registered: string[] = [];
+      const comparePngs = vi.fn(() => passedComparison());
+      const runner = minimalRunner({
+        captured: [],
+        resolveArtifactPaths: async ({ storyId }) => pathsFor(root, storyId),
+        artifactRegistry: { register: registerByBasename(registered) },
+        comparePngs,
+      });
+
+      const state = await runner.run({
+        scope: "current",
+        storyId: "alpha--one",
+      });
+
+      expect(state.results[0]).toMatchObject({ status: "capture-error" });
+      expect(comparePngs).not.toHaveBeenCalled();
+      expect(registered).not.toContain(paths.baselinePath);
+      await expect(readFile(outsideBaseline)).resolves.toEqual(
+        Buffer.from("outside-baseline-png"),
+      );
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+
+  test("capture refuses an outside-root baseline metadata leaf symlink", async () => {
+    const workspace = await mkdtemp(
+      path.join(tmpdir(), "visual-metadata-link-"),
+    );
+    try {
+      const root = path.join(workspace, "artifacts");
+      const paths = pathsFor(root, "alpha--one");
+      const outsideMetadata = path.join(workspace, "outside-baseline.json");
+      await mkdir(paths.directory, { recursive: true });
+      await writeFile(paths.baselinePath, Buffer.from("baseline-png"));
+      await writeFile(outsideMetadata, JSON.stringify({ outside: true }));
+      await symlink(outsideMetadata, paths.baselineMetadataPath);
+
+      const comparePngs = vi.fn(() => passedComparison());
+      const runner = minimalRunner({
+        captured: [],
+        resolveArtifactPaths: async ({ storyId }) => pathsFor(root, storyId),
+        comparePngs,
+      });
+
+      const state = await runner.run({
+        scope: "current",
+        storyId: "alpha--one",
+      });
+
+      expect(state.results[0]).toMatchObject({ status: "capture-error" });
+      expect(comparePngs).not.toHaveBeenCalled();
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+
+  test("capture replaces a candidate leaf symlink without changing its outside target", async () => {
+    const workspace = await mkdtemp(
+      path.join(tmpdir(), "visual-candidate-link-"),
+    );
+    try {
+      const root = path.join(workspace, "artifacts");
+      const paths = pathsFor(root, "alpha--one");
+      const outsideCandidate = path.join(workspace, "outside-candidate.png");
+      const capturedImage = Buffer.from("captured-image");
+      await mkdir(paths.directory, { recursive: true });
+      await writeFile(outsideCandidate, Buffer.from("outside-candidate-png"));
+      await symlink(outsideCandidate, paths.candidatePath);
+
+      const runner = minimalRunner({
+        captured: [],
+        resolveArtifactPaths: async ({ storyId }) => pathsFor(root, storyId),
+        capture: async () => ({
+          status: "captured" as const,
+          image: capturedImage,
+          browserVersion: "136.0",
+          playwrightVersion: "1.53.2",
+        }),
+      });
+
+      const state = await runner.run({
+        scope: "current",
+        storyId: "alpha--one",
+      });
+
+      expect(state.results[0]).toMatchObject({ status: "new" });
+      expect((await lstat(paths.candidatePath)).isSymbolicLink()).toBe(false);
+      await expect(readFile(paths.candidatePath)).resolves.toEqual(
+        capturedImage,
+      );
+      await expect(readFile(outsideCandidate)).resolves.toEqual(
+        Buffer.from("outside-candidate-png"),
+      );
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
     }
   });
 
@@ -778,6 +1090,39 @@ describe("VisualTestRunner", () => {
     }
   });
 
+  test("loadBaseline does not register an outside-root baseline leaf symlink", async () => {
+    const workspace = await mkdtemp(
+      path.join(tmpdir(), "visual-preview-link-"),
+    );
+    try {
+      const root = path.join(workspace, "artifacts");
+      const paths = pathsFor(root, "alpha--one");
+      const outsideBaseline = path.join(workspace, "outside-baseline.png");
+      await mkdir(paths.directory, { recursive: true });
+      await writeFile(outsideBaseline, Buffer.from("outside-baseline-png"));
+      await symlink(outsideBaseline, paths.baselinePath);
+
+      const registered: string[] = [];
+      const runner = new VisualTestRunner({
+        baseUrl: "http://127.0.0.1:6006",
+        cwd: process.cwd(),
+        storyRoots: ["packages/ui/src"],
+        storyIndexGenerator: fakeStoryIndex(),
+        resolveArtifactPaths: async ({ storyId, environmentKey }) =>
+          pathsFor(root, storyId, environmentKey),
+        artifactRegistry: { register: registerByBasename(registered) },
+      });
+
+      await expect(runner.loadBaseline("alpha--one")).resolves.toEqual({
+        storyId: "alpha--one",
+        environmentKey: ENVIRONMENT_KEY,
+      });
+      expect(registered).toEqual([]);
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+
   test("reports capture-error when a capture hangs past the timeout", async () => {
     const root = path.join(process.cwd(), "test/.tmp/runner-timeout");
     const runner = new VisualTestRunner({
@@ -862,6 +1207,9 @@ function fakeStoryIndex(): ConstructorParameters<
 function minimalRunner(options: {
   captured: string[];
   onState?: ConstructorParameters<typeof VisualTestRunner>[0]["onState"];
+  createCaptureSession?: ConstructorParameters<
+    typeof VisualTestRunner
+  >[0]["createCaptureSession"];
   capture?: (
     request: Parameters<
       Awaited<
@@ -913,22 +1261,24 @@ function minimalRunner(options: {
     resolveArtifactPaths:
       options.resolveArtifactPaths ??
       (async ({ storyId }) => pathsFor(root, storyId)),
-    createCaptureSession: async () => ({
-      ...fakeSessionExtras(),
-      close: vi.fn(async () => undefined),
-      capture:
-        options.capture ??
-        (async ({ storyId }) => {
-          options.captured.push(storyId);
-          const image = Buffer.from(storyId);
-          return {
-            status: "captured" as const,
-            image,
-            browserVersion: "136.0",
-            playwrightVersion: "1.53.2",
-          };
-        }),
-    }),
+    createCaptureSession:
+      options.createCaptureSession ??
+      (async () => ({
+        ...fakeSessionExtras(),
+        close: vi.fn(async () => undefined),
+        capture:
+          options.capture ??
+          (async ({ storyId }) => {
+            options.captured.push(storyId);
+            const image = Buffer.from(storyId);
+            return {
+              status: "captured" as const,
+              image,
+              browserVersion: "136.0",
+              playwrightVersion: "1.53.2",
+            };
+          }),
+      })),
     artifactRegistry: options.artifactRegistry,
     comparePngs:
       options.comparePngs ??

@@ -142,7 +142,15 @@ export const Running: Story = {
     state: {
       runId: "run-active",
       running: true,
-      results: [],
+      results: [
+        {
+          runId: "run-active",
+          storyId: "button--primary",
+          title: "Button / Primary",
+          environmentKey: "linux-chromium-1280x720@1x",
+          status: "running",
+        },
+      ],
     },
   },
   play: async ({ canvas }) => {
