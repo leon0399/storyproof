@@ -456,6 +456,115 @@ describe("VisualTestRunner", () => {
     expect(states.at(-1)).toEqual({ running: false, results: [] });
   });
 
+  test("a run started after clear waits for the cleared run to settle", async () => {
+    const workspace = await mkdtemp(path.join(tmpdir(), "visual-clear-rerun-"));
+    try {
+      const paths = pathsFor(path.join(workspace, "artifacts"), "alpha--one");
+      let releaseFirstPaths!: () => void;
+      const firstPathsBlocked = new Promise<void>((resolve) => {
+        releaseFirstPaths = resolve;
+      });
+      let pathCalls = 0;
+      let captureCalls = 0;
+      const runner = minimalRunner({
+        captured: [],
+        capture: async () => {
+          captureCalls += 1;
+          return {
+            status: "captured" as const,
+            image: Buffer.from(captureCalls === 1 ? "old" : "new"),
+            browserVersion: "136.0",
+            playwrightVersion: "1.53.2",
+          };
+        },
+        resolveArtifactPaths: async () => {
+          pathCalls += 1;
+          if (pathCalls === 1) await firstPathsBlocked;
+          return paths;
+        },
+      });
+
+      const first = runner.run({
+        scope: "current",
+        storyId: "alpha--one",
+      });
+      await vi.waitFor(() => expect(pathCalls).toBe(1));
+
+      runner.clear();
+      const second = runner.run({
+        scope: "current",
+        storyId: "alpha--one",
+      });
+      await new Promise((resolve) => setImmediate(resolve));
+      const pathCallsBeforeRelease = pathCalls;
+
+      releaseFirstPaths();
+      await Promise.all([first, second]);
+
+      expect(pathCallsBeforeRelease).toBe(1);
+      await expect(readFile(paths.candidatePath)).resolves.toEqual(
+        Buffer.from("new"),
+      );
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+
+  test("a re-entrant clear retains the run completion before publishing", async () => {
+    let releaseFirstFingerprint!: () => void;
+    const firstFingerprintBlocked = new Promise<void>((resolve) => {
+      releaseFirstFingerprint = resolve;
+    });
+    let sessionCalls = 0;
+    let reentered = false;
+    let second!: Promise<ReturnType<VisualTestRunner["getState"]>>;
+    let runner!: VisualTestRunner;
+    runner = minimalRunner({
+      captured: [],
+      onState: (state) => {
+        if (
+          !reentered &&
+          state.running &&
+          state.results[0]?.status === "queued"
+        ) {
+          reentered = true;
+          runner.clear();
+          second = runner.run({
+            scope: "current",
+            storyId: "alpha--one",
+          });
+        }
+      },
+      createCaptureSession: async () => {
+        sessionCalls += 1;
+        const call = sessionCalls;
+        return {
+          ...fakeSessionExtras(),
+          fingerprint: async () => {
+            if (call === 1) await firstFingerprintBlocked;
+            return FAKE_FINGERPRINT;
+          },
+          close: vi.fn(async () => undefined),
+          capture: vi.fn(async () => ({ status: "cancelled" as const })),
+        };
+      },
+    });
+
+    const first = runner.run({
+      scope: "current",
+      storyId: "alpha--one",
+    });
+    await vi.waitFor(() => expect(reentered).toBe(true));
+    await new Promise((resolve) => setImmediate(resolve));
+    const sessionCallsBeforeRelease = sessionCalls;
+
+    releaseFirstFingerprint();
+    await Promise.all([first, second]);
+
+    expect(sessionCallsBeforeRelease).toBe(1);
+    expect(sessionCalls).toBe(2);
+  });
+
   test("approves only the exact completed candidate without recapturing", async () => {
     const approveCandidate = vi.fn(async (_options: unknown) => ({
       baselineSha256: "a".repeat(64),
@@ -1098,6 +1207,9 @@ function fakeStoryIndex(): ConstructorParameters<
 function minimalRunner(options: {
   captured: string[];
   onState?: ConstructorParameters<typeof VisualTestRunner>[0]["onState"];
+  createCaptureSession?: ConstructorParameters<
+    typeof VisualTestRunner
+  >[0]["createCaptureSession"];
   capture?: (
     request: Parameters<
       Awaited<
@@ -1149,22 +1261,24 @@ function minimalRunner(options: {
     resolveArtifactPaths:
       options.resolveArtifactPaths ??
       (async ({ storyId }) => pathsFor(root, storyId)),
-    createCaptureSession: async () => ({
-      ...fakeSessionExtras(),
-      close: vi.fn(async () => undefined),
-      capture:
-        options.capture ??
-        (async ({ storyId }) => {
-          options.captured.push(storyId);
-          const image = Buffer.from(storyId);
-          return {
-            status: "captured" as const,
-            image,
-            browserVersion: "136.0",
-            playwrightVersion: "1.53.2",
-          };
-        }),
-    }),
+    createCaptureSession:
+      options.createCaptureSession ??
+      (async () => ({
+        ...fakeSessionExtras(),
+        close: vi.fn(async () => undefined),
+        capture:
+          options.capture ??
+          (async ({ storyId }) => {
+            options.captured.push(storyId);
+            const image = Buffer.from(storyId);
+            return {
+              status: "captured" as const,
+              image,
+              browserVersion: "136.0",
+              playwrightVersion: "1.53.2",
+            };
+          }),
+      })),
     artifactRegistry: options.artifactRegistry,
     comparePngs:
       options.comparePngs ??

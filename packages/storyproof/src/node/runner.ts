@@ -100,6 +100,7 @@ interface ActiveRun {
 export class VisualTestRunner {
   private state: InternalVisualRunState = { running: false, results: [] };
   private activeRun: ActiveRun | undefined;
+  private detachedCompletion: Promise<void> | undefined;
   private runGeneration = 0;
   private onState: ((state: InternalVisualRunState) => void) | undefined;
   private readonly environment: ResolvedEnvironment;
@@ -193,7 +194,8 @@ export class VisualTestRunner {
 
   async run(selection: StorySelection): Promise<InternalVisualRunState> {
     const generation = ++this.runGeneration;
-    const previousCompletion = this.activeRun?.completion;
+    const previousCompletion =
+      this.activeRun?.completion ?? this.detachedCompletion;
     // A run we supersede while it is still in flight is discarded wholesale;
     // a run that already finished is the incremental base for this one.
     const supersededInFlight = this.activeRun?.state.running === true;
@@ -247,13 +249,16 @@ export class VisualTestRunner {
     if (generation !== this.runGeneration) {
       return cancelledState(run.state);
     }
+    if (this.detachedCompletion === previousCompletion) {
+      this.detachedCompletion = undefined;
+    }
 
     this.activeRun = run;
     this.state = run.state;
-    this.publish(run);
-
     const completion = this.executeRun(run);
     run.completion = completion;
+    this.publish(run);
+
     await completion;
     return structuredClone(run.state);
   }
@@ -265,7 +270,11 @@ export class VisualTestRunner {
 
   clear(): void {
     this.runGeneration += 1;
-    this.activeRun?.controller.abort();
+    const run = this.activeRun;
+    run?.controller.abort();
+    // Drop presentation ownership below so this run cannot republish, but keep
+    // its completion as a barrier: aborted artifact work can still be settling.
+    if (run?.completion) this.detachedCompletion = run.completion;
     this.activeRun = undefined;
     this.completed.clear();
     this.state = { running: false, results: [] };
