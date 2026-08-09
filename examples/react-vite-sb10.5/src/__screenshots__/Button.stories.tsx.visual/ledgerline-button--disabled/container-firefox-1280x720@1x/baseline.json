@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 2,
+  "baselineSha256": "d2eb66788281a31262e0f8de9b3ad288a308a58db973d69ddd69c9a76910ac69",
+  "browser": {
+    "name": "firefox",
+    "version": "153.0",
+    "playwrightVersion": "1.62.0"
+  },
+  "platform": "container",
+  "renderFingerprint": "bd78275a9c8537a09d0fe4a7934f32f6b48095faa7546ae303d023c285618fb2",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "deviceScaleFactor": 1,
+  "comparator": {
+    "name": "pixelmatch",
+    "threshold": 0.1,
+    "includeAA": false
+  }
+}

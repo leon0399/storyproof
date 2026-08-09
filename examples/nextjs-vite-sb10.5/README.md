@@ -60,9 +60,9 @@ elsewhere reports a named incompatibility instead of a false diff.
 
 ## Committed baselines — the panel states you'll see
 
-This example ships container-captured baselines
-(`src/__screenshots__/**/container-chromium-1280x720@1x/`), staged so the Visual
-tests panel demonstrates every state on a fresh clone:
+This example ships container-captured baselines for all three engines
+(`src/__screenshots__/**/container-{chromium,firefox,webkit}-1280x720@1x/`),
+staged so the Visual tests panel demonstrates every state on a fresh clone:
 
 | Stories                                           | State       | Why                                                                                                                                                                      |
 | ------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -72,10 +72,14 @@ tests panel demonstrates every state on a fresh clone:
 
 Seeing these states requires container capture
 (`STORYPROOF_CONTAINER=1 pnpm dev`, needs Docker): the committed baselines are
-keyed `container-chromium-…` because only the container renders identical pixels
-on every machine. A bare capture on your host uses your platform's own key, so
-these stories report **New** there — nothing is wrong; your machine simply keeps
-its own baseline set.
+keyed `container-<engine>-…` because only the container renders identical pixels
+on every machine. Add `STORYPROOF_BROWSER=firefox` (or `webkit`) and you get the
+same staged states from that engine's own committed set — the three coexist
+rather than overwrite each other.
+
+A bare capture on your host uses your platform's own key, so these stories
+report **New** there — nothing is wrong; your machine simply keeps its own
+baseline set, and the panel names the environments a baseline _does_ exist for.
 
 Maintainers: after intentionally changing demo components, re-approve with
 `packages/storyproof/scripts/example-states.mjs` (its header comment holds the
