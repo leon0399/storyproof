@@ -49,7 +49,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
       # .node-version pins 24.15.0, whose bundled npm (11.12.1) clears
       # trusted publishing's npm >= 11.5.1 floor — nothing is installed ad
