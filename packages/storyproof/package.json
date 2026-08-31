@@ -67,26 +67,26 @@
   "devDependencies": {
     "@arethetypeswrong/core": "^0.18.5",
     "@playwright/test": "catalog:",
-    "@storybook/react-vite": "^10.5.0",
+    "@storybook/react-vite": "^10.5.10",
     "@types/node": "^22",
     "@types/pngjs": "^6.0.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "oxlint": "^1.72.0",
+    "oxlint": "^1.80.0",
     "playwright": "catalog:",
-    "publint": "^0.3.22",
+    "publint": "^0.3.24",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "storybook": "^10.5.0",
+    "storybook": "^10.5.10",
     "tsdown": "^0.22.14",
-    "tsx": "^4.20.3",
+    "tsx": "^4.23.12",
     "typescript": "^7.0.2",
     "unrun": "^0.3.1",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "peerDependencies": {
     "playwright": ">=1.45.0 <2",
-    "storybook": "^10.5.0"
+    "storybook": "^10.5.10"
   },
   "engines": {
     "node": ">=22.12"
