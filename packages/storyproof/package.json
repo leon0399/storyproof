@@ -82,7 +82,7 @@
     "tsx": "^4.20.3",
     "typescript": "^7.0.2",
     "unrun": "^0.3.1",
-    "vitest": "^4.1.10"
+    "vitest": "^5.0.0"
   },
   "peerDependencies": {
     "playwright": ">=1.45.0 <2",
